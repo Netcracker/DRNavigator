@@ -1,0 +1,825 @@
+#!/usr/bin/env python3
+"""
+Company:     NetCracker 
+Author:      Core PaaS Group
+Version:     0.6
+Date:        2021-11-19
+Description: Client util to manage site-manager in kubernetes clusters
+"""
+
+import argparse
+import logging
+import threading
+import time
+import yaml
+import requests
+import os
+from requests.packages.urllib3.exceptions import InsecureRequestWarning
+
+#Disable warnings about self-signed certificates from requests library
+requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+MAIN_HELP_SECTION = """
+Script to manage DR cases in kubernetes Active-Standby scheme
+
+How to use commands:
+
+  +------------------------------+        +------------------------------+
+  |      INITIAL CONDITION       |        |        FINAL CONDITION       |
+  +--------------+---------------+--------+--------------+---------------+-----+---------+
+  | ACTIVE SITE  | STANDBY SITE  |  ===>  | ACTIVE SITE  | STANDBY SITE  |     | COMMAND |
+  +--------------+---------------+  ===>  +--------------+---------------+     +---------+
+  | ACTIVE       | STANDBY       |  ===>  | STANDBY      | ACTIVE        |  =  | move    |
+  | failed       | STANDBY       |  ===>  | stopped      | ACTIVE        |  =  | stop    |
+  | stopped      | ACTIVE        |  ===>  | STANDBY      | ACTIVE        |  =  | return  |
+  | ACTIVE       | stopped       |  ===>  | ACTIVE       | STANDBY       |  =  | return  |
+  | ACTIVE       | STANDBY       |  ===>  | ACTIVE       | stopped       |  =  | mntc    |
+  +--------------+---------------+--------+--------------+---------------+-----+---------+
+"""
+
+SITE_HELP_SECTION = """define the cluster name.
+This site:
+  will be active in case of move 
+  will be standby in case of stop
+  will be standby in case of return
+  will be disable to maintenance in case of mntc
+"""
+
+running_procedure = ""
+running_services = []
+done_services = []
+ignored_services = []
+failed_services = []
+
+sm_dict = {}
+
+command_list = ["stop", "move", "return", "mntc", "active", "standby", "list", "status"]
+
+# Main argument parser 
+parser = argparse.ArgumentParser(description=MAIN_HELP_SECTION,
+                                 argument_default=argparse.SUPPRESS,
+                                 formatter_class=argparse.RawTextHelpFormatter)
+
+parser.add_argument('-v', '--verbose', default=False, action='store_true', help='enable the verbosity mode')
+parser.add_argument('-c', '--config', default="", help='define the path to configuration file')
+parser.add_argument('-f', '--force', default=False, action='store_true', help='force apply DR action and ignore healthz')
+parser.add_argument('-k', '--insecure', default=False, action='store_true', help='enable self-signed certificates')
+parser.add_argument('--run-services', default='', help='define the list of services to apply DR action, by default all services participate')
+parser.add_argument('--skip-services',  default='', help='define the list of services what will not participate in DR action')
+
+subparsers = parser.add_subparsers()
+
+parser_1 = subparsers.add_parser('move', help='move Active functionality to Standby site')
+parser_1.add_argument('site', help=SITE_HELP_SECTION)
+parser_1.set_defaults(command='move')
+
+parser_2 = subparsers.add_parser('stop', help='excludes site from Active-Standby scheme')
+parser_2.add_argument('site', help=SITE_HELP_SECTION)
+parser_2.set_defaults(command='stop')
+
+parser_3 = subparsers.add_parser('return', help='return stopped kuberneets cluster to Standby role')
+parser_3.add_argument('site', help=SITE_HELP_SECTION)
+parser_3.set_defaults(command='return')
+
+parser_4 = subparsers.add_parser('mntc', help='stop Standby kubernetes cluster for maintenance')
+parser_4.add_argument('site', help=SITE_HELP_SECTION)
+parser_4.set_defaults(command='mntc')
+
+parser_5 = subparsers.add_parser('active', help='set kubernetes cluster services to active mode')
+parser_5.add_argument('site', help=SITE_HELP_SECTION)
+parser_5.set_defaults(command='active')
+
+parser_6 = subparsers.add_parser('standby', help='set kubernetes cluster services to standby mode')
+parser_6.add_argument('site', help=SITE_HELP_SECTION)
+parser_6.set_defaults(command='standby')
+
+parser_7 = subparsers.add_parser('list', help='list all services from Active-Standby scheme managed by site-manager with dependencies')
+parser_7.set_defaults(command='list')
+
+parser_8 = subparsers.add_parser('status', help='show current status of clusters and all services')
+parser_8.set_defaults(command='status')
+
+parser_9 = subparsers.add_parser('daemon', help='run site-manager as a service')
+parser_9.set_defaults(command='daemon')
+
+args = parser.parse_args()
+
+# Set verbosity for logging
+if args.verbose:
+    verbose_mode = True
+    logging_level = logging.DEBUG
+    logging_format = "%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
+else:
+    verbose_mode = False
+    logging_level = logging.INFO
+    logging_format = "%(asctime)s [%(levelname)s] %(filename)s: %(message)s"
+
+logging.basicConfig(format=logging_format, level=logging_level)
+
+logging.debug(f"Script arguments: {args}")
+
+# Define, check and load configuration file
+conf_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yaml") if args.config == "" else args.config
+if not os.path.isfile(conf_file):
+    logging.fatal("You should define configuration file for site-manager or copy it to config.yml in site-manager main directory")
+    exit(1)
+
+try:
+    conf_parsed = yaml.load(open(conf_file), Loader=yaml.FullLoader)
+except:
+    logging.fatal("Can not parse configuration file!")
+    exit(1)
+
+logging.debug(f"Parsed config: {conf_parsed}")
+
+global SM_HTTP_SECURE
+global SM_HTTP_AUTH
+
+SM_HTTPS_SECURE = not args.insecure
+SM_HTTP_AUTH = conf_parsed.get("sm-client", {}).get("http_auth", False)
+
+SERVICE_DEFAULT_TIMEOUT = conf_parsed.get("sm-client", {}).get("service_default_timeout", 200)
+
+# Set testing mode for all procedures
+if "testing" in conf_parsed and conf_parsed["testing"].get("enabled", False) == True:
+    testing_mode = True
+else:
+    testing_mode = False
+
+sites_name = [ i["name"] for i in conf_parsed["sites"] ]
+
+
+def send_post(url, obj, token):
+    """
+    Method to send POST requests to services
+
+    :param string url: the URL to service operator
+    :param dict obj: the dictionary with procedure and list of services
+    """
+    if token != "" and SM_HTTP_AUTH:
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+
+    else:
+        headers = {}
+
+    logging.debug(f"REST url: {url}")
+    logging.debug(f"REST data: {obj}")
+    logging.debug(f"REST headers: {headers}")
+
+    for _ in range(3):
+        try:
+            resp = requests.post(url, json=obj, timeout=5, headers=headers, verify=SM_HTTPS_SECURE)
+            response = resp.json()
+            ret_code = resp.status_code
+            if ret_code == 200:
+                if response.get("message", ""):
+                    logging.info(f"Code: {ret_code}. Message: {response['message']}")
+            if ret_code != 200:
+                if response.get("message", ""):
+                    logging.error(f"Code: {ret_code}. Message: {response['message']}")
+                response["bad_response"] = ret_code
+            return response
+
+        except requests.exceptions.SSLError:
+            logging.error("SSL certificate verify failed")
+            logging.error("Please use key -k or --insecure")
+            exit(1)
+
+        except:
+            logging.debug("Wrong JSON data received")
+
+        time.sleep(2)
+
+    return {}
+
+
+def send_get(url, token):
+    """
+    Method to send GET requests to services
+
+    :param string url: the URL to service operator
+    """
+    if token != "" and SM_HTTP_AUTH:
+        headers = {
+            "Authorization": f"Bearer {token}"
+        }
+
+    else:
+        headers = {}
+
+    logging.debug(f"REST url: {url}")
+    logging.debug(f"REST headers: {headers}")
+
+    # Testing mode
+    if testing_mode:
+        return {"mode": "active", "status": "done"}
+
+    for _ in range(3):
+        try:
+            resp = requests.get(url, timeout=5, headers=headers, verify=SM_HTTPS_SECURE)
+            return resp.json()
+
+        except requests.exceptions.SSLError:
+            logging.error("SSL certificate verify failed")
+            logging.error("Please use key -k or --insecure")
+            exit(1)
+
+        except:
+            logging.debug("Wrong JSON data received")
+
+    return {}
+
+
+def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
+    """
+    Method to poll GET|POST requests to services
+
+    :param string service: the name of service that will be processed
+    :param string site: the name of processed site
+    :param int timeout: the timeout for processing service in seconds
+    """
+
+    result = {"procedure_status": "unknown",
+              "service_status": "unknown"}
+
+    init_time = int(time.time())
+
+    count = 0
+    while int(time.time()) < init_time + int(timeout):
+        count += 1
+
+        logging.info(f"Service: {service}. Site: {site}. Polling procedure status. Iteration {count}")
+        logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
+
+        data = send_post(sm_dict["sites"][site]["url"], {"procedure": "status", "run-services": service}, sm_dict["sites"][site]["token"])
+
+        logging.debug(f"Service: {service}. Site: {site}. Received data: {data}")
+        if "status" not in data.get("services", {}).get(service, {}) or \
+           "mode" not in data.get("services", {}).get(service, {}):
+            time.sleep(5)
+            continue
+
+        if data["services"][service]["status"] == "running":
+            result["procedure_status"] = "running"
+            time.sleep(5)
+            continue
+
+        if data["services"][service]["mode"] == sm_dict["sites"][site]["mode"]:
+
+            if data["services"][service]["status"] == "failed":
+                result["procedure_status"] = "failed"
+                return result
+
+            if data["services"][service]["status"] == "done":
+                result["procedure_status"] = "done"
+                break
+
+    count = 0
+    while int(time.time()) < init_time + int(timeout):
+
+        count += 1
+
+        logging.info(f"Service: {service}. Site: {site}. Polling service status. Iteration {count}")
+        logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
+
+        data = send_post(sm_dict["sites"][site]["url"], {"procedure": "status", "run-services": service}, sm_dict["sites"][site]["token"])
+
+        logging.debug(f"Service: {service}. Site: {site}. Received status: {data['services'][service]['healthz']}")
+        if "healthz" not in data.get("services", {}).get(service, {}):
+            continue
+
+        if data["services"][service]["healthz"] in ("degraded", "down"):
+            result["service_status"] = data["services"][service]["healthz"]
+            continue
+
+        if data["services"][service]["healthz"] in ("up", "disable"):
+            result["service_status"] = data["services"][service]["healthz"]
+            break
+
+        time.sleep(5)
+
+    return result
+
+
+def run(service, procedure, force, no_wait=True):
+    """
+    Method to process one service on both kubernetes clusters
+
+    :param string service: the name of service that will be processed
+    :param string procedure: the procedure that will be processed to services
+    :param string force: flag to ignore healthz of service. Can be True, true, 1
+    :param string no_wait: flag to define failover and other procedures. Can be True or False
+    """
+
+    global running_services
+    global done_services
+    global failed_services
+
+    def process_service(service, site):
+        global running_services
+        global done_services
+        global failed_services
+
+        logging.info(f"Service: {service}. Site: {site}. Check current mode")
+        resp = send_post(sm_dict["sites"][site]["url"],
+                         {"procedure": "status", "run-services": service},
+                         sm_dict["sites"][site]["token"])
+
+        if "mode" not in resp.get("services", {}).get(service, {}) or \
+           "status" not in resp.get("services", {}).get(service, {}):
+
+            logging.warning(f"Service: {service}. Site: {site}. Service is unavailable.")
+            if sm_dict["sites"][site]["need"] != "wanted":
+                failed_services.append(service)
+
+            return
+
+        # Check the current service state
+        if resp["services"][service]["mode"] == sm_dict['sites'][site]['mode'] and \
+           resp["services"][service]["status"] == "done":
+
+            logging.warning(f"Service: {service}. Site: {site}. Service is already {sm_dict['sites'][site]['mode']} and has status done.")
+
+            # Check current health status
+            logging.info(f"Service: {service}. Site: {site}. Check current health status")
+
+            if (sm_dict["sites"][site]["mode"] == "active" and resp["services"][service]["healthz"].lower() != "up") or \
+               (sm_dict["sites"][site]["mode"] == "standby" and resp["services"][service]["healthz"].lower() not in sm_dict["services"][service]["allowedStandbyStateList"]):
+
+                logging.critical(f"Service: {service}. Site: {site}. Current health status is {resp['services'][service]['healthz'].lower()}. Service failed")
+
+                if not force:
+                    if service not in failed_services:
+                        failed_services.append(service)
+
+                    return
+                else:
+                    logging.warning(f"Service: {service}. Site: {site}. Force mode enabled. Service healthz ignored")
+            else:
+                logging.info(f"Service: {service}. Site: {site}. Current health status is {resp['services'][service]['healthz'].lower()}")
+
+        else:
+            logging.info(f"Service: {service}. Site: {site}. Current mode is {resp['services'][service]['mode']} and status is {resp['services'][service]['status']}")
+
+            # Check current health status
+            if procedure == "move":
+                logging.info(f"Service: {service}. Site: {site}. Check current health status")
+
+                # We should check previous state of service. In that case we check "up" for standby and "allowedStandbyStateList" for active
+                if (sm_dict["sites"][site]["mode"] == "standby" and resp["services"][service]["healthz"].lower() != "up") or \
+                   (sm_dict["sites"][site]["mode"] == "active" and resp["services"][service]["healthz"].lower() not in sm_dict["services"][service]["allowedStandbyStateList"]):
+
+                    logging.critical(f"Service: {service}. Site: {site}. Current health status is {resp['services'][service]['healthz'].lower()}. Service failed")
+
+                    if not force:
+                        if service not in failed_services:
+                            failed_services.append(service)
+
+                        return
+                    else:
+                        logging.warning(f"Service: {service}. Site: {site}. Force mode enabled. Service healthz ignored")
+                else:
+                    logging.info(f"Service: {service}. Site: {site}. Current health status is {resp['services'][service]['healthz'].lower()}")
+
+            logging.info(f"Service: {service}. Site: {site}. Set mode {sm_dict['sites'][site]['mode']}")
+
+            obj = {"procedure": sm_dict['sites'][site]['mode'], "run-services": service, "no-wait": no_wait}
+            resp = send_post(url=sm_dict['sites'][site]['url'], obj=obj, token=sm_dict["sites"][site]["token"])
+            if resp.get("bad_response"):
+                failed_services.append(service)
+                return
+
+            logging.info(f"Service: {service}. Site: {site}. Start polling")
+            result = polling(service=service,
+                             site=site,
+                             timeout=sm_dict["services"][service]['timeout'])
+
+            if result["procedure_status"] == "running":
+                logging.error(f"Service: {service}. Site: {site}. Procedure {procedure} is in running status still.")
+                if service not in failed_services and sm_dict["sites"][site]["need"] != "wanted":
+                    failed_services.append(service)
+                return
+
+            elif result["procedure_status"] == "failed":
+                logging.error(f"Service: {service}. Site: {site}. Procedure {procedure} is in failed status.")
+                if service not in failed_services and sm_dict["sites"][site]["need"] != "wanted":
+                    failed_services.append(service)
+                return
+
+            elif result["procedure_status"] == "unknown":
+                logging.error(f"Service: {service}. Site: {site}. Procedure {procedure} is in unknown status.")
+                if service not in failed_services and sm_dict["sites"][site]["need"] != "wanted":
+                    failed_services.append(service)
+                return
+
+            elif result["procedure_status"] == "done":
+                logging.info(f"Service: {service}. Site: {site}. Procedure {procedure} is in done status.")
+
+                if (sm_dict["sites"][site]["mode"] == "active" and result["service_status"].lower() != "up") or \
+                   (sm_dict["sites"][site]["mode"] == "standby" and result["service_status"].lower() not in sm_dict["services"][service]["allowedStandbyStateList"]):
+
+                    logging.critical(f"Service: {service}. Site: {site}. Current health status is {result['service_status'].lower()}. Service failed")
+                    if not force:
+                        if service not in failed_services:
+                            failed_services.append(service)
+                        return
+                    else:
+                        logging.warning(f"Service: {service}. Site: {site}. Force mode enabled. Service healthz ignored")
+                else:
+                    logging.info(f"Service: {service}. Site: {site}. Current health status is {result['service_status'].lower()}")
+                    logging.info(f"Service: {service}. Site: {site}. Procedure {procedure} is finished successfully.")
+
+    running_services.append(service)
+
+    if procedure in ("active", "standby", "stop", "move", "return"):
+        for seq_item in sm_dict["services"][service]["sequence"]:
+            if service in failed_services:
+                break
+
+            for site_item in sm_dict["available"]:
+                if sm_dict["sites"][site_item]["mode"] == seq_item:
+                    process_service(service, site_item)
+
+    if procedure == 'mntc':
+        for site_item in sm_dict["available"]:
+            process_service(service, site_item)
+
+    running_services.remove(service)
+
+    if service not in failed_services:
+        done_services.append(service)
+
+
+def create_sm_dict(sites, procedure, sites_active, sites_standby):
+    """
+    Method creates dictionary of donwloaded data from sitemanager CRs
+
+    :param list sites: the list of sites to be processed
+    :param string procedure: the procedure that will be processed to services
+    :param list sites_active: the list of sites with mode active
+    :param list sites_standby: the list of sites with mode standby
+    """
+
+    if testing_mode:
+        return conf_parsed["testing"].get("sm_dict", [])
+
+    sm_dict = {}
+    sm_dict["sites"] = {}
+    sm_dict["available"] = []
+    sm_dict["services"] = {}
+
+    for site in sites:
+
+        site_url = [ i["site-manager"] for i in conf_parsed["sites"] if i ["name"] == site ][0]
+        site_token = [ i.get("token", "") for i in conf_parsed["sites"] if i ["name"] == site ][0]
+
+        sm_dict["sites"][site] = {}
+        sm_dict["sites"][site]["url"] = site_url
+        sm_dict["sites"][site]["token"] = site_token
+
+        # Set mode for site
+        if site in sites_active:
+            sm_dict["sites"][site]["mode"] = "active"
+        elif site in sites_standby and procedure != "mntc":
+            sm_dict["sites"][site]["mode"] = "standby"
+        elif site in sites_standby and procedure == "mntc":
+            sm_dict["sites"][site]["mode"] = "disable"
+
+        # Define necessity to send REST request to site
+        if site in sites_active and procedure in ("stop", "move", "status", "list", "active"):
+            sm_dict["sites"][site]["need"] = "required"
+
+        elif site not in sites_active and procedure in ("return", "mntc", "move", "standby"):
+            sm_dict["sites"][site]["need"] = "required"
+
+        elif site not in sites_active and procedure in ("stop", "status", "list"):
+            sm_dict["sites"][site]["need"] = "wanted"
+
+        try:
+            response = send_get(site_url, sm_dict["sites"][site]["token"])
+
+        except:
+            logging.error(f"Can not download sitemanager objects from site {site}")
+            continue
+
+        if "services" in response:
+            sm_dict["available"].append(site)
+        else:
+            logging.error(f"Site {site} does not contain any sitemanager CR")
+            continue
+
+        for key, value in response["services"].items():
+
+            if key not in sm_dict["services"]:
+                sm_dict["services"][key] = {}
+
+            sm_dict["services"][key]["name"] = key
+            sm_dict["services"][key]["namespace"] = value.get("namespace", "")
+
+            sm_dict["services"][key]["after"] = value.get("after", [])
+            sm_dict["services"][key]["before"] = value.get("before", [])
+            sm_dict["services"][key]["sequence"] = ["standby", "active"] if value.get("sequence", []) == [] else value["sequence"]
+            sm_dict["services"][key]["allowedStandbyStateList"] = value.get("allowedStandbyStateList", ["up"])
+
+            sm_dict["services"][key]["timeout"] = value.get("timeout", SERVICE_DEFAULT_TIMEOUT)
+
+    return sm_dict
+
+
+def check_dependencies(services_to_run, all_services, sm_dict):
+    """
+    Method to check dependencies between services that will be processed
+
+    :param list services_to_run: the list of services generated  get_services_to_run() and that will be processed
+    :param all_services: the list of all services from kubernetes clusters managed by site-manager
+    :param dict sm_dict: the dictionary generated by get_sitemanagers_dict() and based on CRs from kubernetes clusters
+    """
+
+    dep_dict = {}
+
+    logging.info(f"Services: {services_to_run}. Check for nonexistent dependencies.")
+    for svc_item in services_to_run:
+        if not all(elem in all_services for elem in sm_dict["services"][svc_item]['after'] ):
+            dep_dict[svc_item] = []
+            for after_item in sm_dict["services"][svc_item]['after']:
+                if after_item not in all_services:
+                    dep_dict[svc_item].append(after_item)
+
+    if len(dep_dict) > 0:
+        for dep_item in dep_dict:
+            logging.critical(f"Service: {dep_item}. Service has nonexistent dependencies: {dep_dict[dep_item]}")
+
+        exit(1)
+
+    logging.info(f"Services: {services_to_run}. Services don\'t have nonexistent dependencies")
+
+
+def get_all_services(sm_dict):
+    """
+    Method for definition of list of all services in kubernetes cluster managed by site-manager
+
+    :param dict sm_dict: the dictionary generated by get_sitemanagers_dict() and based on CRs from kubernetes clusters
+    """
+
+    return list(set([ i for i in sm_dict["services"].keys() ]))
+
+
+def get_services_to_run(run_services, skip_services, all_services):
+    """
+    Method for definition of list of services to be processed
+
+    :param list run_services: the list of services that defined by parameter run-services
+    :param list skip_services: the list of services that defined by parameter skip-services
+    :param list all_services: the list of all services from kubernetes clusters managed by site-manager
+    """
+
+    if len(run_services) != 0:
+        services_to_run = []
+        for item in run_services:
+            if item in all_services:
+                services_to_run.append(item)
+            else:
+                logging.fatal(f"Service {item} does not exist in provided kubernetes clusters")
+                exit(1)
+
+    elif len(skip_services) != 0:
+        services_to_run = all_services.copy()
+        for item in skip_services:
+            if item in all_services:
+                services_to_run.remove(item)
+            else:
+                logging.fatal(f"Service {item} does not exist in provided kubernetes clusters")
+                exit(1)
+
+    else:
+        services_to_run = all_services.copy()
+
+    return services_to_run
+
+
+def main_func(procedure, site, run_services, skip_services, force):
+    """
+    Method for processing procedure for all sites
+
+    :param string procedure: can be active, standby, mntc, list and status
+    :param string site: the name of site that will be processed
+    :param list run_services: is the list of services to be processed
+    :param list skip_services: is the list of services to be skipped
+    :param string force: flag to ignore healthz of services. Can be True, true, 1
+    """
+ 
+    global running_services
+    global done_services
+    global failed_services
+    global ignored_services
+    global running_procedure
+    global sm_dict
+
+    sites_active = []
+    sites_standby = []
+    sites_to_process = []
+
+    running_procedure = procedure
+    no_wait = True
+    if procedure == "move":
+        sites_active.append(site)
+        sites_standby = [elem for elem in sites_name if elem not in sites_active]
+        sites_to_process = sites_active + sites_standby
+        no_wait = False
+
+    elif procedure == "stop":
+        sites_standby.append(site)
+        sites_active = [elem for elem in sites_name if elem not in sites_standby]
+        sites_to_process = sites_active + sites_standby
+
+    elif procedure in ("return", "mntc"):
+        sites_standby.append(site)
+        sites_active = [elem for elem in sites_name if elem not in sites_standby]
+        sites_to_process = sites_standby
+
+    elif procedure == "active":
+        sites_active.append(site)
+        sites_standby = [elem for elem in sites_name if elem not in sites_active]
+        sites_to_process = sites_active
+
+    elif procedure == "standby":
+        sites_standby.append(site)
+        sites_active = [elem for elem in sites_name if elem not in sites_standby]
+        sites_to_process = sites_standby
+
+    # Create main dict with all services in sites
+    sm_dict = create_sm_dict(sites_to_process, procedure, sites_active, sites_standby)
+
+    logging.debug(f"Compilled common services dict: {sm_dict}")
+
+    # pprint.pprint(sm_dict)
+
+    all_services = get_all_services(sm_dict)
+    services_to_run = get_services_to_run(run_services, skip_services, all_services)
+
+    logging.info("---------------------------------------------------------------------")
+    logging.info(f"Procedure:     {procedure}")
+    logging.info(f"Active sites:  {sites_active}") 
+    logging.info(f"Standby sites: {sites_standby}")
+    logging.info(f"Kubernetes services managed by site-manager: {all_services}")
+    logging.info(f"Kuberneets services that will be processed:  {services_to_run}")
+    logging.info("---------------------------------------------------------------------")
+
+    # Checking for nonexistent dependencies
+    check_dependencies(services_to_run, all_services, sm_dict)
+
+    # Starting main loop to process all services
+    logging.debug("Starting main loop")
+    while not all(elem in (done_services + failed_services + ignored_services) for elem in all_services):
+
+        for service_name in all_services:
+            if service_name not in (done_services + running_services + failed_services + ignored_services):
+                after_services = sm_dict["services"][service_name]["after"]
+
+                # Set service as failed when any of dependencies is failed
+                if any(elem in failed_services for elem in after_services) and service_name not in failed_services:
+                    logging.error(f"Service {service_name} marked as failed due to dependencies")
+                    failed_services.append(service_name)
+                    continue
+
+                if service_name not in services_to_run:
+                    ignored_services.append(service_name)
+
+                else:
+                    # Run service if it is not in running, failed or done lists
+                    if all(elem in (done_services + ignored_services) for elem in after_services) or after_services == ['']:
+                        thread = threading.Thread(target=run,
+                                                  args=(service_name,
+                                                        procedure,
+                                                        force,
+                                                        no_wait))
+                        thread.name = f"Thread: {service_name}"
+                        thread.start()
+
+        if len(done_services) != 0:
+            logging.debug('done_services = %s' % done_services)
+        if len(ignored_services) != 0:
+            logging.debug('ignored_services = %s' % ignored_services)
+        if len(running_services) != 0:
+            logging.debug('running_services = %s' % running_services)
+        if len(failed_services) != 0:
+            logging.debug('failed_services = %s' % failed_services)
+        
+        time.sleep(5)
+
+    logging.info("---------------------------------------------------------------------") 
+    logging.info("Summary:")
+    logging.info(f"services that successfully done: {done_services}") 
+    logging.info(f"services that failed:            {failed_services}") 
+    logging.info(f"services that ignored:           {ignored_services}")
+    logging.info("---------------------------------------------------------------------")
+
+    # Clear working lists
+    running_procedure = ""
+    running_services = []
+    done_services = []
+    ignored_services = []
+    failed_services = []
+    run_services = []
+    skip_services = []
+
+
+# Check services for running
+if args.run_services != '':
+    run_services = args.run_services.replace(',', ' ').replace('  ', ' ').split(' ')
+else:
+    run_services = []
+
+if args.skip_services != '':
+    skip_services = args.skip_services.replace(',', ' ').replace('  ', ' ').split(' ')
+else:
+    skip_services = []
+
+# Process commands for script
+if args.command in ("move", "stop", "return", "mntc", "active", "standby"):
+    main_func(args.command, args.site, run_services, skip_services, args.force)
+
+# Process command 'list'
+elif args.command == "list":
+
+    sites_active = sites_name[0]
+    sites_standby = sites_name[1:]
+
+    # Create main dict with all services in sites
+    sm_dict = create_sm_dict(sites_name, "list", sites_active, sites_standby)
+
+    logging.debug(f"Compilled kubernetes CRs: {sm_dict}")
+
+    all_services = get_all_services(sm_dict)
+    services_to_run = get_services_to_run(run_services, skip_services, all_services)
+
+    print(f"---------------------------------------------------------------------\n" + 
+          f"Sites managed by site-manager:               {sites_name}\n\n" + 
+          f"Kubernetes services managed by site-manager: {all_services}\n" + 
+          f"Kuberneets services that will be processed:  {services_to_run}\n" + 
+          f"---------------------------------------------------------------------")
+
+# Process command 'status'
+elif args.command == "status":
+
+    site_active = sites_name[0]
+    site_standby = sites_name[1:]
+
+    # Create main dict with all services in sites
+    sm_dict = create_sm_dict(sites_name, "status", site_active, site_standby)
+
+    logging.debug(f"Compilled kubernetes CRs: {sm_dict}")
+
+    all_services = get_all_services(sm_dict)
+    services_to_run = get_services_to_run(run_services, skip_services, all_services)
+
+    status_dict = {}
+    for service_item in services_to_run:
+        status_dict[service_item] = {}
+
+        for sites_item in sites_name:
+            status_dict[service_item][sites_item] = {}
+            data = send_post(url=sm_dict["sites"][sites_item]["url"], obj={"procedure": "status", "run-services": service_item}, token=sm_dict["sites"][sites_item]["token"])
+            
+            if data == {}:
+                status_dict[service_item][sites_item] = {'healthz': '--', 'mode': '--', 'status': '--'}
+            else:
+                status_dict[service_item][sites_item] = data["services"][service_item]
+
+    logging.debug(f"status_dict: {status_dict}")
+
+    from prettytable import PrettyTable
+
+    pt = PrettyTable()
+    pt_field_names = ["Service"]
+
+    for sites_item in sites_name:
+        pt_field_names.append(f"{sites_item}")
+
+    pt.field_names = pt_field_names
+    pt.align["Service"] = "l"
+
+    # Additional header
+    comment_pt_row = [""]
+    separator_pt_row = ["--------------------------"]
+
+    for sites_item in sites_name:
+        comment_pt_row.append("mode | DR status | healthz")
+        separator_pt_row.append("--------------------------")
+
+    pt.add_row(comment_pt_row)
+    pt.add_row(separator_pt_row)
+
+    for service_item in services_to_run:
+        service_pt_row = list()
+        service_pt_row.append(service_item)
+
+        for sites_item in sites_name:
+            service_pt_row.append(f"{status_dict[service_item][sites_item]['mode']} / {status_dict[service_item][sites_item]['status']} / {status_dict[service_item][sites_item]['healthz']}")
+        pt.add_row(service_pt_row)
+
+    pt.sortby = "Service"
+
+    print(pt)
