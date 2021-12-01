@@ -1,0 +1,16 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: site-manager
+spec:
+  ports:
+    - name: web
+      protocol: TCP
+      port: 80
+      targetPort: 8080
+  selector:
+    app: site-manager

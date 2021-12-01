@@ -1,0 +1,10 @@
+{{ if .Values.serviceAccount.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.serviceAccount.name }}
+rules:
+  - apiGroups: ["netcracker.com"]
+    resources: ["sitemanagers"]
+    verbs: ["get", "list", "watch"]
+{{ end }}

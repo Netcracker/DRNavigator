@@ -1,0 +1,31 @@
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Chart.Name }}
+spec:
+  rules:
+  {{- if .Values.ingressName }}
+  - host: {{ .Values.ingressName }}
+  {{- else }}
+    {{- if .Values.CUSTOM_HOST }}
+      {{- if hasPrefix "dashboard." .Values.CUSTOM_HOST }}
+  - host: {{ .Values.namespace }}.{{ .Values.CUSTOM_HOST | replace "dashboard." "" }}
+      {{- else }}
+  - host: {{ .Values.namespace }}.{{ .Values.CUSTOM_HOST }}
+      {{- end }}
+  - host: {{ .Values.namespace }}.{{ .Values.CUSTOM_HOST }}
+    {{- else }}
+  - host: {{ .Values.namespace }}
+    {{- end }}
+  {{- end }}
+    http:
+      paths:
+      - path: /
+        pathType: ImplementationSpecific
+        backend:
+          serviceName: {{ .Chart.Name }}
+          servicePort: 80

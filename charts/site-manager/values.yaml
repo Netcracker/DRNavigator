@@ -1,0 +1,13 @@
+namespace: site-manager
+
+env:
+  SM_HTTP_AUTH: "Yes"
+
+serviceAccount:
+  create: true
+  name: site-manager-sa
+
+image:
+  repository: artifactorycn.netcracker.com:17009/iala0219/site-manager
+  pullPolicy: Always
+  tag: v1.10
