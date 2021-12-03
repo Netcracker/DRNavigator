@@ -33,7 +33,7 @@ Currently the following modules have been added:
 
 Common scheme:
 
-![](documentation/images/site-manager-SM-common-scheme.png)
+![](/documentation/images/site-manager-SM-common-scheme.png)
 
 In scheme with two kubernetes clusters there are `site-manager` services in each kubernetes cluster and `sm-client` - client tool to maintain the switching sequence between services in different clusters.
 
@@ -44,7 +44,7 @@ In scheme with two kubernetes clusters there are `site-manager` services in each
 
 This module expands the functionality of operators. Operator is the internal microservice that monitors the state of infra service and listens HTTP port to receive REST API for managing infra service DR mode (active or standby). The most of infra services have operators to manage its state and we propose to expand functionality for DR cases.
 
-![](documentation/images/site-manager-PG-service-with-CR-new.png)
+![](/documentation/images/site-manager-PG-service-with-CR-new.png)
 
 where:
   - `operator` - service that manages life-cycle of infra service, such as `postgresql`, `rabbit` or `kafka`
@@ -120,7 +120,7 @@ There is the situation then infra service should be reconfigured on one kubernet
 
 For example postgresql cluster. At first should be performed `standby` part of postgresql cluster and after `active` part:
 
-![](documentation/images/site-manager-PG-service-with-CR-2clusters-new.png)
+![](/documentation/images/site-manager-PG-service-with-CR-2clusters-new.png)
 
 Some services need different order. In case of infra service does not need to follow the sequence of execution parameter `sequence` in SiteManager CR can be omitted.
 
@@ -132,11 +132,11 @@ When all dependencies of two or more infra services are fulfilled `site-manager`
 
 For one kubernetes cluster:
 
-![](documentation/images/site-manager-SM-dependency-1.png)
+![](/documentation/images/site-manager-SM-dependency-1.png)
 
 For two kubernetes clusters:
 
-![](documentation/images/site-manager-SM-dependency-2.png)
+![](/documentation/images/site-manager-SM-dependency-2.png)
 
 where:
   - `1` is the first set of services
@@ -152,13 +152,13 @@ To check current infra service health status `site-manager` checks URL from `hea
 
 1. Run `sm-client` as cli util on any Linux host with access to both kubernetes clusters:
 
-    ![](documentation/images/site-manager-SM-new-arch-1.png)
+    ![](/documentation/images/site-manager-SM-new-arch-1.png)
 
     `sm-client` starts as cli util by operator and prepare DR procedure for kubernetes clusters. All logs are in stdout and `sm-client` shows all operations in runtime. After `sm-client` finished DR procedure it exits.
 
 2. Run `sm-client` as a service in docker container on DVM or Operation Portal and send commands by REST:
 
-    ![](documentation/images/site-manager-SM-new-arch-2.png)
+    ![](/documentation/images/site-manager-SM-new-arch-2.png)
 
     `sm-client` is running as service in Docker container and can receive REST queries with commands. All procedures occur in runtime. `sm-client` does not exit after all DR procedures finished and continues to listen for new REST queries. `sm-client` can be started on DVM or on Operation portal VM. To achieve HA the `sm-client` can be started on few nodes but only one should launch DR procedures at a time.
 
@@ -603,13 +603,13 @@ curl   --silent \
 
 Example for service with `sequence` parameter as ["standby", "active"]:
 
-![](documentation/images/site-manager_diagram_with_PG.png)
+![](/documentation/images/site-manager_diagram_with_PG.png)
 
 Postgres is the service with defined sequence. It means that we need to send new mode to the standby cluster and only in case of procedure successful finished we can send new mode to active site.
 
 Example for service without `sequence` parameter:
 
-![](documentation/images/site-manager_diagram_with_Mongo.png)
+![](/documentation/images/site-manager_diagram_with_Mongo.png)
 
 For this example we consider Mongo as an example of service without sequence. For this case we send new mode to both clusters and wait for status `done` also for both clusters.
 
@@ -617,7 +617,7 @@ For this example we consider Mongo as an example of service without sequence. Fo
 
 Example for two services. The first service with defined `sequence` and the second without sequence:
 
-![](documentation/images/site-manager_diagram_failover.png)
+![](/documentation/images/site-manager_diagram_failover.png)
 
 Working with services looks like in switchover procedure. We have only one assumption - standby kubernetes cluster may be unavailable. In this case we should not wait for correct status. We can omit statuses of all infra services of standby kubernetes cluster.
 
