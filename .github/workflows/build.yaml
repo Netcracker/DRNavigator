@@ -1,0 +1,13 @@
+name: Build Artifacts
+on:
+  push:
+    branches:
+      - '**'
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v2
+      - name: Build Docker Image
+        run: docker build -t site-manager -f Dockerfile-sm --no-cache .
