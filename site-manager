@@ -18,8 +18,14 @@ from kubernetes import client, config, watch
 from flask import Flask, request, jsonify, make_response
 from prometheus_flask_exporter import PrometheusMetrics
 
+SM_CLIENT_TOKEN = ""
+
 # Define GLOBAL lists for running, ignoring, failed and done services
 services_pending = []
+running_services = []
+done_services = []
+failed_services = []
+procedure_results = dict()
 
 # List of possible procedures
 command_list = ["active", "standby", "disable", "list", "status"]
@@ -45,7 +51,7 @@ def get_token(api_watch=False):
     """
     Method to get token of sm-client-sa from kubernetes. Method rewrites global var SM_CLIENT_TOKEN with actual token value
 
-    :param bool api_watch: special flag to define method mode: get token once or follow the token changes. 
+    :param bool api_watch: special flag to define method mode: get token once or follow the token changes.
     """
     global SM_CLIENT_TOKEN
 
@@ -165,7 +171,10 @@ def check_dependencies(services_to_run, all_services, sm_dict):
 
     logging.info(f"Services: {services_to_run}. Check for nonexistent dependencies.")
     for item in services_to_run:
-        if not all(elem in all_services for elem in sm_dict['services'][item]['after'] ):
+        depends = sm_dict["services"][item]['after']
+        if "stateful" in depends and len(depends) == 1:
+            continue
+        if not all(elem in all_services for elem in depends):
             dep_dict[item] = []
             for after_item in sm_dict['services'][item]['after']:
                 if after_item not in all_services:
@@ -232,8 +241,11 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
     :param list skip_services: is the list of services to be skipped
     :param string force: flag to ignore healthz of services. Can be True, true, 1
     """
-
     global services_pending
+    global running_services
+    global done_services
+    global failed_services
+    global procedure_results
 
     running_services = []
     done_services = []
@@ -241,21 +253,6 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
     ignored_services = []
 
     logging.info(f"Starting procedure {procedure} for services {run_services}")
-
-    def manage_lists_on_service_fail(service):
-        """
-        Method for managing running_services, failed_services and done_services after unexpected service failing
-        """
-        nonlocal running_services
-        nonlocal failed_services
-        nonlocal done_services
-
-        if service in run_services:
-            running_services.remove(service)
-        if service not in failed_services:
-            failed_services.append(service)
-        if service in services_pending:
-            services_pending.remove(service)
 
     def run_service(service, options, procedure, force, no_wait):
         """
@@ -266,22 +263,29 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
         :param string procedure: the procedure that will be processed to services
         :param string force: flag to ignore healthz of service. Can be True, true, 1
         """
-
         global services_pending
+        global running_services
+        global done_services
+        global failed_services
+        global procedure_results
 
-        nonlocal running_services
-        nonlocal done_services
-        nonlocal failed_services
-
+        procedure_results[service] = dict()
         running_services.append(service)
         module = import_module(sm_dict["services"][service]["module"])
-        result = module.run_service(service, options, procedure, force, no_wait)
-        if "success" in result:
+        procedure_status, service_status = module.run_service(service, options, procedure, force, no_wait)
+        if "success" in procedure_status:
             running_services.remove(service)
             services_pending.remove(service)
             done_services.append(service)
         else:
-            manage_lists_on_service_fail(service)
+            if service in run_services:
+                running_services.remove(service)
+            if service not in failed_services:
+                failed_services.append(service)
+            if service in services_pending:
+                services_pending.remove(service)
+
+        procedure_results[service] = service_status
 
     # Create main dict with all services in sites
     sm_dict = get_sitemanagers_dict()
@@ -302,12 +306,16 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
 
     # Starting main loop to process all services
     logging.debug("Starting main loop")
-    while not all(elem in (done_services + failed_services + ignored_services) for elem in all_services):
+    after_stateful = []
+    while not all(elem in (done_services + failed_services + ignored_services + after_stateful) for elem in all_services):
 
         for service_name in all_services:
             if service_name not in (done_services + running_services + failed_services + ignored_services):
                 after_services = sm_dict["services"][service_name]["after"]
-
+                if "stateful" in after_services:
+                    logging.info(f"Founded service {service_name} which should be executed after stateful services")
+                    after_stateful.append(service_name)
+                    continue
                 # Set service as failed when any of dependencies is failed
                 if set(failed_services) & set(after_services) and service_name not in failed_services:
                     logging.error(f"Service {service_name} marked as failed due to dependencies")
@@ -337,12 +345,27 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
             logging.debug('running_services = %s' % running_services)
         if len(failed_services) != 0:
             logging.debug('failed_services = %s' % failed_services)
-        
+
         time.sleep(5)
+
+    threads = list()
+    for service_name in after_stateful:
+        thread = threading.Thread(target=run_service,
+                                  args=(service_name,
+                                        sm_dict["services"][service_name],
+                                        procedure,
+                                        force,
+                                        no_wait))
+        thread.name = f"Thread: {service_name}"
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
 
     logging.info("---------------------------------------------------------------------")
     logging.info("Summary:")
-    logging.info(f"services that successfully done: {done_services}") 
+    logging.info(f"services that successfully done: {done_services}")
     logging.info(f"services that failed:            {failed_services}")
     logging.info(f"services that ignored:           {ignored_services}")
     logging.info("---------------------------------------------------------------------")
@@ -350,7 +373,7 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
 
 def json_response(code, body):
     """
-    Method to perform json output 
+    Method to perform json output
     :param int code: http code for operation
     :param dict body: dict with message or lists for http response
     """
@@ -392,7 +415,7 @@ def sitemanager_get():
 
         if len(request.headers["Authorization"].split(" ")) != 2 or \
            request.headers["Authorization"].split(" ")[1] != SM_CLIENT_TOKEN:
-            
+
             return json_response(403, {"message": "Bearer is empty or wrong"})
 
     try:
@@ -410,7 +433,10 @@ def sitemanager_post():
     Method for processing POST requests to /sitemanager
     """
 
-    global services_pending
+    global running_services
+    global done_services
+    global failed_services
+    global procedure_results
 
     if utils.SM_HTTP_AUTH:
 
@@ -495,11 +521,20 @@ def sitemanager_post():
     if data["procedure"] == "status":
         output = dict()
         output["services"] = {}
-
         for item in services_to_run:
             module = import_module(sm_dict["services"][item]["module"])
-            output["services"][item] = module.get_status(sm_dict["services"][item])
-
+            if data.get("polling", False):
+                if procedure_results.get(item, dict()):
+                    output["services"][item] = procedure_results[item]
+                    continue
+                else:
+                    output["services"][item] = module.get_status(sm_dict["services"][item],
+                                                                 *running_services,
+                                                                 *done_services,
+                                                                 *failed_services,
+                                                                 **data)
+                    continue
+            output["services"][item] = module.get_status(sm_dict["services"][item], **data)
         return json_response(200, output)
 
     logging.info(f"Start process services: {services_to_run}")
@@ -525,4 +560,5 @@ if __name__ == '__main__':
                                     args=[True,])
         w_thread.start()
 
-    app.run(host=utils.SM_WEB_HOST, port=utils.SM_WEB_PORT)
+    app.run(host=utils.SM_WEB_HOST,
+            port=utils.SM_WEB_PORT)

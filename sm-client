@@ -15,6 +15,7 @@ import yaml
 import requests
 import os
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
+from prettytable import PrettyTable
 
 #Disable warnings about self-signed certificates from requests library
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -50,6 +51,7 @@ running_services = []
 done_services = []
 ignored_services = []
 failed_services = []
+procedure_results = dict()
 
 sm_dict = {}
 
@@ -170,7 +172,7 @@ def send_post(url, obj, token):
 
     for _ in range(3):
         try:
-            resp = requests.post(url, json=obj, timeout=5, headers=headers, verify=SM_HTTPS_SECURE)
+            resp = requests.post(url, json=obj, timeout=15, headers=headers, verify=SM_HTTPS_SECURE)
             response = resp.json()
             ret_code = resp.status_code
             if ret_code == 200:
@@ -240,10 +242,7 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
     :param string site: the name of processed site
     :param int timeout: the timeout for processing service in seconds
     """
-
-    result = {"procedure_status": "unknown",
-              "service_status": "unknown"}
-
+    data = {"mode": "unknown", "status": "unknown", "healthz": "--"}
     init_time = int(time.time())
 
     count = 0
@@ -253,7 +252,9 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
         logging.info(f"Service: {service}. Site: {site}. Polling procedure status. Iteration {count}")
         logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
 
-        data = send_post(sm_dict["sites"][site]["url"], {"procedure": "status", "run-services": service}, sm_dict["sites"][site]["token"])
+        data = send_post(sm_dict["sites"][site]["url"],
+                         {"procedure": "status", "run-services": service, "polling": True},
+                         sm_dict["sites"][site]["token"])
 
         logging.debug(f"Service: {service}. Site: {site}. Received data: {data}")
         if "status" not in data.get("services", {}).get(service, {}) or \
@@ -262,18 +263,15 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
             continue
 
         if data["services"][service]["status"] == "running":
-            result["procedure_status"] = "running"
             time.sleep(5)
             continue
 
         if data["services"][service]["mode"] == sm_dict["sites"][site]["mode"]:
 
             if data["services"][service]["status"] == "failed":
-                result["procedure_status"] = "failed"
-                return result
+                return data["services"][service]
 
             if data["services"][service]["status"] == "done":
-                result["procedure_status"] = "done"
                 break
 
     count = 0
@@ -284,23 +282,21 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
         logging.info(f"Service: {service}. Site: {site}. Polling service status. Iteration {count}")
         logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
 
-        data = send_post(sm_dict["sites"][site]["url"], {"procedure": "status", "run-services": service}, sm_dict["sites"][site]["token"])
+        data = send_post(sm_dict["sites"][site]["url"], {"procedure": "status", "run-services": service, "polling": True}, sm_dict["sites"][site]["token"])
 
         logging.debug(f"Service: {service}. Site: {site}. Received status: {data['services'][service]['healthz']}")
         if "healthz" not in data.get("services", {}).get(service, {}):
             continue
 
         if data["services"][service]["healthz"] in ("degraded", "down"):
-            result["service_status"] = data["services"][service]["healthz"]
             continue
 
         if data["services"][service]["healthz"] in ("up", "disable"):
-            result["service_status"] = data["services"][service]["healthz"]
             break
 
         time.sleep(5)
 
-    return result
+    return data["services"][service]
 
 
 def run(service, procedure, force, no_wait=True):
@@ -316,6 +312,7 @@ def run(service, procedure, force, no_wait=True):
     global running_services
     global done_services
     global failed_services
+    global procedure_results
 
     def process_service(service, site):
         global running_services
@@ -326,6 +323,7 @@ def run(service, procedure, force, no_wait=True):
         resp = send_post(sm_dict["sites"][site]["url"],
                          {"procedure": "status", "run-services": service},
                          sm_dict["sites"][site]["token"])
+        service_status = resp["services"][service]
 
         if "mode" not in resp.get("services", {}).get(service, {}) or \
            "status" not in resp.get("services", {}).get(service, {}):
@@ -334,7 +332,7 @@ def run(service, procedure, force, no_wait=True):
             if sm_dict["sites"][site]["need"] != "wanted":
                 failed_services.append(service)
 
-            return
+            return service_status
 
         # Check the current service state
         if resp["services"][service]["mode"] == sm_dict['sites'][site]['mode'] and \
@@ -354,7 +352,7 @@ def run(service, procedure, force, no_wait=True):
                     if service not in failed_services:
                         failed_services.append(service)
 
-                    return
+                    return service_status
                 else:
                     logging.warning(f"Service: {service}. Site: {site}. Force mode enabled. Service healthz ignored")
             else:
@@ -377,7 +375,7 @@ def run(service, procedure, force, no_wait=True):
                         if service not in failed_services:
                             failed_services.append(service)
 
-                        return
+                        return service_status
                     else:
                         logging.warning(f"Service: {service}. Site: {site}. Force mode enabled. Service healthz ignored")
                 else:
@@ -389,62 +387,64 @@ def run(service, procedure, force, no_wait=True):
             resp = send_post(url=sm_dict['sites'][site]['url'], obj=obj, token=sm_dict["sites"][site]["token"])
             if resp.get("bad_response"):
                 failed_services.append(service)
-                return
+                return dict()
 
             logging.info(f"Service: {service}. Site: {site}. Start polling")
-            result = polling(service=service,
-                             site=site,
-                             timeout=sm_dict["services"][service]['timeout'])
+            service_status = polling(service=service,
+                                     site=site,
+                                     timeout=sm_dict["services"][service]['timeout'])
 
-            if result["procedure_status"] == "running":
+            if service_status["status"] == "running":
                 logging.error(f"Service: {service}. Site: {site}. Procedure {procedure} is in running status still.")
                 if service not in failed_services and sm_dict["sites"][site]["need"] != "wanted":
                     failed_services.append(service)
-                return
+                return service_status
 
-            elif result["procedure_status"] == "failed":
+            elif service_status["status"] == "failed":
                 logging.error(f"Service: {service}. Site: {site}. Procedure {procedure} is in failed status.")
                 if service not in failed_services and sm_dict["sites"][site]["need"] != "wanted":
                     failed_services.append(service)
-                return
+                return service_status
 
-            elif result["procedure_status"] == "unknown":
+            elif service_status["status"] == "unknown":
                 logging.error(f"Service: {service}. Site: {site}. Procedure {procedure} is in unknown status.")
                 if service not in failed_services and sm_dict["sites"][site]["need"] != "wanted":
                     failed_services.append(service)
-                return
+                return service_status
 
-            elif result["procedure_status"] == "done":
+            elif service_status["status"] == "done":
                 logging.info(f"Service: {service}. Site: {site}. Procedure {procedure} is in done status.")
 
-                if (sm_dict["sites"][site]["mode"] == "active" and result["service_status"].lower() != "up") or \
-                   (sm_dict["sites"][site]["mode"] == "standby" and result["service_status"].lower() not in sm_dict["services"][service]["allowedStandbyStateList"]):
+                if (sm_dict["sites"][site]["mode"] == "active" and service_status["healthz"].lower() != "up") or \
+                   (sm_dict["sites"][site]["mode"] == "standby" and service_status["healthz"].lower() not in sm_dict["services"][service]["allowedStandbyStateList"]):
 
-                    logging.critical(f"Service: {service}. Site: {site}. Current health status is {result['service_status'].lower()}. Service failed")
+                    logging.critical(f"Service: {service}. Site: {site}. Current health status is {service_status['healthz'].lower()}. Service failed")
                     if not force:
                         if service not in failed_services:
                             failed_services.append(service)
-                        return
+                        return service_status
                     else:
                         logging.warning(f"Service: {service}. Site: {site}. Force mode enabled. Service healthz ignored")
                 else:
-                    logging.info(f"Service: {service}. Site: {site}. Current health status is {result['service_status'].lower()}")
+                    logging.info(f"Service: {service}. Site: {site}. Current health status is {service_status['healthz'].lower()}")
                     logging.info(f"Service: {service}. Site: {site}. Procedure {procedure} is finished successfully.")
+        return service_status
 
     running_services.append(service)
 
+    if not procedure_results.get(service, dict()):
+        procedure_results[service] = dict()
     if procedure in ("active", "standby", "stop", "move", "return"):
         for seq_item in sm_dict["services"][service]["sequence"]:
             if service in failed_services:
                 break
-
             for site_item in sm_dict["available"]:
                 if sm_dict["sites"][site_item]["mode"] == seq_item:
-                    process_service(service, site_item)
+                    procedure_results[service][site_item] = process_service(service, site_item)
 
     if procedure == 'mntc':
         for site_item in sm_dict["available"]:
-            process_service(service, site_item)
+            procedure_results[service][site_item] = process_service(service, site_item)
 
     running_services.remove(service)
 
@@ -541,7 +541,10 @@ def check_dependencies(services_to_run, all_services, sm_dict):
 
     logging.info(f"Services: {services_to_run}. Check for nonexistent dependencies.")
     for svc_item in services_to_run:
-        if not all(elem in all_services for elem in sm_dict["services"][svc_item]['after'] ):
+        depends = sm_dict["services"][svc_item]['after']
+        if "stateful" in depends and len(depends) == 1:
+            continue
+        if not all(elem in all_services for elem in depends):
             dep_dict[svc_item] = []
             for after_item in sm_dict["services"][svc_item]['after']:
                 if after_item not in all_services:
@@ -599,6 +602,70 @@ def get_services_to_run(run_services, skip_services, all_services):
     return services_to_run
 
 
+def make_table(header, sites_name):
+    pt = PrettyTable()
+    pt_field_names = ["Service"]
+
+    for sites_item in sites_name:
+        pt_field_names.append(f"{sites_item}")
+
+    pt.field_names = pt_field_names
+    pt.align["Service"] = "l"
+
+    # Additional header
+    comment_pt_row = [""]
+    separator_pt_row = ["--------------------------"]
+
+    for sites_item in sites_name:
+        comment_pt_row.append(header)
+        separator_pt_row.append("--------------------------")
+
+    pt.add_row(comment_pt_row)
+    pt.add_row(separator_pt_row)
+
+    return pt
+
+
+def print_main_table(status_dict, services_to_run, sites_name):
+    pt = make_table("mode | DR status | healthz", sites_name)
+    for service_item in services_to_run:
+        service_pt_row = list()
+        service_pt_row.append(service_item)
+
+        for sites_item in sites_name:
+            service_pt_row.append(
+                f"{status_dict[service_item][sites_item]['mode']} / {status_dict[service_item][sites_item]['status']} / {status_dict[service_item][sites_item]['healthz']}")
+        pt.add_row(service_pt_row)
+
+    pt.sortby = "Service"
+
+    print(pt)
+
+
+def print_additional_table(status_dict, services_to_run, sites_name):
+    pt = make_table('additional', sites_name)
+    is_any_additional = False
+
+    for service_item in services_to_run:
+        service_pt_row = list()
+        service_pt_row.append(service_item)
+        additional = ""
+        for sites_item in sites_name:
+            for item in status_dict[service_item][sites_item].get('additional', dict()):
+                additional = additional + str(item) + ": \n"
+                for key, value in status_dict[service_item][sites_item]["additional"][item].items():
+                    additional = additional + str(key) + ": " + str(value) + " \n"
+
+                service_pt_row.append(f"{additional}")
+        if len(service_pt_row) > 1:
+            pt.add_row(service_pt_row)
+            is_any_additional = True
+
+    pt.sortby = "Service"
+    if is_any_additional:
+        print(pt)
+
+
 def main_func(procedure, site, run_services, skip_services, force):
     """
     Method for processing procedure for all sites
@@ -609,13 +676,14 @@ def main_func(procedure, site, run_services, skip_services, force):
     :param list skip_services: is the list of services to be skipped
     :param string force: flag to ignore healthz of services. Can be True, true, 1
     """
- 
+
     global running_services
     global done_services
     global failed_services
     global ignored_services
     global running_procedure
     global sm_dict
+    global procedure_results
 
     sites_active = []
     sites_standby = []
@@ -654,14 +722,12 @@ def main_func(procedure, site, run_services, skip_services, force):
 
     logging.debug(f"Compilled common services dict: {sm_dict}")
 
-    # pprint.pprint(sm_dict)
-
     all_services = get_all_services(sm_dict)
     services_to_run = get_services_to_run(run_services, skip_services, all_services)
 
     logging.info("---------------------------------------------------------------------")
     logging.info(f"Procedure:     {procedure}")
-    logging.info(f"Active sites:  {sites_active}") 
+    logging.info(f"Active sites:  {sites_active}")
     logging.info(f"Standby sites: {sites_standby}")
     logging.info(f"Kubernetes services managed by site-manager: {all_services}")
     logging.info(f"Kuberneets services that will be processed:  {services_to_run}")
@@ -672,11 +738,17 @@ def main_func(procedure, site, run_services, skip_services, force):
 
     # Starting main loop to process all services
     logging.debug("Starting main loop")
-    while not all(elem in (done_services + failed_services + ignored_services) for elem in all_services):
+    procedure_results = dict()
+    after_stateful = []
+    while not all(elem in (done_services + failed_services + ignored_services + after_stateful) for elem in all_services):
 
         for service_name in all_services:
             if service_name not in (done_services + running_services + failed_services + ignored_services):
                 after_services = sm_dict["services"][service_name]["after"]
+                if "stateful" in after_services:
+                    logging.info(f"Founded service {service_name} which should be executed after stateful services")
+                    after_stateful.append(service_name)
+                    continue
 
                 # Set service as failed when any of dependencies is failed
                 if any(elem in failed_services for elem in after_services) and service_name not in failed_services:
@@ -706,22 +778,43 @@ def main_func(procedure, site, run_services, skip_services, force):
             logging.debug('running_services = %s' % running_services)
         if len(failed_services) != 0:
             logging.debug('failed_services = %s' % failed_services)
-        
+
         time.sleep(5)
 
-    logging.info("---------------------------------------------------------------------") 
+    threads = list()
+    for service in after_stateful:
+        thread = threading.Thread(target=run,
+                                  args=(service,
+                                        procedure,
+                                        force,
+                                        no_wait))
+        thread.name = f"Thread: {service}"
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+    for service in services_to_run:
+        for site in sites_name:
+            if not procedure_results[service][site]:
+                procedure_results[service][site] = {'healthz': '--', 'mode': '--', 'status': '--'}
+
+    logging.info("---------------------------------------------------------------------")
     logging.info("Summary:")
-    logging.info(f"services that successfully done: {done_services}") 
-    logging.info(f"services that failed:            {failed_services}") 
+    logging.info(f"services that successfully done: {done_services}")
+    logging.info(f"services that failed:            {failed_services}")
     logging.info(f"services that ignored:           {ignored_services}")
     logging.info("---------------------------------------------------------------------")
 
+    print_additional_table(procedure_results, services_to_run, sites_name)
     # Clear working lists
     running_procedure = ""
     running_services = []
     done_services = []
     ignored_services = []
     failed_services = []
+    after_stateful = []
     run_services = []
     skip_services = []
 
@@ -755,10 +848,10 @@ elif args.command == "list":
     all_services = get_all_services(sm_dict)
     services_to_run = get_services_to_run(run_services, skip_services, all_services)
 
-    print(f"---------------------------------------------------------------------\n" + 
-          f"Sites managed by site-manager:               {sites_name}\n\n" + 
-          f"Kubernetes services managed by site-manager: {all_services}\n" + 
-          f"Kuberneets services that will be processed:  {services_to_run}\n" + 
+    print(f"---------------------------------------------------------------------\n" +
+          f"Sites managed by site-manager:               {sites_name}\n\n" +
+          f"Kubernetes services managed by site-manager: {all_services}\n" +
+          f"Kuberneets services that will be processed:  {services_to_run}\n" +
           f"---------------------------------------------------------------------")
 
 # Process command 'status'
@@ -782,7 +875,6 @@ elif args.command == "status":
         for sites_item in sites_name:
             status_dict[service_item][sites_item] = {}
             data = send_post(url=sm_dict["sites"][sites_item]["url"], obj={"procedure": "status", "run-services": service_item}, token=sm_dict["sites"][sites_item]["token"])
-            
             if data == {}:
                 status_dict[service_item][sites_item] = {'healthz': '--', 'mode': '--', 'status': '--'}
             else:
@@ -790,36 +882,6 @@ elif args.command == "status":
 
     logging.debug(f"status_dict: {status_dict}")
 
-    from prettytable import PrettyTable
+    print_main_table(status_dict, services_to_run, sites_name)
 
-    pt = PrettyTable()
-    pt_field_names = ["Service"]
-
-    for sites_item in sites_name:
-        pt_field_names.append(f"{sites_item}")
-
-    pt.field_names = pt_field_names
-    pt.align["Service"] = "l"
-
-    # Additional header
-    comment_pt_row = [""]
-    separator_pt_row = ["--------------------------"]
-
-    for sites_item in sites_name:
-        comment_pt_row.append("mode | DR status | healthz")
-        separator_pt_row.append("--------------------------")
-
-    pt.add_row(comment_pt_row)
-    pt.add_row(separator_pt_row)
-
-    for service_item in services_to_run:
-        service_pt_row = list()
-        service_pt_row.append(service_item)
-
-        for sites_item in sites_name:
-            service_pt_row.append(f"{status_dict[service_item][sites_item]['mode']} / {status_dict[service_item][sites_item]['status']} / {status_dict[service_item][sites_item]['healthz']}")
-        pt.add_row(service_pt_row)
-
-    pt.sortby = "Service"
-
-    print(pt)
+    print_additional_table(status_dict, services_to_run, sites_name)
