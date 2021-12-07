@@ -5,27 +5,7 @@ import requests
 import time
 import os
 import yaml
-
-# Define kubernetes CR objects
-SM_GROUP = os.environ.get("SM_GROUP", "netcracker.com")
-SM_PLURAL = os.environ.get("SM_PLURAL", "sitemanagers")
-SM_VERSION = os.environ.get("SM_VERSION", "v2")
-
-# Define services default parameters
-SERVICE_DEFAULT_TIMEOUT = os.environ.get("SERVICE_DEFAULT_TIMEOUT", 200)
-HTTP_SCHEME = os.environ.get("HTTP_SCHEME", "http://")
-
-SM_HTTP_AUTH = os.environ.get("SM_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
-SM_CLIENT_TOKEN = ""
-
-# site-manager WEB server parameters
-SM_WEB_HOST = os.environ.get("SM_WEB_HOST", "0.0.0.0")
-SM_WEB_PORT = os.environ.get("SM_WEB_PORT", 8080)
-
-SM_DEBUG = os.environ.get("SM_DEBUG", False)
-
-# Set main parameters from env
-SM_KUBECONFIG_FILE = os.environ.get("SM_KUBECONFIG_FILE", "")
+from kubernetes import client, config
 
 SM_CONFIG_FILE = os.environ.get("SM_CONFIG_FILE", "")
 if SM_CONFIG_FILE != "":
@@ -36,6 +16,28 @@ if SM_CONFIG_FILE != "":
         exit(1)
 else:
     SM_CONFIG = {}
+
+# Define kubernetes CR objects
+SM_GROUP = os.environ.get("SM_GROUP", "netcracker.com")
+SM_PLURAL = os.environ.get("SM_PLURAL", "sitemanagers")
+SM_VERSION = os.environ.get("SM_VERSION", "v2")
+
+# Define services default parameters
+SERVICE_DEFAULT_TIMEOUT = os.environ.get("SERVICE_DEFAULT_TIMEOUT", 200)
+HTTP_SCHEME = os.environ.get("HTTP_SCHEME", "http://")
+
+# site-manager WEB server parameters
+SM_WEB_HOST = os.environ.get("SM_WEB_HOST", "0.0.0.0")
+SM_WEB_PORT = os.environ.get("SM_WEB_PORT", 8080)
+
+# define authentication mode
+SM_HTTP_AUTH = os.environ.get("SM_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
+
+SM_DEBUG = os.environ.get("SM_DEBUG", False)
+
+SM_KUBECONFIG_FILE = os.environ.get("SM_KUBECONFIG_FILE", "")
+
+DEPLOYMENT_ADDITIONAL_DELAY = 30
 
 
 def send_post(url, mode, no_wait):
@@ -96,7 +98,7 @@ def send_get(url):
     return {}
 
 
-def polling(service, url, mode, healthz_endpoint=None,  timeout=SERVICE_DEFAULT_TIMEOUT):
+def polling(service, procedure, mode, url, allowed_standby_state_list, healthz_endpoint=None,  timeout=SERVICE_DEFAULT_TIMEOUT):
     """
     Method to poll GET|POST requests to services
 
@@ -107,9 +109,7 @@ def polling(service, url, mode, healthz_endpoint=None,  timeout=SERVICE_DEFAULT_
     :param int timeout: the timeout for processing service in seconds
     """
 
-    result = {"procedure_status": "unknown",
-              "service_status": "unknown"}
-
+    service_status = {"mode": "unknown", "status": "unknown", "healthz": "--"}
     init_time = int(time.time())
 
     count = 0
@@ -127,44 +127,159 @@ def polling(service, url, mode, healthz_endpoint=None,  timeout=SERVICE_DEFAULT_
             continue
 
         if data["status"] == "running":
-            result["procedure_status"] = "running"
+            service_status["status"] = data["status"]
             time.sleep(5)
             continue
 
         if data["mode"] == mode:
+            service_status["mode"] = data["mode"]
             if data["status"] == "failed":
-                result["procedure_status"] = "failed"
-                return result
+                service_status["status"] = "failed"
+                return service_status
             if data["status"] == "done":
-                result["procedure_status"] = "done"
+                service_status["status"] = "done"
                 break
 
-    count = 0
+    if healthz_endpoint:
+        count = 0
+        service_status["healthz"] = "unknown"
+        while int(time.time()) < init_time + int(timeout):
+
+            count += 1
+
+            logging.info(f"Service: {service}. Polling service status. Iteration {count}")
+            logging.info(f"Service: {service}. "
+                         f"{int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
+
+            data = send_get(healthz_endpoint)
+
+            logging.debug(f"Service: {service}. Received status: {data}")
+            if "status" not in data:
+                continue
+
+            if data["status"] in ("degraded", "down"):
+                service_status["healthz"] = data["status"]
+                continue
+
+            if (procedure == "active" and data["status"].lower() == "up") or \
+               (procedure == "standby" and data["status"].lower() in allowed_standby_state_list):
+                service_status["healthz"] = data["status"]
+                break
+
+            time.sleep(5)
+
+    return service_status
+
+
+def poll_deployment(name, namespace, mode, options, k8s_api_client, session_data):
+    logging.info("starting deployment check: namespace=%s name=%s " % (namespace, name))
+    deployment_name = namespace + "/" + name
+    session_data[deployment_name] = dict()
+    deployment_info = _read_deployment_info(name, namespace, k8s_api_client)
+    if not deployment_info:
+        session_data[deployment_name]["mode"] = "Unknown"
+        session_data[deployment_name]["status"] = "Unknown"
+        return
+    if not _check_env(deployment_info, options, mode):
+        termination_grace_period_seconds = \
+            deployment_info["spec"]["template"]["spec"].get("terminationGracePeriodSeconds", 30)
+        init_time = int(time.time())
+        env_updated = False
+        while int(time.time()) < init_time + int(termination_grace_period_seconds):
+            logging.info("trying to recheck drModeEnv value namespace=%s name=%s " % (namespace, name))
+            time.sleep(5)
+            deployment_info = _read_deployment_info(name, namespace, k8s_api_client)
+            if not deployment_info:
+                session_data[deployment_name]["mode"] = "Unknown"
+                session_data[deployment_name]["status"] = "Unknown"
+                return
+            if _check_env(deployment_info, options, mode):
+                env_updated = True
+                continue
+        if not env_updated:
+            session_data[deployment_name]["mode"] = "Unchanged"
+            session_data[deployment_name]["status"] = "Unhealthy"
+            return
+    if _check_deployment_status(deployment_info):
+        session_data[deployment_name]["mode"] = mode
+        session_data[deployment_name]["status"] = "Ready"
+        return
+    rp = deployment_info["spec"]["template"]["spec"]["containers"]["readinessProbe"]
+    timeout = rp["initialDelaySeconds"] + (rp["timeoutSeconds"] + rp["periodSeconds"]) * rp["failureThreshold"] + DEPLOYMENT_ADDITIONAL_DELAY
+    init_time = int(time.time())
     while int(time.time()) < init_time + int(timeout):
-
-        if healthz_endpoint is None or healthz_endpoint == "":
-            result["service_status"] = "Unknown"
-            break
-
-        count += 1
-
-        logging.info(f"Service: {service}. Polling service status. Iteration {count}")
-        logging.info(f"Service: {service}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
-
-        data = send_get(healthz_endpoint)
-
-        logging.debug(f"Service: {service}. Received status: {data}")
-        if "status" not in data:
-            continue
-
-        if data["status"] in ("degraded", "down"):
-            result["service_status"] = data["status"]
-            continue
-
-        if data["status"] in ("up", "disable"):
-            result["service_status"] = data["status"]
-            break
-
+        logging.info("trying to recheck deployment status namespace=%s name=%s " % (namespace, name))
         time.sleep(5)
+        deployment_info = _read_deployment_info(name, namespace, k8s_api_client)
+        if not deployment_info:
+            session_data[deployment_name]["mode"] = "Unknown"
+            session_data[deployment_name]["status"] = "Unknown"
+            return
+        if _check_deployment_status(deployment_info):
+            session_data[deployment_name]["mode"] = mode
+            session_data[deployment_name]["status"] = "Ready"
+            return
+    session_data[deployment_name]["mode"] = mode
+    session_data[deployment_name]["status"] = "Unhealthy"
 
-    return result
+
+def _check_env(deployment_info, options, mode):
+    dr_mode_env = options["parameters"]["drModeEnv"]
+    for container in deployment_info["spec"]["template"]["spec"]["containers"]:
+        env_updated = False
+        for env in container.get("env", {}):
+            if env["name"] == dr_mode_env and env["value"] == mode:
+                env_updated = True
+                break
+        if not env_updated:
+            return False
+    return True
+
+
+def _check_deployment_status(deployment_info):
+    for condition in deployment_info["status"]["conditions"]:
+        if condition["type"] == "Available" and \
+           condition["status"] == "True" and \
+           deployment_info["status"]["replicas"] == deployment_info["status"]["ready_replicas"]:
+            return True
+
+
+def _read_deployment_info(name, namespace, k8s_api_client):
+    deployment_info = dict()
+    try:
+        deployment_info = client.AppsV1Api(api_client=k8s_api_client).read_namespaced_deployment(name, namespace).to_dict()
+    except Exception as e:
+        logging.error("Can't find deployment: \n %s" % str(e))
+    return deployment_info
+
+
+def collect_deployments_statuses(dr_marker, dr_mode_env):
+    results = dict()
+    if SM_KUBECONFIG_FILE != "":
+        k8s_api_client = config.load_kube_config(config_file=SM_KUBECONFIG_FILE)
+    else:
+        k8s_api_client = config.load_incluster_config()
+    try:
+        deployments = client.AppsV1Api(api_client=k8s_api_client).list_deployment_for_all_namespaces(
+            label_selector=dr_marker).to_dict()
+    except Exception as e:
+        logging.error("Can't get Deployments list: \n %s" % str(e))
+        return {}
+    for item in deployments["items"]:
+        deployment_name = item["metadata"]["namespace"] + "/" + item["metadata"]["name"]
+        dr_mode_env_value = "Unknown"
+        status = "Unhealthy"
+        for container in item["spec"]["template"]["spec"]["containers"]:
+            for env in container.get("env", {}):
+                if env["name"] == dr_mode_env:
+                    dr_mode_env_value = env["value"]
+                    break
+        for condition in item["status"]["conditions"]:
+            if condition["type"] == "Available" and condition["status"] == "True":
+                status = "Not Ready"
+                if item["status"]["replicas"] == item["status"]["ready_replicas"]:
+                    status = "Ready"
+        results[deployment_name] = dict()
+        results[deployment_name]["mode"] = dr_mode_env_value
+        results[deployment_name]["status"] = status
+    return results

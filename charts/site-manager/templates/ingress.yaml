@@ -1,5 +1,5 @@
----
-apiVersion: networking.k8s.io/v1beta1
+{{ if .Values.ingress.create }}
+apiVersion: {{ include "site-manager.ingress.apiVersion" . }}
 kind: Ingress
 metadata:
   name: {{ .Chart.Name }}
@@ -8,24 +8,23 @@ metadata:
     app: {{ .Chart.Name }}
 spec:
   rules:
-  {{- if .Values.ingressName }}
-  - host: {{ .Values.ingressName }}
-  {{- else }}
-    {{- if .Values.CUSTOM_HOST }}
-      {{- if hasPrefix "dashboard." .Values.CUSTOM_HOST }}
-  - host: {{ .Values.namespace }}.{{ .Values.CUSTOM_HOST | replace "dashboard." "" }}
-      {{- else }}
-  - host: {{ .Values.namespace }}.{{ .Values.CUSTOM_HOST }}
-      {{- end }}
-  - host: {{ .Values.namespace }}.{{ .Values.CUSTOM_HOST }}
-    {{- else }}
-  - host: {{ .Values.namespace }}
-    {{- end }}
-  {{- end }}
+  {{- if .Values.ingress.name }}
+  - host: {{ .Values.ingress.name }}
     http:
+  {{- else }}
+  - http:
+  {{- end }}
       paths:
       - path: /
         pathType: ImplementationSpecific
         backend:
+  {{- if .Capabilities.APIVersions.Has "networking.k8s.io/v1beta1" -}}
           serviceName: {{ .Chart.Name }}
           servicePort: 80
+  {{- else if .Capabilities.APIVersions.Has "networking.k8s.io/v1" }}
+          service:
+            name: {{ .Chart.Name }}
+            port:
+              number: 80
+  {{- end }}
+{{ end }}

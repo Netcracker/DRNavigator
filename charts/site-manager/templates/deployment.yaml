@@ -20,14 +20,25 @@ spec:
         securityContext:
           runAsUser: 1001
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
-        # command:
-        #   - "/bin/sh"
-        # args:
-        #   - "-c"
-        #   - "sleep 10000"
         env:
           - name: SM_HTTP_AUTH
             value: "{{ .Values.env.SM_HTTP_AUTH }}"
+          - name: SM_WEB_HOST
+            value: "{{ .Values.env.SM_WEB_HOST }}"
+          - name: SM_WEB_PORT
+            value: "{{ .Values.env.SM_WEB_PORT }}"
+          - name: SM_DEBUG
+            value: "{{ .Values.env.SM_DEBUG }}"
+          - name: SM_GROUP
+            value: "{{ .Values.env.SM_GROUP }}"
+          - name: SM_PLURAL
+            value: "{{ .Values.env.SM_PLURAL }}"
+          - name: SM_VERSION
+            value: "{{ .Values.env.SM_VERSION }}"
+          - name: SERVICE_DEFAULT_TIMEOUT
+            value: "{{ .Values.env.SERVICE_DEFAULT_TIMEOUT }}"
+          - name: HTTP_SCHEME
+            value: "{{ .Values.env.HTTP_SCHEME }}"
         ports:
         - containerPort: 8080
           protocol: TCP
