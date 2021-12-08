@@ -4,6 +4,12 @@ import utils
 
 
 def get_status(service, *args, **kwargs):
+    """
+    Method that collects complete information about the state of the service
+
+    :param dict service: service's CR
+    """
+
     output = dict()
     status = utils.send_get(service['parameters']["serviceEndpoint"])
     output["mode"] = status.get("mode", "--")
@@ -25,6 +31,7 @@ def run_service(service, options, procedure, force, no_wait):
     :param dict options: the dictionary with parameters related to one service
     :param string procedure: the procedure that will be processed to services
     :param string force: flag to ignore healthz of service. Can be True, true, 1
+    :param bool no_wait: special flag for microservice to show type of replication between of parts of database cluster
     """
     mode = procedure
 
@@ -107,6 +114,16 @@ def run_service(service, options, procedure, force, no_wait):
 
 
 def is_healthy(service, procedure, options, status, force):
+    """
+    Method for checking the status of a service during the execution of a procedure
+
+    :param string service: the name of service that will be processed
+    :param string procedure: the procedure that will be processed to services
+    :param dict options: service's CR
+    :param dict status: the dictionary containing the state of the service
+    :param bool force: flag to ignore healthz of service.
+    """
+
     if (procedure == "active" and status["healthz"].lower() != "up") or \
             (procedure == "standby" and status["healthz"].lower() not in options[
                 "allowedStandbyStateList"]):
@@ -122,6 +139,12 @@ def is_healthy(service, procedure, options, status, force):
 
 
 def get_module_specific_cr(item):
+    """
+    Method preparing dictionary based on the service's CR
+
+    :param dict item: service's CR
+    """
+
     if item['spec']['sitemanager']['parameters'].get('serviceEndpoint', '') != '':
 
         if item["spec"]["sitemanager"]['parameters']["serviceEndpoint"].startswith("http://") or \

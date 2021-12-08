@@ -603,6 +603,10 @@ def get_services_to_run(run_services, skip_services, all_services):
 
 
 def make_table(header, sites_name):
+    """
+    Method for creating the main parts of the table
+    """
+
     pt = PrettyTable()
     pt_field_names = ["Service"]
 
@@ -627,6 +631,14 @@ def make_table(header, sites_name):
 
 
 def print_main_table(status_dict, services_to_run, sites_name):
+    """
+    Method intended to display section `additional` from the site-manager response, if any
+
+    :param dict status_dict: the results of the procedure received from the site-manager
+    :param list services_to_run: the list of services that have been processed
+    :param list sites_name: list of cluster names
+    """
+
     pt = make_table("mode | DR status | healthz", sites_name)
     for service_item in services_to_run:
         service_pt_row = list()
@@ -643,6 +655,14 @@ def print_main_table(status_dict, services_to_run, sites_name):
 
 
 def print_additional_table(status_dict, services_to_run, sites_name):
+    """
+    Method intended to display section `additional` from the site-manager response, if any
+
+    :param dict status_dict: the results of the procedure received from the site-manager
+    :param list services_to_run: the list of services that have been processed
+    :param list sites_name: list of cluster names
+    """
+
     pt = make_table('additional', sites_name)
     is_any_additional = False
 

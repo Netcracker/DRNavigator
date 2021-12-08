@@ -261,7 +261,7 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
         :param string service: the name of service that will be processed
         :param dict options: the dictionary with parameters related to one service
         :param string procedure: the procedure that will be processed to services
-        :param string force: flag to ignore healthz of service. Can be True, true, 1
+        :param bool force: flag to ignore healthz of service
         """
         global services_pending
         global running_services
@@ -384,6 +384,12 @@ def json_response(code, body):
 
 
 def import_module(services_module):
+    """
+    Method for importing a module
+
+    :param string services_module: module name
+    """
+
     logging.info("loading module: %s" % services_module)
     spec = importlib.util.spec_from_file_location(services_module, "modules/" + services_module + ".py")
     module = importlib.util.module_from_spec(spec)

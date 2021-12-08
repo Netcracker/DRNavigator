@@ -98,12 +98,14 @@ def send_get(url):
     return {}
 
 
-def polling(service, procedure, mode, url, allowed_standby_state_list, healthz_endpoint=None,  timeout=SERVICE_DEFAULT_TIMEOUT):
+def polling(service, procedure, mode, url, allowed_standby_state_list, healthz_endpoint=None, timeout=SERVICE_DEFAULT_TIMEOUT):
     """
     Method to poll GET|POST requests to services
 
     :param string service: the name of service that will be processed
+    :param string procedure: the procedure that will be processed to services
     :param string url: the URL to service operator
+    :param list allowed_standby_state_list: list of allowed statuses after changing service mode to standby
     :param string mode: the mode to be set for the service
     :param string healthz_endpoint: the URL to service operator healthz entrypoint
     :param int timeout: the timeout for processing service in seconds
@@ -172,6 +174,17 @@ def polling(service, procedure, mode, url, allowed_standby_state_list, healthz_e
 
 
 def poll_deployment(name, namespace, mode, options, k8s_api_client, session_data):
+    """
+    Method for polling deployments during the procedure
+
+    :param string name: microservice name
+    :param string namespace: microservice's namespace
+    :param string mode: target value for drModeEnv variable
+    :param dict options: service's CR
+    :param ApiClient k8s_api_client: kube-api client
+    :param dict session_data: dictionary for storing microservices statuses
+    """
+
     logging.info("starting deployment check: namespace=%s name=%s " % (namespace, name))
     deployment_name = namespace + "/" + name
     session_data[deployment_name] = dict()
@@ -224,6 +237,14 @@ def poll_deployment(name, namespace, mode, options, k8s_api_client, session_data
 
 
 def _check_env(deployment_info, options, mode):
+    """
+    Method for finding and checking the deployment env variable
+
+    :param dict deployment_info: content of deployment config
+    :param dict options: service's CR
+    :param string mode: target value for drModeEnv variable
+    """
+
     dr_mode_env = options["parameters"]["drModeEnv"]
     for container in deployment_info["spec"]["template"]["spec"]["containers"]:
         env_updated = False
@@ -237,6 +258,12 @@ def _check_env(deployment_info, options, mode):
 
 
 def _check_deployment_status(deployment_info):
+    """
+    Method to check the readiness of the microservice
+
+    :param dict deployment_info: content of deployment config
+    """
+
     for condition in deployment_info["status"]["conditions"]:
         if condition["type"] == "Available" and \
            condition["status"] == "True" and \
@@ -245,6 +272,14 @@ def _check_deployment_status(deployment_info):
 
 
 def _read_deployment_info(name, namespace, k8s_api_client):
+    """
+    Method for loading from kubernetes content of deployment config by name and namespace
+
+    :param string name: microservice name
+    :param string name: microservice namespace
+    :param ApiClient k8s_api_client: kube-api client
+    """
+
     deployment_info = dict()
     try:
         deployment_info = client.AppsV1Api(api_client=k8s_api_client).read_namespaced_deployment(name, namespace).to_dict()
@@ -254,6 +289,13 @@ def _read_deployment_info(name, namespace, k8s_api_client):
 
 
 def collect_deployments_statuses(dr_marker, dr_mode_env):
+    """
+    Method for loading current microservices status
+
+    :param string dr_marker: the label for finding deployments for processing
+    :param string dr_mode_env: deployment's env variable name
+    """
+
     results = dict()
     if SM_KUBECONFIG_FILE != "":
         k8s_api_client = config.load_kube_config(config_file=SM_KUBECONFIG_FILE)
