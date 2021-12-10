@@ -2,8 +2,7 @@
 
 - [Main concept](#main-concept)
     - [Stateful module concept](#stateful-module-concept)
-        - [SiteManager Custom Resource for stateful](#sitemanager-custom-resource-for-stateful)
-    - [SiteManager Custom Resource](#sitemanager-custom-resource)
+    - [SiteManager Custom Resource for stateful](#sitemanager-custom-resource-for-stateful)
     - [Infra service sequence](#infra-service-sequence)
     - [Infra service dependencies](#infra-service-dependencies)
     - [Infra service endpoints](#infra-service-endpoints)
@@ -25,11 +24,7 @@
 
 # Main concept
 
-The main idea of the new approach is to manage operation modes of different microservices. For this, a modular system is introduced that will allow different behavior to be applied for different microservices. This system is more flexible and will allow us to add or exclude support for certain cases.
-
-Currently the following modules have been added:
-
-* `stateful` module - intended for services that will be fully managed through the service's operators.
+The main idea of the new approach is to manage operation modes of different microservices.
 
 Common scheme:
 
@@ -39,6 +34,12 @@ In scheme with two kubernetes clusters there are `site-manager` services in each
 
  - `site-manager` is the management service to control DR procedures flow in one kuberneets cluster.
  - `sm-client` - client for management of DR procedures in two or more kubernetes clusters. It can be launched as daemon or as cli util.
+
+The modular system is introduced that will allow different behavior to be applied for different microservices. This system is more flexible and will allow us to add or exclude support for certain cases.
+
+Currently the following modules have been added:
+
+* `stateful` module - intended for services that will be fully managed through the service's operators.
 
 ## Stateful module concept
 
