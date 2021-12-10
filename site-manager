@@ -1,0 +1,570 @@
+#!/usr/bin/env python3
+"""
+Company:     NetCracker 
+Author:      Core PaaS Group
+Version:     0.5
+Date:        2021-05-26
+Description: Service for management of microservices in active-standby scheme of kubernetes cluster
+"""
+
+import importlib.util
+import logging
+import threading
+import time
+import os
+import base64
+import utils
+from kubernetes import client, config, watch
+from flask import Flask, request, jsonify, make_response
+from prometheus_flask_exporter import PrometheusMetrics
+
+SM_CLIENT_TOKEN = ""
+
+# Define GLOBAL lists for running, ignoring, failed and done services
+services_pending = []
+running_services = []
+done_services = []
+failed_services = []
+procedure_results = dict()
+
+# List of possible procedures
+command_list = ["active", "standby", "disable", "list", "status"]
+
+app = Flask(__name__)
+app.config['DEBUG'] = utils.SM_DEBUG
+app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
+metrics = PrometheusMetrics(app)
+
+if utils.SM_DEBUG:
+    logging_level = logging.DEBUG
+    logging_format = "%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
+else:
+    logging_level = logging.INFO
+    logging_format = "%(asctime)s [%(levelname)s] %(filename)s: %(message)s"
+
+logging.basicConfig(format=logging_format, level=logging_level)
+
+lock = threading.Lock()
+
+
+def get_token(api_watch=False):
+    """
+    Method to get token of sm-client-sa from kubernetes. Method rewrites global var SM_CLIENT_TOKEN with actual token value
+
+    :param bool api_watch: special flag to define method mode: get token once or follow the token changes.
+    """
+    global SM_CLIENT_TOKEN
+
+    # In testing mode return stab
+    if utils.SM_CONFIG.get("testing", {}).get("enabled", False) and \
+            utils.SM_CONFIG.get("testing", {}).get("sm_dict", {}) != {}:
+
+        SM_CLIENT_TOKEN = utils.SM_CONFIG["testing"].get("token", "123")
+
+        return
+
+    if utils.SM_KUBECONFIG_FILE != "":
+        k8s_api_client = config.load_kube_config(config_file=utils.SM_KUBECONFIG_FILE)
+
+        _, current_context = config.list_kube_config_contexts(config_file=utils.SM_KUBECONFIG_FILE)
+        namespace = current_context['context'].get('namespace', 'default')
+
+    else:
+        k8s_api_client = config.load_incluster_config()
+        namespace = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
+
+    logging.info(f"Current namespace: {namespace}")
+
+    if not api_watch:
+
+        try:
+            service_account = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_service_account("sm-client", namespace)
+            secret_name = [s for s in service_account.secrets if 'token' in s.name][0].name
+            btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
+                name=secret_name, namespace=namespace).data['token']
+            token = base64.b64decode(btoken).decode()
+
+        except Exception as e:
+            logging.error("Can not get sm-client token: \n %s" % str(e))
+            os._exit(1)
+
+        SM_CLIENT_TOKEN = token
+
+    else:
+        counter = 1
+        w = watch.Watch()
+
+        while True:
+            logging.debug(f"Start watching serviceaccount sm-client. Iteration {counter}")
+            counter += 1
+
+            for event in w.stream(client.CoreV1Api(api_client=k8s_api_client).list_namespaced_service_account,
+                                  namespace,
+                                  timeout_seconds=30):
+                if event['object'].metadata.name == "sm-client":
+                    if event['type'] in ["ADDED", "MODIFIED"]:
+                        try:
+                            secret_name = [s for s in event['object'].secrets][0].name
+                        except: # hit here when secret for appropriate  SA is not ready yet
+                            continue
+
+                        btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
+                            name=secret_name, namespace=namespace).data['token']
+                        token = base64.b64decode(btoken).decode()
+
+                        logging.info(f"Serviceaccount sm-client was {event['type']}. Token was updated.")
+
+                        SM_CLIENT_TOKEN = token
+
+                    if event['type'] == "DELETED":
+                        logging.fatal("Serviceaccount sm-client was deleted. Exit")
+                        os._exit(1)
+            time.sleep(15)
+
+
+def get_sitemanagers_dict():
+    """
+    Method creates dictionary of donwloaded data from sitemanager CRs
+    """
+
+    # In testing mode return stab
+    if utils.SM_CONFIG.get("testing", {}).get("enabled", False) and \
+       utils.SM_CONFIG.get("testing", {}).get("sm_dict", {}) != {}:
+
+       return utils.SM_CONFIG["testing"]["sm_dict"]
+
+    if utils.SM_KUBECONFIG_FILE != "":
+        k8s_api_client = config.load_kube_config(config_file=utils.SM_KUBECONFIG_FILE)
+
+    else:
+        k8s_api_client = config.load_incluster_config()
+
+    try:
+        response = client.CustomObjectsApi(api_client=k8s_api_client).list_cluster_custom_object(group=utils.SM_GROUP,
+                                                                                                 version=utils.SM_VERSION,
+                                                                                                 plural=utils.SM_PLURAL,
+                                                                                                 _request_timeout=10)
+
+    except Exception as e:
+        logging.error("Can not download sitemanager objects: \n %s" % str(e))
+        return {}
+
+    output = dict()
+    output['services'] = {}
+    for item in response["items"]:
+        module_name = item['spec']['sitemanager'].get('module', '')
+        module = import_module(module_name)
+        output['services'][item['metadata'].get('name')] = module.get_module_specific_cr(item)
+    return output
+
+
+def check_dependencies(services_to_run, all_services, sm_dict):
+    """
+    Method to check dependencies between services that will be processed
+
+    :param list services_to_run: the list of services generated  get_services_to_run() and that will be processed
+    :param all_services: the list of all services from kubernetes clusters managed by site-manager
+    :param dict sm_dict: the dictionary generated by get_sitemanagers_dict() and based on CRs from kubernetes clusters
+    """
+
+    dep_dict = {}
+
+    logging.info(f"Services: {services_to_run}. Check for nonexistent dependencies.")
+    for item in services_to_run:
+        depends = sm_dict["services"][item]['after']
+        if "stateful" in depends and len(depends) == 1:
+            continue
+        if not all(elem in all_services for elem in depends):
+            dep_dict[item] = []
+            for after_item in sm_dict['services'][item]['after']:
+                if after_item not in all_services:
+                    dep_dict[item].append(after_item)
+
+    if len(dep_dict) > 0:
+        for dep_item in dep_dict:
+            logging.critical(f"Service: {dep_item}. Service has nonexistent dependencies: {dep_dict[dep_item]}")
+
+        exit(1)
+
+    logging.info(f"Services: {services_to_run}. Services don\'t have nonexistent dependencies")
+
+
+def get_all_services(sm_dict):
+    """
+    Method for definition of list of all services in kubernetes cluster managed by site-manager
+
+    :param dict sm_dict: the dictionary generated by get_sitemanagers_dict() and based on CRs from kubernetes clusters
+    """
+
+    return list(set([ i for i in sm_dict["services"].keys() ]))
+
+
+def get_services_to_run(run_services, skip_services, all_services):
+    """
+    Method for definition of list of services to be processed
+
+    :param list run_services: the list of services that defined by parameter run-services
+    :param list skip_services: the list of services that defined by parameter skip-services
+    :param list all_services: the list of all services from kubernetes clusters managed by site-manager
+    """
+
+    if len(run_services) != 0:
+        services_to_run = []
+        for item in run_services:
+            if item in all_services:
+                services_to_run.append(item)
+            else:
+                logging.fatal(f"Service {item} does not exist in provided kubernetes clusters")
+                exit(1)
+
+    elif len(skip_services) != 0:
+        services_to_run = all_services.copy()
+        for item in skip_services:
+            if item in all_services:
+                services_to_run.remove(item)
+            else:
+                logging.fatal(f"Service {item} does not exist in provided kubernetes clusters")
+                exit(1)
+
+    else:
+        services_to_run = all_services.copy()
+
+    return services_to_run
+
+
+def run_procedure(procedure, run_services, skip_services, force, no_wait):
+    """
+    Method for processing procedure for all sites
+
+    :param string procedure: can be active, standby, mntc, list and status
+    :param list run_services: is the list of services to be processed
+    :param list skip_services: is the list of services to be skipped
+    :param string force: flag to ignore healthz of services. Can be True, true, 1
+    """
+    global services_pending
+    global running_services
+    global done_services
+    global failed_services
+    global procedure_results
+
+    running_services = []
+    done_services = []
+    failed_services = []
+    ignored_services = []
+
+    logging.info(f"Starting procedure {procedure} for services {run_services}")
+
+    def run_service(service, options, procedure, force, no_wait):
+        """
+        Method to process one service on both kubernetes clusters
+
+        :param string service: the name of service that will be processed
+        :param dict options: the dictionary with parameters related to one service
+        :param string procedure: the procedure that will be processed to services
+        :param bool force: flag to ignore healthz of service
+        """
+        global services_pending
+        global running_services
+        global done_services
+        global failed_services
+        global procedure_results
+
+        procedure_results[service] = dict()
+        running_services.append(service)
+        module = import_module(sm_dict["services"][service]["module"])
+        procedure_status, service_status = module.run_service(service, options, procedure, force, no_wait)
+        if "success" in procedure_status:
+            running_services.remove(service)
+            services_pending.remove(service)
+            done_services.append(service)
+        else:
+            if service in run_services:
+                running_services.remove(service)
+            if service not in failed_services:
+                failed_services.append(service)
+            if service in services_pending:
+                services_pending.remove(service)
+
+        procedure_results[service] = service_status
+
+    # Create main dict with all services in sites
+    sm_dict = get_sitemanagers_dict()
+
+    logging.debug(f"Compilled kubernetes CRs: {sm_dict}")
+
+    all_services = get_all_services(sm_dict)
+    services_to_run = get_services_to_run(run_services, skip_services, all_services)
+
+    logging.info("---------------------------------------------------------------------")
+    logging.info(f"Procedure:       {procedure}")
+    logging.info(f"Kubernetes services managed by site-manager: {all_services}")
+    logging.info(f"Kuberneets services that will be processed:  {services_to_run}")
+    logging.info("---------------------------------------------------------------------")
+
+    # Checking for nonexistent dependencies
+    check_dependencies(services_to_run, all_services, sm_dict)
+
+    # Starting main loop to process all services
+    logging.debug("Starting main loop")
+    after_stateful = []
+    while not all(elem in (done_services + failed_services + ignored_services + after_stateful) for elem in all_services):
+
+        for service_name in all_services:
+            if service_name not in (done_services + running_services + failed_services + ignored_services):
+                after_services = sm_dict["services"][service_name]["after"]
+                if "stateful" in after_services:
+                    logging.info(f"Founded service {service_name} which should be executed after stateful services")
+                    after_stateful.append(service_name)
+                    continue
+                # Set service as failed when any of dependencies is failed
+                if set(failed_services) & set(after_services) and service_name not in failed_services:
+                    logging.error(f"Service {service_name} marked as failed due to dependencies")
+                    failed_services.append(service_name)
+                    continue
+
+                if service_name not in services_to_run:
+                    ignored_services.append(service_name)
+
+                else:
+                    # Run service if it is not in running, failed or done lists
+                    if all(elem in (done_services + ignored_services) for elem in after_services) or after_services == ['']:
+                        thread = threading.Thread(target=run_service,
+                                                  args=(service_name,
+                                                        sm_dict["services"][service_name],
+                                                        procedure,
+                                                        force,
+                                                        no_wait))
+                        thread.name = f"Thread: {service_name}"
+                        thread.start()
+
+        if len(done_services) != 0:
+            logging.debug('done_services = %s' % done_services)
+        if len(ignored_services) != 0:
+            logging.debug('ignored_services = %s' % ignored_services)
+        if len(running_services) != 0:
+            logging.debug('running_services = %s' % running_services)
+        if len(failed_services) != 0:
+            logging.debug('failed_services = %s' % failed_services)
+
+        time.sleep(5)
+
+    threads = list()
+    for service_name in after_stateful:
+        thread = threading.Thread(target=run_service,
+                                  args=(service_name,
+                                        sm_dict["services"][service_name],
+                                        procedure,
+                                        force,
+                                        no_wait))
+        thread.name = f"Thread: {service_name}"
+        threads.append(thread)
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
+    logging.info("---------------------------------------------------------------------")
+    logging.info("Summary:")
+    logging.info(f"services that successfully done: {done_services}")
+    logging.info(f"services that failed:            {failed_services}")
+    logging.info(f"services that ignored:           {ignored_services}")
+    logging.info("---------------------------------------------------------------------")
+
+
+def json_response(code, body):
+    """
+    Method to perform json output
+    :param int code: http code for operation
+    :param dict body: dict with message or lists for http response
+    """
+    response = make_response(jsonify(body), code,)
+    response.headers["Content-Type"] = "application/json"
+
+    return response
+
+
+def import_module(services_module):
+    """
+    Method for importing a module
+
+    :param string services_module: module name
+    """
+
+    logging.info("loading module: %s" % services_module)
+    spec = importlib.util.spec_from_file_location(services_module, "modules/" + services_module + ".py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+@app.route('/', methods=['GET'])
+def root_get():
+    """
+    Method for processing GET requests to /
+
+    Right now is under construction and will be completely changed
+    """
+
+    return "Under construction"
+
+
+@app.route('/sitemanager', methods=['GET'])
+def sitemanager_get():
+    """
+    Method for processing GET requests to /sitemanager
+    """
+    if utils.SM_HTTP_AUTH:
+
+        if "Authorization" not in request.headers:
+
+            return json_response(401, {"message": "You should use Bearer for authorization"})
+
+        if len(request.headers["Authorization"].split(" ")) != 2 or \
+           request.headers["Authorization"].split(" ")[1] != SM_CLIENT_TOKEN:
+
+            return json_response(403, {"message": "Bearer is empty or wrong"})
+
+    try:
+        response = json_response(200, get_sitemanagers_dict())
+    except Exception as e:
+        logging.error(str(e))
+        response = json_response(500, {"message": "Can not get sitemanager structures"})
+
+    return response
+
+
+@app.route('/sitemanager', methods=['POST'])
+def sitemanager_post():
+    """
+    Method for processing POST requests to /sitemanager
+    """
+
+    global running_services
+    global done_services
+    global failed_services
+    global procedure_results
+
+    if utils.SM_HTTP_AUTH:
+
+        if "Authorization" not in request.headers:
+
+            return json_response(401, {"message": "You should use Bearer for authorization"})
+
+        if len(request.headers["Authorization"].split(" ")) != 2 or \
+           request.headers["Authorization"].split(" ")[1] != SM_CLIENT_TOKEN:
+
+            return json_response(403, {"message": "Bearer is empty or wrong"})
+
+    try:
+        data = request.get_json()
+
+    except Exception as e:
+        logging.error("Some problem occurred: \n %s" % str(e))
+        return json_response(401, {"message": "No valid JSON data was received"})
+
+    logging.info(f"Data was received: {data}")
+
+    # Check all parameters in received data
+    if data.get("procedure", "") not in command_list:
+
+        return json_response(401, {"message": f"You should define procedure from list: {command_list}"})
+
+    force = True if data.get("force", "") in (1, "1", True, "true", "True") else False
+    no_wait = True if data.get("no-wait", "") in (1, "1", True, "true", "True") else False
+
+    # Check services for running
+    if data.get("run-services", "") != "":
+
+        if type(data["run-services"]) == type([]) and hasattr(data["run-services"], "__iter__"):
+            run_services = data["run-services"]
+        else:
+            run_services = data["run-services"].replace(',', ' ').replace('  ', ' ').split(' ')
+    else:
+        run_services = []
+
+    # Check services for skipping
+    if data.get("skip-services", "") != "" and len(run_services) == 0:
+
+        if type(data["skip-services"]) == type([]) and hasattr(data["skip-services"], "__iter__"):
+            skip_services = data["skip-services"]
+        else:
+            skip_services = data["skip-services"].replace(',', ' ').replace('  ', ' ').split(' ')
+    else:
+        skip_services = []
+
+    sm_dict = get_sitemanagers_dict()
+    all_services = get_all_services(sm_dict)
+
+    # Check for service what does not exist in cluster
+    wrong_services = [elem for elem in (run_services + skip_services) if elem not in all_services]
+
+    if len(wrong_services) > 0:
+
+        return json_response(401, {"message": f"You defined service that does not exist in cluster",
+                                   "wrong-services": wrong_services})
+
+    services_to_run = get_services_to_run(run_services, skip_services, all_services)
+    logging.info(f"Following services will be processed: {services_to_run}")
+
+    # Exit if any procedure is running for any service from `services_to_run`.
+    # Lock for the case when two or more threads get into the 'else' section and
+    # they may try to add an intersected services lists to the services_pending list.
+    if data['procedure'] in ["active", "standby", "disable"]:
+        with lock:
+            if any(elem in services_pending for elem in services_to_run):
+
+                return json_response(409, {"message": f"Another procedure is still running. Procedure {data['procedure']} rejected!"})
+            else:
+                services_pending.extend(services_to_run)
+
+    logging.debug(f"All processed services: {services_pending}")
+
+    if data["procedure"] == "list":
+
+        return json_response(200, {"all-services": all_services,
+                                   "running-services": services_to_run})
+
+    if data["procedure"] == "status":
+        output = dict()
+        output["services"] = {}
+        for item in services_to_run:
+            module = import_module(sm_dict["services"][item]["module"])
+            if data.get("polling", False):
+                if procedure_results.get(item, dict()):
+                    output["services"][item] = procedure_results[item]
+                    continue
+                else:
+                    output["services"][item] = module.get_status(sm_dict["services"][item],
+                                                                 *running_services,
+                                                                 *done_services,
+                                                                 *failed_services,
+                                                                 **data)
+                    continue
+            output["services"][item] = module.get_status(sm_dict["services"][item], **data)
+        return json_response(200, output)
+
+    logging.info(f"Start process services: {services_to_run}")
+    thread_post = threading.Thread(target=run_procedure,
+                                   args=(data["procedure"],
+                                         run_services,
+                                         skip_services,
+                                         force,
+                                         no_wait))
+    thread_post.start()
+
+    return json_response(200, {"message": f"Procedure {data['procedure']} is started",
+                               "services": services_to_run,
+                               "procedure": data['procedure']})
+
+
+if __name__ == '__main__':
+
+    if utils.SM_HTTP_AUTH:
+        get_token(False)
+
+        w_thread = threading.Thread(target=get_token,
+                                    args=[True,])
+        w_thread.start()
+
+    app.run(host=utils.SM_WEB_HOST,
+            port=utils.SM_WEB_PORT)

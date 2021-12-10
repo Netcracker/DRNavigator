@@ -1,0 +1,19 @@
+FROM python:3.8-slim
+
+ARG SM_USER=smuser
+ARG SM_UID=1001
+
+USER root
+
+COPY sm-client /app/
+COPY requirements-sc.txt /app/requirements.txt
+
+WORKDIR /app/
+
+RUN useradd -r -u "${SM_UID}" "${SM_USER}" && \
+    pip install --upgrade pip && \
+    pip install -r requirements.txt
+
+USER "${SM_USER}"
+
+CMD ["python", "sm-client"]

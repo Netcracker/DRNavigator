@@ -1,0 +1,69 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Chart.Name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: site-manager
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: site-manager
+    spec:
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      containers:
+      - name: {{ .Chart.Name }}
+        securityContext:
+          runAsUser: 1001
+        image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+        env:
+          - name: SM_HTTP_AUTH
+            value: "{{ .Values.env.SM_HTTP_AUTH }}"
+          - name: SM_WEB_HOST
+            value: "{{ .Values.env.SM_WEB_HOST }}"
+          - name: SM_WEB_PORT
+            value: "{{ .Values.env.SM_WEB_PORT }}"
+          - name: SM_DEBUG
+            value: "{{ .Values.env.SM_DEBUG }}"
+          - name: SM_GROUP
+            value: "{{ .Values.env.SM_GROUP }}"
+          - name: SM_PLURAL
+            value: "{{ .Values.env.SM_PLURAL }}"
+          - name: SM_VERSION
+            value: "{{ .Values.env.SM_VERSION }}"
+          - name: SERVICE_DEFAULT_TIMEOUT
+            value: "{{ .Values.env.SERVICE_DEFAULT_TIMEOUT }}"
+          - name: HTTP_SCHEME
+            value: "{{ .Values.env.HTTP_SCHEME }}"
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          limits:
+              cpu: "300m"
+              memory: "150Mi"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+          periodSeconds: 2
+          successThreshold: 1
+          failureThreshold: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+            scheme: HTTP
+          timeoutSeconds: 2
+          periodSeconds: 20
+          successThreshold: 1
+          failureThreshold: 5
+        terminationMessagePath: /dev/termination-log
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
