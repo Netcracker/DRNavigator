@@ -137,8 +137,6 @@ spec:
                     type: string
                   healthzEndpoint:
                     type: string
-                required:
-                - module
                 type: object
             type: object
           status:
