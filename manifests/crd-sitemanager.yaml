@@ -157,4 +157,4 @@ spec:
           namespace: site-manager
           name: site-manager
           path: /convert
-        caBundle: {}
+        caBundle: ""
