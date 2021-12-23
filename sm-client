@@ -760,6 +760,12 @@ def main_func(procedure, site, run_services, skip_services, force):
     logging.debug("Starting main loop")
     procedure_results = dict()
     after_stateful = []
+
+    replicator = "cluster-replication-controller"
+    if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop"]:
+        sm_dict["services"][replicator]["sequence"] = ["standby"]
+        run(replicator, procedure, force, no_wait)
+
     while not all(elem in (done_services + failed_services + ignored_services + after_stateful) for elem in all_services):
 
         for service_name in all_services:
@@ -814,6 +820,10 @@ def main_func(procedure, site, run_services, skip_services, force):
 
     for thread in threads:
         thread.join()
+
+    if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop"]:
+        sm_dict["services"][replicator]["sequence"] = ["active"]
+        run(replicator, procedure, force, no_wait)
 
     for service in services_to_run:
         for site in sites_name:
