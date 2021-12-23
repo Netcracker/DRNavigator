@@ -5,7 +5,7 @@ ARG SM_UID=1001
 
 USER root
 
-COPY site-manager /app/
+COPY site-manager.py /app/
 COPY modules /app/modules
 COPY utils.py /app/
 COPY requirements-sm.txt /app/requirements.txt
@@ -19,4 +19,6 @@ RUN useradd -r -u "${SM_UID}" "${SM_USER}" && \
 
 USER "${SM_USER}"
 
-CMD ["python", "site-manager"]
+ENTRYPOINT ["gunicorn"]
+
+CMD ["--bind=0.0.0.0:8080", "site-manager:app"]

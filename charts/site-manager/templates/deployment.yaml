@@ -20,6 +20,11 @@ spec:
         securityContext:
           runAsUser: 1001
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+        args:
+          - "--bind=0.0.0.0:8443"
+          - "--certfile=/certs/tls.crt"
+          - "--keyfile=/certs/tls.key"
+          - "site-manager:app"
         env:
           - name: SM_HTTP_AUTH
             value: "{{ .Values.env.SM_HTTP_AUTH }}"
@@ -40,17 +45,21 @@ spec:
           - name: HTTP_SCHEME
             value: "{{ .Values.env.HTTP_SCHEME }}"
         ports:
-        - containerPort: 8080
-          protocol: TCP
+          - containerPort: 8443
+            protocol: TCP
+        volumeMounts:
+          - readOnly: true
+            mountPath: /certs
+            name: sm-certs
         resources:
           limits:
               cpu: "300m"
               memory: "150Mi"
         readinessProbe:
           httpGet:
-            path: /
-            port: 8080
-            scheme: HTTP
+            path: /health
+            port: 8443
+            scheme: HTTPS
           initialDelaySeconds: 5
           timeoutSeconds: 1
           periodSeconds: 2
@@ -58,12 +67,16 @@ spec:
           failureThreshold: 5
         livenessProbe:
           httpGet:
-            path: /
-            port: 8080
-            scheme: HTTP
+            path: /health
+            port: 8443
+            scheme: HTTPS
           timeoutSeconds: 2
           periodSeconds: 20
           successThreshold: 1
           failureThreshold: 5
         terminationMessagePath: /dev/termination-log
         imagePullPolicy: {{ .Values.image.pullPolicy }}
+      volumes:
+        - name: sm-certs
+          secret:
+            secretName: sm-certs

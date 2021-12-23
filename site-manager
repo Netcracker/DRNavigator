@@ -31,6 +31,7 @@ procedure_results = dict()
 command_list = ["active", "standby", "disable", "list", "status"]
 
 app = Flask(__name__)
+
 app.config['DEBUG'] = utils.SM_DEBUG
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 metrics = PrometheusMetrics(app)
@@ -155,57 +156,6 @@ def get_sitemanagers_dict():
         module_name = item['spec']['sitemanager'].get('module', '')
         module = import_module(module_name)
         output['services'][item['metadata'].get('name')] = module.get_module_specific_cr(item)
-
-
-    try:
-        response = client.CustomObjectsApi(api_client=k8s_api_client).list_cluster_custom_object(group=utils.SM_GROUP,
-                                                                                                 version="v1",
-                                                                                                 plural=utils.SM_PLURAL,
-                                                                                                 _request_timeout=10)
-
-    except Exception as e:
-        logging.warn("Can not download sitemanager objects version v1: \n %s" % str(e))
-        return output
-
-    for item in response["items"]:
-
-        if item['metadata'].get('name') in output:
-            logging.warn(f"Service {item['metadata'].get('name')} is already defined in CR version v2")
-            continue
-
-        else:
-            if item['spec']['sitemanager'].get('serviceEndpoint', '') != '':
-
-                if item["spec"]["sitemanager"]["serviceEndpoint"].startswith("http://") or \
-                        item["spec"]["sitemanager"]["serviceEndpoint"].startswith("https://"):
-                    service_endpoint = item["spec"]["sitemanager"]["serviceEndpoint"]
-                else:
-                    service_endpoint = utils.HTTP_SCHEME + item["spec"]["sitemanager"]["serviceEndpoint"]
-            else:
-                service_endpoint = ''
-
-            if item['spec']['sitemanager'].get('healthzEndpoint', '') != '':
-
-                if item['spec']['sitemanager']['healthzEndpoint'].startswith("http://") or \
-                        item['spec']['sitemanager']['healthzEndpoint'].startswith("https://"):
-                    healthz_endpoint = item['spec']['sitemanager']['healthzEndpoint']
-                else:
-                    healthz_endpoint = utils.HTTP_SCHEME + item['spec']['sitemanager']['healthzEndpoint']
-            else:
-                healthz_endpoint = ''
-
-            allowed_standby_state_list = [i.lower() for i in item['spec']['sitemanager'].get('allowedStandbyStateList', ["up"])]
-
-            output['services'][item['metadata'].get('name')] = {"namespace": item["metadata"]["namespace"],
-                                                                "module": "stateful",
-                                                                "after": item['spec']['sitemanager'].get('after', []),
-                                                                "before": item['spec']['sitemanager'].get('before', []),
-                                                                "sequence": item['spec']['sitemanager'].get('sequence', []),
-                                                                "allowedStandbyStateList": allowed_standby_state_list,
-                                                                "timeout": item['spec']['sitemanager'].get('timeout', utils.SERVICE_DEFAULT_TIMEOUT),
-                                                                "parameters":
-                                                                    {"serviceEndpoint": service_endpoint,
-                                                                    "healthzEndpoint": healthz_endpoint}}
 
     return output
 
