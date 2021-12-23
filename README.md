@@ -19,12 +19,7 @@ To support ability of services be managed by `site-manager` you should prepare f
     Create configuration file for generation SSL certificate:
 
     ```bash
-    $ cat server.conf 
-    ```
-
-    Output:
-
-    ```
+    $ cat <<EOF > server.conf 
     [req]
     req_extensions = v3_req
     distinguished_name = req_distinguished_name
@@ -42,32 +37,37 @@ To support ability of services be managed by `site-manager` you should prepare f
     DNS.1 = site-manager
     DNS.2 = site-manager.site-manager
     DNS.3 = site-manager.site-manager.svc
+    EOF
     ```
-    
+
     Create CA certificate:
 
     ```bash
     $ openssl req -nodes -new -x509 -keyout ca.key -out ca.crt -subj "/CN=SM CR Conversion Webhook"
     ```
 
+    Create KEY for `site-manager` service:
+
     ```bash
     $ openssl genrsa -out site-manager-tls.key 2048
     ```
+
+    Create CRT file for `site-manager`:
 
     ```bash
     $ openssl req -new -key site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config server.conf | \
       openssl x509 -req -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
     ```
 
-
-2. Create CRD `sitemanagers.netcracker.com` from [YAML description file](manifests/crd-sitemanager.yaml)
+2. Create CRD `sitemanagers.netcracker.com`
 
     Generate base64 string from ca.crt certificate:
 
     ```
     cat ca.crt | base64 - | tr -d '\n'
     ```
-    Open file manifests/crd-sitemanager.yaml end insert output of previous command to `caBundle` parameter:
+
+    Open file `manifests/crd-sitemanager.yaml` end insert output of previous command to `caBundle` parameter:
 
     ```
     ...
@@ -83,7 +83,7 @@ To support ability of services be managed by `site-manager` you should prepare f
             caBundle: <INSERT-BASE64-OUTPUT-HERE>
     ```
 
-    Create CRD `sitemanagers.netcracker.com` from `manifests/crd-sitemanager.yaml` file:
+    Create CRD `sitemanagers.netcracker.com`:
 
     ```bash
     $ kubectl create -f manifests/crd-sitemanager.yaml
@@ -101,7 +101,7 @@ To support ability of services be managed by `site-manager` you should prepare f
     $ kubectl -n site-manager create secret tls sm-certs --cert site-manager-tls.crt --key site-manager-tls.key
     ```
 
-5. Install helm chart:
+5. Install `site-manager` helm chart:
 
     ```bash
     $ helm install site-manager charts/site-manager/ -n site-manager
