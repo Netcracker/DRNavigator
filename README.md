@@ -43,7 +43,7 @@ To support ability of services be managed by `site-manager` you should prepare f
     Create CA certificate:
 
     ```bash
-    $ openssl req -nodes -new -x509 -keyout ca.key -out ca.crt -subj "/CN=SM CR Conversion Webhook"
+    $ openssl req -nodes -new -x509 -keyout ca.key -out ca.crt -subj "/CN=SM service"
     ```
 
     Create KEY for `site-manager` service:
