@@ -13,7 +13,7 @@ spec:
   versions:
   - name: v2
     served: true
-    storage: false
+    storage: true
     subresources:
       status: {}
     schema:
@@ -61,6 +61,12 @@ spec:
                     type: integer
                     minimum: 10
                     maximum: 1000
+                  serviceEndpoint:
+                    type: string
+                  ingressEndpoint:
+                    type: string
+                  healthzEndpoint:
+                    type: string
                   parameters:
                     type: object
                     properties:
@@ -85,7 +91,7 @@ spec:
         type: object
   - name: v1
     served: true
-    storage: true
+    storage: false
     subresources:
       status: {}
     schema:
@@ -151,7 +157,7 @@ spec:
   conversion:
     strategy: Webhook
     webhook:
-      conversionReviewVersions: ["v2", "v1"]
+      conversionReviewVersions: ["v1"]
       clientConfig:
         service:
           namespace: site-manager
