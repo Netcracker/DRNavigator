@@ -15,7 +15,6 @@ import http
 import os
 import copy
 import json
-import jsonpatch
 import base64
 import utils
 from flask import Flask, request, jsonify, make_response
@@ -34,29 +33,6 @@ procedure_results = dict()
 
 # List of possible procedures
 command_list = ["active", "standby", "disable", "list", "status"]
-
-# "[%(asctime)s] [%(process)d] [%(levelname)s] in %(module)s: %(message)s"
-
-# dictConfig(
-#     {
-#         "version": 1,
-#         "disable_existing_loggers": False,
-#         "formatters": {
-#             "default": {
-#                 "format": "[%(asctime)s] [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s",
-#                 "datefmt": "%Y-%m-%d %H:%M:%S %z"
-#             }
-#         },
-#         "handlers": {
-#             "wsgi": {
-#                 "class": "logging.StreamHandler",
-#                 "stream": "ext://flask.logging.wsgi_errors_stream",
-#                 "formatter": "default",
-#             }
-#         },
-#         "root": {"level": "DEBUG", "handlers": ["wsgi"]},
-#     }
-# )
 
 app = Flask(__name__)
 
@@ -456,41 +432,17 @@ def cr_convert():
         modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
 
         if "module" not in modified_spec[i]["spec"]["sitemanager"]:
-            modified_spec[i]["spec"]["sitemanager"]["module"] = modified_spec[i].get("module", "stateful")
+            modified_spec[i]["spec"]["sitemanager"]["module"] = modified_spec[i]["spec"]["sitemanager"].get("module", "stateful")
 
         if "parameters" not in modified_spec[i]["spec"]["sitemanager"]:
             modified_spec[i]["spec"]["sitemanager"]["parameters"] = {}
-            modified_spec[i]["spec"]["sitemanager"]["parameters"]["serviceEndpoint"] = modified_spec[i]["spec"]["sitemanager"].get("serviceEndpoint", "")
-            modified_spec[i]["spec"]["sitemanager"]["parameters"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"].get("ingressEndpoint", "")
-            modified_spec[i]["spec"]["sitemanager"]["parameters"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"].get("healthzEndpoint", "")
-
-            if "serviceEndpoint" in modified_spec[i]["spec"]["sitemanager"]:
-                del modified_spec[i]["spec"]["sitemanager"]["serviceEndpoint"]
-
-            if "ingressEndpoint" in modified_spec[i]["spec"]["sitemanager"]:
-                del modified_spec[i]["spec"]["sitemanager"]["ingressEndpoint"]
-
-            if "healthzEndpoint" in modified_spec[i]["spec"]["sitemanager"]:
-                del modified_spec[i]["spec"]["sitemanager"]["healthzEndpoint"]
-
-    # apply changes
-    patch = jsonpatch.JsonPatch.from_diff(spec, modified_spec)
+            modified_spec[i]["spec"]["sitemanager"]["parameters"]["serviceEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("serviceEndpoint", "")
+            modified_spec[i]["spec"]["sitemanager"]["parameters"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("ingressEndpoint", "")
+            modified_spec[i]["spec"]["sitemanager"]["parameters"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("healthzEndpoint", "")
 
     logging.debug("CR convertation is started.")
     logging.debug(f"Initial spec: {spec}")
     logging.debug(f"Modified spec: {modified_spec}")
-    logging.debug(f"JSON patch: {patch}")
-    
-    # return jsonify(
-    #     {
-    #         "response": {
-    #             "allowed": True,
-    #             "uid": request.json["request"]["uid"],
-    #             "patch": base64.b64encode(str(patch).encode()).decode(),
-    #             "patchtype": "JSONPatch",
-    #         }
-    #     }
-    # )
 
     return jsonify(
         {
