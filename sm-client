@@ -454,7 +454,7 @@ def run(service, procedure, force, no_wait=True):
 
 def create_sm_dict(sites, procedure, sites_active, sites_standby):
     """
-    Method creates dictionary of donwloaded data from sitemanager CRs
+    Method creates dictionary of downloaded data from sitemanager CRs
 
     :param list sites: the list of sites to be processed
     :param string procedure: the procedure that will be processed to services
@@ -469,6 +469,8 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby):
     sm_dict["sites"] = {}
     sm_dict["available"] = []
     sm_dict["services"] = {}
+    sample_set = []
+    partial_services = []
 
     for site in sites:
 
@@ -510,6 +512,22 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby):
             logging.error(f"Site {site} does not contain any sitemanager CR")
             continue
 
+        if not sample_set:
+            for key, value in response["services"].items():
+                sample_set.append(key)
+
+        site_set = []
+        for key, value in response["services"].items():
+            site_set.append(key)
+
+        if set(sample_set) != set(site_set):
+            for service in sample_set:
+                if service not in site_set:
+                    partial_services.append(service)
+            for service in site_set:
+                if service not in sample_set:
+                    partial_services.append(service)
+
         for key, value in response["services"].items():
 
             if key not in sm_dict["services"]:
@@ -524,6 +542,11 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby):
             sm_dict["services"][key]["allowedStandbyStateList"] = value.get("allowedStandbyStateList", ["up"])
 
             sm_dict["services"][key]["timeout"] = value.get("timeout", SERVICE_DEFAULT_TIMEOUT)
+
+    if procedure in ("move", "stop", "status", "list") and partial_services:
+        for service in partial_services:
+            logging.error(f"Service '{service}' is not presented on all sites, it will be excluded from procedure '{procedure}' execution")
+            sm_dict["services"].pop(service)
 
     return sm_dict
 
@@ -816,7 +839,7 @@ def main_func(procedure, site, run_services, skip_services, force):
         thread.join()
 
     for service in services_to_run:
-        for site in sites_name:
+        for site in sites_to_process:
             if not procedure_results[service][site]:
                 procedure_results[service][site] = {'healthz': '--', 'mode': '--', 'status': '--'}
 
@@ -827,7 +850,7 @@ def main_func(procedure, site, run_services, skip_services, force):
     logging.info(f"services that ignored:           {ignored_services}")
     logging.info("---------------------------------------------------------------------")
 
-    print_additional_table(procedure_results, services_to_run, sites_name)
+    print_additional_table(procedure_results, services_to_run, sites_to_process)
     # Clear working lists
     running_procedure = ""
     running_services = []
