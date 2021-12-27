@@ -839,7 +839,7 @@ def main_func(procedure, site, run_services, skip_services, force):
         thread.join()
 
     for service in services_to_run:
-        for site in sites_name:
+        for site in sites_to_process:
             if not procedure_results[service][site]:
                 procedure_results[service][site] = {'healthz': '--', 'mode': '--', 'status': '--'}
 
@@ -850,7 +850,7 @@ def main_func(procedure, site, run_services, skip_services, force):
     logging.info(f"services that ignored:           {ignored_services}")
     logging.info("---------------------------------------------------------------------")
 
-    print_additional_table(procedure_results, services_to_run, sites_name)
+    print_additional_table(procedure_results, services_to_run, sites_to_process)
     # Clear working lists
     running_procedure = ""
     running_services = []
