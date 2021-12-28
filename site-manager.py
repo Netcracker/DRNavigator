@@ -410,7 +410,6 @@ def root_get():
 
     Right now is under construction and will be completely changed
     """
-    logging.info("test message")
 
     return "Under construction"
 
