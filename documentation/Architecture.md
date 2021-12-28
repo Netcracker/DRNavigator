@@ -115,6 +115,8 @@ spec:
       healthzEndpoint: postgres-operator.postgres-service.svc.cluster.local:8080/health
 ```
 
+**Important**: you must not read CRs as `v1` version, only `v2` read (default) is supported.  
+
 ## Infra service sequence
 
 There is the situation then infra service should be reconfigured on one kubernetes cluster before the second kubernetes cluster. 

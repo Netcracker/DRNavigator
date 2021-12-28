@@ -428,7 +428,7 @@ def cr_convert():
     spec = request.json["request"]["objects"]
     modified_spec = copy.deepcopy(spec)
     for i in range(len(modified_spec)):
-        # v1 -> v2
+        # we only handle v1->v2 conversion, v2->v1 is not supported
         modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
 
         if "module" not in modified_spec[i]["spec"]["sitemanager"]:
