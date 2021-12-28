@@ -61,12 +61,6 @@ spec:
                     type: integer
                     minimum: 10
                     maximum: 1000
-                  serviceEndpoint:
-                    type: string
-                  ingressEndpoint:
-                    type: string
-                  healthzEndpoint:
-                    type: string
                   parameters:
                     type: object
                     properties:
