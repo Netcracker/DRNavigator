@@ -86,7 +86,7 @@ To support ability of services be managed by `site-manager` you should prepare f
     Create CRD `sitemanagers.netcracker.com`:
 
     ```bash
-    $ kubectl create -f manifests/crd-sitemanager.yaml
+    $ kubectl apply -f manifests/crd-sitemanager.yaml
     ```
 
 3. Create namespace `site-manager`:
