@@ -21,4 +21,4 @@ USER "${SM_USER}"
 
 ENTRYPOINT ["gunicorn"]
 
-CMD ["--bind=0.0.0.0:8080", "site-manager:app"]
+CMD ["--bind=0.0.0.0:8443", "--preload", "--workers=3", "site-manager:app"]

@@ -42,10 +42,10 @@ metrics = PrometheusMetrics(app)
 
 if utils.SM_DEBUG:
     logging_level = logging.DEBUG
-    logging_format = "[%(asctime)s] [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
+    logging_format = "[%(asctime)s] [%(process)d] [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
 else:
     logging_level = logging.INFO
-    logging_format = "[%(asctime)s] [%(levelname)s] %(filename)s: %(message)s"
+    logging_format = "[%(asctime)s] [%(thread)d]-[%(process)d] [%(levelname)s] %(filename)s: %(message)s"
 
 logging.basicConfig(format=logging_format, level=logging_level)
 
@@ -125,6 +125,14 @@ def get_token(api_watch=False):
                         logging.fatal("Serviceaccount sm-client was deleted. Exit")
                         os._exit(1)
             time.sleep(15)
+
+
+if utils.SM_HTTP_AUTH:
+    get_token(False)
+
+    w_thread = threading.Thread(target=get_token,
+                                args=[True, ])
+    w_thread.start()
 
 
 def get_sitemanagers_dict():
@@ -610,16 +618,3 @@ def sitemanager_post():
     return json_response(200, {"message": f"Procedure {data['procedure']} is started",
                                "services": services_to_run,
                                "procedure": data['procedure']})
-
-
-if __name__ == '__main__':
-
-    if utils.SM_HTTP_AUTH:
-        get_token(False)
-
-        w_thread = threading.Thread(target=get_token,
-                                    args=[True,])
-        w_thread.start()
-
-    app.run(host=utils.SM_WEB_HOST,
-            port=utils.SM_WEB_PORT)

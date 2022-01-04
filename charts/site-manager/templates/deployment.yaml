@@ -22,6 +22,8 @@ spec:
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
         args:
           - "--bind=0.0.0.0:8443"
+          - '--preload'
+          - '--workers=3'
           - "--certfile=/certs/tls.crt"
           - "--keyfile=/certs/tls.key"
           - "site-manager:app"
