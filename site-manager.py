@@ -45,7 +45,7 @@ if utils.SM_DEBUG:
     logging_format = "[%(asctime)s] [%(process)d] [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
 else:
     logging_level = logging.INFO
-    logging_format = "[%(asctime)s] [%(thread)d]-[%(process)d] [%(levelname)s] %(filename)s: %(message)s"
+    logging_format = "[%(asctime)s] [%(process)d] [%(levelname)s] %(filename)s: %(message)s"
 
 logging.basicConfig(format=logging_format, level=logging_level)
 
