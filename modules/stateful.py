@@ -63,7 +63,7 @@ def run_service(service, options, procedure, force, no_wait):
             logging.info(f"Service: {service}. Check current health status")
             healthz_resp = utils.send_get(url=options['parameters']["healthzEndpoint"])
 
-            if healthz_resp["status"].lower() not in options["allowedStandbyStateList"] and procedure == "standby":
+            if healthz_resp["status"].lower() not in (options["allowedStandbyStateList"], "up") and procedure == "standby":
 
                 logging.critical(
                     f"Service: {service}. Current health status is {healthz_resp['status'].lower()}. Service failed")
