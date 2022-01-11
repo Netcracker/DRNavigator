@@ -28,7 +28,7 @@ HTTP_SCHEME = os.environ.get("HTTP_SCHEME", "http://")
 
 # site-manager WEB server parameters
 SM_WEB_HOST = os.environ.get("SM_WEB_HOST", "0.0.0.0")
-SM_WEB_PORT = os.environ.get("SM_WEB_PORT", 8080)
+SM_WEB_PORT = os.environ.get("SM_WEB_PORT", 8443)
 
 # define authentication mode
 SM_HTTP_AUTH = os.environ.get("SM_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")

@@ -11,11 +11,15 @@ import importlib.util
 import logging
 import threading
 import time
+import http
 import os
+import copy
+import json
 import base64
 import utils
-from kubernetes import client, config, watch
 from flask import Flask, request, jsonify, make_response
+from logging.config import dictConfig
+from kubernetes import client, config, watch
 from prometheus_flask_exporter import PrometheusMetrics
 
 SM_CLIENT_TOKEN = ""
@@ -31,16 +35,17 @@ procedure_results = dict()
 command_list = ["active", "standby", "disable", "list", "status"]
 
 app = Flask(__name__)
+
 app.config['DEBUG'] = utils.SM_DEBUG
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 metrics = PrometheusMetrics(app)
 
 if utils.SM_DEBUG:
     logging_level = logging.DEBUG
-    logging_format = "%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
+    logging_format = "[%(asctime)s] [%(process)d] [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
 else:
     logging_level = logging.INFO
-    logging_format = "%(asctime)s [%(levelname)s] %(filename)s: %(message)s"
+    logging_format = "[%(asctime)s] [%(process)d] [%(levelname)s] %(filename)s: %(message)s"
 
 logging.basicConfig(format=logging_format, level=logging_level)
 
@@ -122,6 +127,14 @@ def get_token(api_watch=False):
             time.sleep(15)
 
 
+if utils.SM_HTTP_AUTH:
+    get_token(False)
+
+    w_thread = threading.Thread(target=get_token,
+                                args=[True, ])
+    w_thread.start()
+
+
 def get_sitemanagers_dict():
     """
     Method creates dictionary of donwloaded data from sitemanager CRs
@@ -155,57 +168,6 @@ def get_sitemanagers_dict():
         module_name = item['spec']['sitemanager'].get('module', '')
         module = import_module(module_name)
         output['services'][item['metadata'].get('name')] = module.get_module_specific_cr(item)
-
-
-    try:
-        response = client.CustomObjectsApi(api_client=k8s_api_client).list_cluster_custom_object(group=utils.SM_GROUP,
-                                                                                                 version="v1",
-                                                                                                 plural=utils.SM_PLURAL,
-                                                                                                 _request_timeout=10)
-
-    except Exception as e:
-        logging.warn("Can not download sitemanager objects version v1: \n %s" % str(e))
-        return output
-
-    for item in response["items"]:
-
-        if item['metadata'].get('name') in output:
-            logging.warn(f"Service {item['metadata'].get('name')} is already defined in CR version v2")
-            continue
-
-        else:
-            if item['spec']['sitemanager'].get('serviceEndpoint', '') != '':
-
-                if item["spec"]["sitemanager"]["serviceEndpoint"].startswith("http://") or \
-                        item["spec"]["sitemanager"]["serviceEndpoint"].startswith("https://"):
-                    service_endpoint = item["spec"]["sitemanager"]["serviceEndpoint"]
-                else:
-                    service_endpoint = utils.HTTP_SCHEME + item["spec"]["sitemanager"]["serviceEndpoint"]
-            else:
-                service_endpoint = ''
-
-            if item['spec']['sitemanager'].get('healthzEndpoint', '') != '':
-
-                if item['spec']['sitemanager']['healthzEndpoint'].startswith("http://") or \
-                        item['spec']['sitemanager']['healthzEndpoint'].startswith("https://"):
-                    healthz_endpoint = item['spec']['sitemanager']['healthzEndpoint']
-                else:
-                    healthz_endpoint = utils.HTTP_SCHEME + item['spec']['sitemanager']['healthzEndpoint']
-            else:
-                healthz_endpoint = ''
-
-            allowed_standby_state_list = [i.lower() for i in item['spec']['sitemanager'].get('allowedStandbyStateList', ["up"])]
-
-            output['services'][item['metadata'].get('name')] = {"namespace": item["metadata"]["namespace"],
-                                                                "module": "stateful",
-                                                                "after": item['spec']['sitemanager'].get('after', []),
-                                                                "before": item['spec']['sitemanager'].get('before', []),
-                                                                "sequence": item['spec']['sitemanager'].get('sequence', []),
-                                                                "allowedStandbyStateList": allowed_standby_state_list,
-                                                                "timeout": item['spec']['sitemanager'].get('timeout', utils.SERVICE_DEFAULT_TIMEOUT),
-                                                                "parameters":
-                                                                    {"serviceEndpoint": service_endpoint,
-                                                                    "healthzEndpoint": healthz_endpoint}}
 
     return output
 
@@ -460,6 +422,55 @@ def root_get():
     return "Under construction"
 
 
+@app.route('/validate', methods=['POST'])
+def cr_validate():
+    pass
+
+
+@app.route('/convert', methods=['POST'])
+def cr_convert():
+
+    logging.debug(f"Initial object from API: {request.json['request']}")
+
+    spec = request.json["request"]["objects"]
+    modified_spec = copy.deepcopy(spec)
+    for i in range(len(modified_spec)):
+        # we only handle v1->v2 conversion, v2->v1 is not supported
+        modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
+
+        if "module" not in modified_spec[i]["spec"]["sitemanager"]:
+            modified_spec[i]["spec"]["sitemanager"]["module"] = modified_spec[i]["spec"]["sitemanager"].get("module", "stateful")
+
+        if "parameters" not in modified_spec[i]["spec"]["sitemanager"]:
+            modified_spec[i]["spec"]["sitemanager"]["parameters"] = {}
+            modified_spec[i]["spec"]["sitemanager"]["parameters"]["serviceEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("serviceEndpoint", "")
+            modified_spec[i]["spec"]["sitemanager"]["parameters"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("ingressEndpoint", "")
+            modified_spec[i]["spec"]["sitemanager"]["parameters"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("healthzEndpoint", "")
+
+    logging.debug("CR convertation is started.")
+    logging.debug(f"Initial spec: {spec}")
+    logging.debug(f"Modified spec: {modified_spec}")
+
+    return jsonify(
+        {
+            "apiVersion": "apiextensions.k8s.io/v1",
+            "kind": "ConversionReview",
+            "response": {
+                "uid": request.json["request"]["uid"],
+                "result": {
+                    "status": "Success"
+                },
+                "convertedObjects": modified_spec
+            }
+        }
+    )
+
+
+@app.route("/health", methods=["GET"])
+def health():
+    return ("", http.HTTPStatus.NO_CONTENT)
+
+
 @app.route('/sitemanager', methods=['GET'])
 def sitemanager_get():
     """
@@ -607,16 +618,3 @@ def sitemanager_post():
     return json_response(200, {"message": f"Procedure {data['procedure']} is started",
                                "services": services_to_run,
                                "procedure": data['procedure']})
-
-
-if __name__ == '__main__':
-
-    if utils.SM_HTTP_AUTH:
-        get_token(False)
-
-        w_thread = threading.Thread(target=get_token,
-                                    args=[True,])
-        w_thread.start()
-
-    app.run(host=utils.SM_WEB_HOST,
-            port=utils.SM_WEB_PORT)

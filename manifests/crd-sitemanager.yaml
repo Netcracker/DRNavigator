@@ -85,7 +85,7 @@ spec:
         type: object
   - name: v1
     served: true
-    storage: true
+    storage: false
     subresources:
       status: {}
     schema:
@@ -137,8 +137,6 @@ spec:
                     type: string
                   healthzEndpoint:
                     type: string
-                required:
-                - module
                 type: object
             type: object
           status:
@@ -150,3 +148,13 @@ spec:
                 type: object
             type: object
         type: object
+  conversion:
+    strategy: Webhook
+    webhook:
+      conversionReviewVersions: ["v1"]
+      clientConfig:
+        service:
+          namespace: site-manager
+          name: site-manager
+          path: /convert
+        caBundle: "<base-64-encoded-ca-bundle>"
