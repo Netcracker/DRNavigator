@@ -692,13 +692,11 @@ def print_additional_table(status_dict, services_to_run, sites_name):
     for service_item in services_to_run:
         service_pt_row = list()
         service_pt_row.append(service_item)
-        additional = ""
         for sites_item in sites_name:
+            additional = ""
             for item in status_dict[service_item][sites_item].get('additional', dict()):
-                additional = additional + str(item) + ": \n"
                 for key, value in status_dict[service_item][sites_item]["additional"][item].items():
-                    additional = additional + str(key) + ": " + str(value) + " \n"
-
+                    additional = additional + str(key) + ": \n" + str(value) + " \n"
                 service_pt_row.append(f"{additional}")
         if len(service_pt_row) > 1:
             pt.add_row(service_pt_row)
