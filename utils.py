@@ -157,16 +157,18 @@ def polling(service, procedure, mode, url, allowed_standby_state_list, healthz_e
 
             logging.debug(f"Service: {service}. Received status: {data}")
             if "status" not in data:
-                continue
-
-            if data["status"] in ("degraded", "down"):
-                service_status["healthz"] = data["status"]
+                time.sleep(5)
                 continue
 
             if (procedure == "active" and data["status"].lower() == "up") or \
                (procedure == "standby" and data["status"].lower() in allowed_standby_state_list):
                 service_status["healthz"] = data["status"]
                 break
+
+            if data["status"] in ("degraded", "down"):
+                service_status["healthz"] = data["status"]
+                time.sleep(5)
+                continue
 
             time.sleep(5)
 
