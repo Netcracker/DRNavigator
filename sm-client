@@ -286,13 +286,17 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
 
         logging.debug(f"Service: {service}. Site: {site}. Received status: {data['services'][service]['healthz']}")
         if "healthz" not in data.get("services", {}).get(service, {}):
+            time.sleep(5)
             continue
+
+        if (sm_dict['sites'][site]['mode'] == "active" and data["services"][service]["healthz"] == "up") or \
+                (sm_dict['sites'][site]['mode'] == "standby" and
+                 data["services"][service]["healthz"] in sm_dict["services"][service]["allowedStandbyStateList"]):
+            break
 
         if data["services"][service]["healthz"] in ("degraded", "down"):
+            time.sleep(5)
             continue
-
-        if data["services"][service]["healthz"] in ("up", "disable"):
-            break
 
         time.sleep(5)
 
