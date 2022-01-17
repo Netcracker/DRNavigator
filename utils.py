@@ -222,11 +222,7 @@ def poll_deployment(name, namespace, mode, options, k8s_api_client, session_data
             session_data[deployment_name]["mode"] = "active"
         session_data[deployment_name]["status"] = "Ready"
         return
-    if deployment_info["spec"]["template"]["spec"]["containers"].get("readinessProbe", {}):
-        rp = deployment_info["spec"]["template"]["spec"]["containers"]["readinessProbe"]
-        timeout = rp["initialDelaySeconds"] + (rp["timeoutSeconds"] + rp["periodSeconds"]) * rp["failureThreshold"] + DEPLOYMENT_ADDITIONAL_DELAY
-    else:
-        timeout = DEPLOYMENT_ADDITIONAL_DELAY
+    timeout = _get_timeout_for_deployment(deployment_info)
     init_time = int(time.time())
     while int(time.time()) < init_time + int(timeout):
         logging.info("trying to recheck deployment status namespace=%s name=%s " % (namespace, name))
@@ -313,6 +309,20 @@ def _read_deployment_info(name, namespace, k8s_api_client):
     except Exception as e:
         logging.error("Can't find deployment: \n %s" % str(e))
     return deployment_info
+
+
+def _get_timeout_for_deployment(deployment_info):
+    timeouts = list()
+    for i, container in enumerate(deployment_info["spec"]["template"]["spec"]["containers"]):
+        if container.get("readinessProbe", {}):
+            rp = container["readinessProbe"]
+            timeouts.append(rp["initialDelaySeconds"] + (rp["timeoutSeconds"] + rp["periodSeconds"]) \
+                      * rp["failureThreshold"] + DEPLOYMENT_ADDITIONAL_DELAY)
+        else:
+            timeouts.append(DEPLOYMENT_ADDITIONAL_DELAY)
+    timeouts.sort(reverse=True)
+    logging.error(f"timeouts: {timeouts}")
+    return timeouts[0]
 
 
 def collect_deployments_statuses(dr_marker, dr_mode_env):
