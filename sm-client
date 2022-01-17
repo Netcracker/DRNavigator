@@ -852,7 +852,7 @@ def main_func(procedure, site, run_services, skip_services, force):
     if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop"]:
         sm_dict["services"][replicator]["sequence"] = ["active"]
         run(replicator, procedure, force, no_wait)
-        if replicator in failed_services:
+        if replicator in failed_services and replicator in done_services:
             done_services.remove(replicator)
         done_services = list(set(done_services))
         failed_services = list(set(failed_services))
