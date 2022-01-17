@@ -318,10 +318,13 @@ def run(service, procedure, force, no_wait=True):
     global failed_services
     global procedure_results
 
-    def process_service(service, site):
+    def process_service(service, site, force):
         global running_services
         global done_services
         global failed_services
+        if procedure == "stop" and sm_dict["sites"][site]["mode"] == "standby":
+            force = True
+            logging.info(f"Force key enabled for procedure 'stop' for service {service} on passivated site")
 
         logging.info(f"Service: {service}. Site: {site}. Check current mode")
         resp = send_post(sm_dict["sites"][site]["url"],
@@ -387,7 +390,7 @@ def run(service, procedure, force, no_wait=True):
 
             logging.info(f"Service: {service}. Site: {site}. Set mode {sm_dict['sites'][site]['mode']}")
 
-            obj = {"procedure": sm_dict['sites'][site]['mode'], "run-services": service, "no-wait": no_wait}
+            obj = {"procedure": sm_dict['sites'][site]['mode'], "run-services": service, "no-wait": no_wait, "force": force}
             resp = send_post(url=sm_dict['sites'][site]['url'], obj=obj, token=sm_dict["sites"][site]["token"])
             if resp.get("bad_response"):
                 failed_services.append(service)
@@ -444,11 +447,11 @@ def run(service, procedure, force, no_wait=True):
                 break
             for site_item in sm_dict["available"]:
                 if sm_dict["sites"][site_item]["mode"] == seq_item:
-                    procedure_results[service][site_item] = process_service(service, site_item)
+                    procedure_results[service][site_item] = process_service(service, site_item, force)
 
     if procedure == 'mntc':
         for site_item in sm_dict["available"]:
-            procedure_results[service][site_item] = process_service(service, site_item)
+            procedure_results[service][site_item] = process_service(service, site_item, force)
 
     running_services.remove(service)
 
@@ -849,6 +852,10 @@ def main_func(procedure, site, run_services, skip_services, force):
     if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop"]:
         sm_dict["services"][replicator]["sequence"] = ["active"]
         run(replicator, procedure, force, no_wait)
+        if replicator in failed_services:
+            done_services.remove(replicator)
+        done_services = list(set(done_services))
+        failed_services = list(set(failed_services))
 
     for service in services_to_run:
         for site in sites_to_process:
