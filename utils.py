@@ -186,7 +186,7 @@ def poll_deployment(name, namespace, mode, options, k8s_api_client, session_data
     :param ApiClient k8s_api_client: kube-api client
     :param dict session_data: dictionary for storing microservices statuses
     """
-
+    dr_mode_env = options["parameters"]["drModeEnv"]
     logging.info("starting deployment check: namespace=%s name=%s " % (namespace, name))
     deployment_name = namespace + "/" + name
     session_data[deployment_name] = dict()
@@ -211,16 +211,22 @@ def poll_deployment(name, namespace, mode, options, k8s_api_client, session_data
             if _check_env(deployment_info, options, mode):
                 env_updated = True
                 continue
-        if not env_updated:
+        if not env_updated and _is_env_exists(deployment_info, dr_mode_env):
             session_data[deployment_name]["mode"] = "Unchanged"
             session_data[deployment_name]["status"] = "Unhealthy"
             return
     if _check_deployment_status(deployment_info):
-        session_data[deployment_name]["mode"] = mode
+        if _is_env_exists(deployment_info, dr_mode_env):
+            session_data[deployment_name]["mode"] = mode
+        else:
+            session_data[deployment_name]["mode"] = "active"
         session_data[deployment_name]["status"] = "Ready"
         return
-    rp = deployment_info["spec"]["template"]["spec"]["containers"]["readinessProbe"]
-    timeout = rp["initialDelaySeconds"] + (rp["timeoutSeconds"] + rp["periodSeconds"]) * rp["failureThreshold"] + DEPLOYMENT_ADDITIONAL_DELAY
+    if deployment_info["spec"]["template"]["spec"]["containers"].get("readinessProbe", {}):
+        rp = deployment_info["spec"]["template"]["spec"]["containers"]["readinessProbe"]
+        timeout = rp["initialDelaySeconds"] + (rp["timeoutSeconds"] + rp["periodSeconds"]) * rp["failureThreshold"] + DEPLOYMENT_ADDITIONAL_DELAY
+    else:
+        timeout = DEPLOYMENT_ADDITIONAL_DELAY
     init_time = int(time.time())
     while int(time.time()) < init_time + int(timeout):
         logging.info("trying to recheck deployment status namespace=%s name=%s " % (namespace, name))
@@ -231,11 +237,18 @@ def poll_deployment(name, namespace, mode, options, k8s_api_client, session_data
             session_data[deployment_name]["status"] = "Unknown"
             return
         if _check_deployment_status(deployment_info):
-            session_data[deployment_name]["mode"] = mode
+            if _is_env_exists(deployment_info, dr_mode_env):
+                session_data[deployment_name]["mode"] = mode
+            else:
+                session_data[deployment_name]["mode"] = "active"
             session_data[deployment_name]["status"] = "Ready"
             return
-    session_data[deployment_name]["mode"] = mode
+    if _is_env_exists(deployment_info, dr_mode_env):
+        session_data[deployment_name]["mode"] = mode
+    else:
+        session_data[deployment_name]["mode"] = "active"
     session_data[deployment_name]["status"] = "Unhealthy"
+    return
 
 
 def _check_env(deployment_info, options, mode):
@@ -256,6 +269,18 @@ def _check_env(deployment_info, options, mode):
                 break
         if not env_updated:
             return False
+    return True
+
+
+def _is_env_exists(deployment_info, dr_mode_env):
+    counter = 0
+    for container in deployment_info["spec"]["template"]["spec"]["containers"]:
+        for env in container.get("env", {}):
+            if env["name"] == dr_mode_env:
+                counter += 1
+                break
+    if counter == 0:
+        return False
     return True
 
 
@@ -324,6 +349,9 @@ def collect_deployments_statuses(dr_marker, dr_mode_env):
                 if item["status"]["replicas"] == item["status"]["ready_replicas"]:
                     status = "Ready"
         results[deployment_name] = dict()
-        results[deployment_name]["mode"] = dr_mode_env_value
+        if _is_env_exists(item, dr_mode_env):
+            results[deployment_name]["mode"] = dr_mode_env_value
+        else:
+            results[deployment_name]["mode"] = "active"
         results[deployment_name]["status"] = status
     return results

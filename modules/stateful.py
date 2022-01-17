@@ -30,7 +30,7 @@ def run_service(service, options, procedure, force, no_wait):
     :param string service: the name of service that will be processed
     :param dict options: the dictionary with parameters related to one service
     :param string procedure: the procedure that will be processed to services
-    :param string force: flag to ignore healthz of service. Can be True, true, 1
+    :param bool force: flag to ignore healthz of service. Can be True, true, 1
     :param bool no_wait: special flag for microservice to show type of replication between of parts of database cluster
     """
     mode = procedure
@@ -62,14 +62,15 @@ def run_service(service, options, procedure, force, no_wait):
 
             logging.info(f"Service: {service}. Check current health status")
             healthz_resp = utils.send_get(url=options['parameters']["healthzEndpoint"])
-
-            if healthz_resp["status"].lower() not in (options["allowedStandbyStateList"], "up") and procedure == "standby":
+            allowed_statuses = ["up"]
+            allowed_statuses.extend(options["allowedStandbyStateList"])
+            if healthz_resp["status"].lower() not in allowed_statuses and procedure == "standby":
 
                 logging.critical(
                     f"Service: {service}. Current health status is {healthz_resp['status'].lower()}. Service failed")
-                logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")
                 if not force:
                     return "unhealthy", service_status
+                logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")
             else:
                 logging.info(f"Service: {service}. Current health status is {healthz_resp['status'].lower()}")
 
@@ -130,9 +131,9 @@ def is_healthy(service, procedure, options, status, force):
 
         logging.critical(
             f"Service: {service}. Current health status is {status['healthz'].lower()}. Service failed")
-        logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")
         if not force:
             return False
+        logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")
     else:
         logging.info(f"Service: {service}. Current health status is {status['healthz'].lower()}")
     return True
