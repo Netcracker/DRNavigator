@@ -605,17 +605,6 @@ def sitemanager_post():
         output["services"] = {}
         for item in services_to_run:
             module = import_module(sm_dict["services"][item]["module"])
-            if data.get("polling", False):
-                if procedure_results.get(item, dict()):
-                    output["services"][item] = procedure_results[item]
-                    continue
-                else:
-                    output["services"][item] = module.get_status(sm_dict["services"][item],
-                                                                 *running_services,
-                                                                 *done_services,
-                                                                 *failed_services,
-                                                                 **data)
-                    continue
             output["services"][item] = module.get_status(sm_dict["services"][item], **data)
         return json_response(200, output)
 

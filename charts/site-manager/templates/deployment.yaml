@@ -23,7 +23,8 @@ spec:
         args:
           - "--bind=0.0.0.0:8443"
           - '--preload'
-          - '--workers=3'
+          - '--workers=5'
+          - '--timeout=5'
           - "--certfile=/certs/tls.crt"
           - "--keyfile=/certs/tls.key"
           - "site-manager:app"

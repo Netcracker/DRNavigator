@@ -59,7 +59,7 @@ def send_post(url, mode, no_wait):
 
     for _ in range(5):
         try:
-            resp = requests.post(url, timeout=10, data=obj, headers=headers)
+            resp = requests.post(url, timeout=20, data=obj, headers=headers)
             logging.debug(f"REST response: {resp} and return code: {resp.status_code}")
             response = resp.json()
             ret_code = resp.status_code

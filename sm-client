@@ -172,7 +172,7 @@ def send_post(url, obj, token):
 
     for _ in range(3):
         try:
-            resp = requests.post(url, json=obj, timeout=15, headers=headers, verify=SM_HTTPS_SECURE)
+            resp = requests.post(url, json=obj, timeout=30, headers=headers, verify=SM_HTTPS_SECURE)
             response = resp.json()
             ret_code = resp.status_code
             if ret_code == 200:
@@ -255,7 +255,6 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
         data = send_post(sm_dict["sites"][site]["url"],
                          {"procedure": "status", "run-services": service, "polling": True},
                          sm_dict["sites"][site]["token"])
-
         logging.debug(f"Service: {service}. Site: {site}. Received data: {data}")
         if "status" not in data.get("services", {}).get(service, {}) or \
            "mode" not in data.get("services", {}).get(service, {}):
@@ -274,6 +273,8 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
             if data["services"][service]["status"] == "done":
                 break
 
+        time.sleep(5)
+
     count = 0
     while int(time.time()) < init_time + int(timeout):
 
@@ -282,7 +283,9 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
         logging.info(f"Service: {service}. Site: {site}. Polling service status. Iteration {count}")
         logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
 
-        data = send_post(sm_dict["sites"][site]["url"], {"procedure": "status", "run-services": service, "polling": True}, sm_dict["sites"][site]["token"])
+        data = send_post(sm_dict["sites"][site]["url"],
+                         {"procedure": "status", "run-services": service, "polling": True},
+                         sm_dict["sites"][site]["token"])
 
         logging.debug(f"Service: {service}. Site: {site}. Received status: {data['services'][service]['healthz']}")
         if "healthz" not in data.get("services", {}).get(service, {}):
