@@ -224,7 +224,7 @@ def send_get(url, token):
             resp = requests.get(url, timeout=5, headers=headers, verify=SM_HTTPS_SECURE)
             if resp.status_code in (401, 403, 500):
                 logging.error(f"Problem with URL: {url}")
-                logging.error(f"{resp.json()['message']}")
+                logging.error(f"Code: {resp.status_code}. Message: {resp.json()['message']}")
                 os._exit(1)
             return resp.json()
 
