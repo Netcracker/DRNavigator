@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Company:     NetCracker 
+Company:     NetCracker
 Author:      Core PaaS Group
 Version:     0.5
 Date:        2021-05-26
@@ -435,17 +435,30 @@ def cr_convert():
     spec = request.json["request"]["objects"]
     modified_spec = copy.deepcopy(spec)
     for i in range(len(modified_spec)):
-        # we only handle v1->v2 conversion, v2->v1 is not supported
-        modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
+        # v1->v2 conversion
+        if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v2":
+            modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
 
-        if "module" not in modified_spec[i]["spec"]["sitemanager"]:
-            modified_spec[i]["spec"]["sitemanager"]["module"] = modified_spec[i]["spec"]["sitemanager"].get("module", "stateful")
+            if "module" not in modified_spec[i]["spec"]["sitemanager"]:
+                modified_spec[i]["spec"]["sitemanager"]["module"] = modified_spec[i]["spec"]["sitemanager"].get("module", "stateful")
 
-        if "parameters" not in modified_spec[i]["spec"]["sitemanager"]:
-            modified_spec[i]["spec"]["sitemanager"]["parameters"] = {}
-            modified_spec[i]["spec"]["sitemanager"]["parameters"]["serviceEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("serviceEndpoint", "")
-            modified_spec[i]["spec"]["sitemanager"]["parameters"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("ingressEndpoint", "")
-            modified_spec[i]["spec"]["sitemanager"]["parameters"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("healthzEndpoint", "")
+            if "parameters" not in modified_spec[i]["spec"]["sitemanager"]:
+                modified_spec[i]["spec"]["sitemanager"]["parameters"] = {}
+                modified_spec[i]["spec"]["sitemanager"]["parameters"]["serviceEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("serviceEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["parameters"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("ingressEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["parameters"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("healthzEndpoint", "")
+        # v2->v1 conversion
+        if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v1":
+            modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
+
+            if "module" in modified_spec[i]["spec"]["sitemanager"]:
+                del modified_spec[i]["spec"]["sitemanager"]["module"]
+
+            if "parameters" in modified_spec[i]["spec"]["sitemanager"]:
+                modified_spec[i]["spec"]["sitemanager"]["serviceEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("serviceEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("ingressEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("healthzEndpoint", "")
+                del modified_spec[i]["spec"]["sitemanager"]["parameters"]
 
     logging.debug("CR convertation is started.")
     logging.debug(f"Initial spec: {spec}")
@@ -592,17 +605,6 @@ def sitemanager_post():
         output["services"] = {}
         for item in services_to_run:
             module = import_module(sm_dict["services"][item]["module"])
-            if data.get("polling", False):
-                if procedure_results.get(item, dict()):
-                    output["services"][item] = procedure_results[item]
-                    continue
-                else:
-                    output["services"][item] = module.get_status(sm_dict["services"][item],
-                                                                 *running_services,
-                                                                 *done_services,
-                                                                 *failed_services,
-                                                                 **data)
-                    continue
             output["services"][item] = module.get_status(sm_dict["services"][item], **data)
         return json_response(200, output)
 
