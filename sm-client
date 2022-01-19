@@ -79,7 +79,7 @@ parser_2 = subparsers.add_parser('stop', help='excludes site from Active-Standby
 parser_2.add_argument('site', help=SITE_HELP_SECTION)
 parser_2.set_defaults(command='stop')
 
-parser_3 = subparsers.add_parser('return', help='return stopped kuberneets cluster to Standby role')
+parser_3 = subparsers.add_parser('return', help='return stopped Kubernetes cluster to Standby role')
 parser_3.add_argument('site', help=SITE_HELP_SECTION)
 parser_3.set_defaults(command='return')
 
@@ -242,7 +242,8 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
     :param string site: the name of processed site
     :param int timeout: the timeout for processing service in seconds
     """
-    data = {"mode": "unknown", "status": "unknown", "healthz": "--"}
+    unknown_state = {"mode": "unknown", "status": "unknown", "healthz": "--"}
+    data = dict()
     init_time = int(time.time())
 
     count = 0
@@ -303,7 +304,10 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
 
         time.sleep(5)
 
-    return data["services"][service]
+    if data:
+        return data["services"][service]
+    else:
+        return unknown_state
 
 
 def run(service, procedure, force, no_wait=True):
@@ -707,7 +711,12 @@ def print_additional_table(status_dict, services_to_run, sites_name):
             for item in status_dict[service_item][sites_item].get('additional', dict()):
                 for key, value in status_dict[service_item][sites_item]["additional"][item].items():
                     additional = additional + str(key) + ": \n" + str(value) + " \n"
+            if additional:
                 service_pt_row.append(f"{additional}")
+            else:
+                for sites_item in sites_name:
+                    if any(status_dict[service_item][sites_item].get('additional', dict())):
+                        service_pt_row.append("--")
         if len(service_pt_row) > 1:
             pt.add_row(service_pt_row)
             is_any_additional = True
@@ -781,7 +790,7 @@ def main_func(procedure, site, run_services, skip_services, force):
     logging.info(f"Active sites:  {sites_active}")
     logging.info(f"Standby sites: {sites_standby}")
     logging.info(f"Kubernetes services managed by site-manager: {all_services}")
-    logging.info(f"Kuberneets services that will be processed:  {services_to_run}")
+    logging.info(f"Kubernetes services that will be processed:  {services_to_run}")
     logging.info("---------------------------------------------------------------------")
 
     # Checking for nonexistent dependencies
@@ -862,7 +871,7 @@ def main_func(procedure, site, run_services, skip_services, force):
 
     for service in services_to_run:
         for site in sites_to_process:
-            if not procedure_results[service][site]:
+            if not procedure_results[service].get(site, {}):
                 procedure_results[service][site] = {'healthz': '--', 'mode': '--', 'status': '--'}
 
     logging.info("---------------------------------------------------------------------")
@@ -916,7 +925,7 @@ elif args.command == "list":
     print(f"---------------------------------------------------------------------\n" +
           f"Sites managed by site-manager:               {sites_name}\n\n" +
           f"Kubernetes services managed by site-manager: {all_services}\n" +
-          f"Kuberneets services that will be processed:  {services_to_run}\n" +
+          f"Kubernetes services that will be processed:  {services_to_run}\n" +
           f"---------------------------------------------------------------------")
 
 # Process command 'status'
