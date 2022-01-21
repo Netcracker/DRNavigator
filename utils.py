@@ -5,8 +5,7 @@ import requests
 import time
 import os
 import yaml
-import base64
-from kubernetes import client, config, watch
+from kubernetes import client, config
 
 SM_CONFIG_FILE = os.environ.get("SM_CONFIG_FILE", "")
 if SM_CONFIG_FILE != "":
@@ -40,8 +39,6 @@ SM_KUBECONFIG_FILE = os.environ.get("SM_KUBECONFIG_FILE", "")
 
 DEPLOYMENT_ADDITIONAL_DELAY = 30
 
-SM_CLIENT_TOKEN = ""
-
 
 def send_post(url, mode, no_wait):
     """
@@ -54,7 +51,6 @@ def send_post(url, mode, no_wait):
 
     obj = json.dumps({"mode": mode, "no-wait": no_wait})
     headers = {
-        "Authorization": f"Bearer {SM_CLIENT_TOKEN}",
         'Content-type': 'application/json',
         'Accept': 'application/json'
     }
@@ -90,14 +86,11 @@ def send_get(url):
     :param string url: the URL to service operator
     """
 
-    headers = {
-        "Authorization": f"Bearer {SM_CLIENT_TOKEN}",
-    }
     logging.debug(f"REST url: {url}")
 
     for _ in range(5):
         try:
-            resp = requests.get(url, timeout=10, headers=headers)
+            resp = requests.get(url, timeout=10)
             return resp.json()
         except Exception as e:
             logging.error("Wrong JSON data received: \n %s" % str(e))
@@ -372,78 +365,3 @@ def collect_deployments_statuses(dr_marker, dr_mode_env):
             results[deployment_name]["mode"] = "active"
         results[deployment_name]["status"] = status
     return results
-
-
-def get_token(api_watch=False):
-    """
-    Method to get token of sm-client-sa from kubernetes. Method rewrites global var SM_CLIENT_TOKEN with actual token value
-
-    :param bool api_watch: special flag to define method mode: get token once or follow the token changes.
-    """
-    global SM_CLIENT_TOKEN
-
-    # In testing mode return stab
-    if SM_CONFIG.get("testing", {}).get("enabled", False) and \
-            SM_CONFIG.get("testing", {}).get("sm_dict", {}) != {}:
-
-        SM_CLIENT_TOKEN = SM_CONFIG["testing"].get("token", "123")
-
-        return
-
-    if SM_KUBECONFIG_FILE != "":
-        k8s_api_client = config.load_kube_config(config_file=SM_KUBECONFIG_FILE)
-
-        _, current_context = config.list_kube_config_contexts(config_file=SM_KUBECONFIG_FILE)
-        namespace = current_context['context'].get('namespace', 'default')
-
-    else:
-        k8s_api_client = config.load_incluster_config()
-        namespace = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
-
-    logging.info(f"Current namespace: {namespace}")
-
-    if not api_watch:
-
-        try:
-            service_account = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_service_account("sm-client", namespace)
-            secret_name = [s for s in service_account.secrets if 'token' in s.name][0].name
-            btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
-                name=secret_name, namespace=namespace).data['token']
-            token = base64.b64decode(btoken).decode()
-
-        except Exception as e:
-            logging.error("Can not get sm-client token: \n %s" % str(e))
-            os._exit(1)
-
-        SM_CLIENT_TOKEN = token
-
-    else:
-        counter = 1
-        w = watch.Watch()
-
-        while True:
-            logging.debug(f"Start watching serviceaccount sm-client. Iteration {counter}")
-            counter += 1
-
-            for event in w.stream(client.CoreV1Api(api_client=k8s_api_client).list_namespaced_service_account,
-                                  namespace,
-                                  timeout_seconds=30):
-                if event['object'].metadata.name == "sm-client":
-                    if event['type'] in ["ADDED", "MODIFIED"]:
-                        try:
-                            secret_name = [s for s in event['object'].secrets][0].name
-                        except: # hit here when secret for appropriate  SA is not ready yet
-                            continue
-
-                        btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
-                            name=secret_name, namespace=namespace).data['token']
-                        token = base64.b64decode(btoken).decode()
-
-                        logging.info(f"Serviceaccount sm-client was {event['type']}. Token was updated.")
-
-                        SM_CLIENT_TOKEN = token
-
-                    if event['type'] == "DELETED":
-                        logging.fatal("Serviceaccount sm-client was deleted. Exit")
-                        os._exit(1)
-            time.sleep(15)
