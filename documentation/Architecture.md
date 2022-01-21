@@ -241,6 +241,8 @@ status:
   - status.user.username = <name corresponding to SA-CM_Client on this environment>
 ```
 
+![](/documentation/images/site-manager-http-auth.png)
+
 What might be required to implement this approach:
 
 1. The operator which processing requests from Site-Manager must have a `serviceaccount`.
