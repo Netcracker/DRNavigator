@@ -47,7 +47,7 @@ logging.basicConfig(format=logging_format, level=logging_level)
 lock = threading.Lock()
 
 
-if utils.SM_HTTP_AUTH:
+if utils.SC_SM_HTTP_AUTH or utils.SM_SERVICE_HTTP_AUTH:
     utils.get_token(False)
 
     w_thread = threading.Thread(target=utils.get_token,
@@ -409,7 +409,7 @@ def sitemanager_get():
     """
     Method for processing GET requests to /sitemanager
     """
-    if utils.SM_HTTP_AUTH:
+    if utils.SC_SM_HTTP_AUTH:
 
         if "Authorization" not in request.headers:
 
@@ -440,7 +440,7 @@ def sitemanager_post():
     global failed_services
     global procedure_results
 
-    if utils.SM_HTTP_AUTH:
+    if utils.SC_SM_HTTP_AUTH:
 
         if "Authorization" not in request.headers:
 

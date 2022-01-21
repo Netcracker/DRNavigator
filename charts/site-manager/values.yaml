@@ -2,7 +2,8 @@ namespace: site-manager
 
 env:
   # set authentication mode
-  SM_HTTP_AUTH: "Yes"
+  SC_SM_HTTP_AUTH: "Yes"
+  SM_SERVICE_HTTP_AUTH: "Yes"
 
   # set host and port for web service
   SM_WEB_HOST: "0.0.0.0"

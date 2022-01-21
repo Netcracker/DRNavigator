@@ -111,7 +111,7 @@ The `site-manager` helm chart can be customized with following parameters:
 
 | Parameter | Description | Default value |
 |-----------|-------------|---------------|
-| env.SM_HTTP_AUTH | set athetication mode | "Yes" |
+| env.SC_SM_HTTP_AUTH | set athetication mode | "Yes" |
 | env.SM_DEBUG | set `debug` logging level | "False" |
 | env.SM_GROUP | define API group for CRD | "netcracker.com" |
 | env.SM_PLURAL | define object of API group  | "sitemanagers" |

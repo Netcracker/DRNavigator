@@ -27,8 +27,10 @@ spec:
           - "--keyfile=/certs/tls.key"
           - "site-manager:app"
         env:
-          - name: SM_HTTP_AUTH
-            value: "{{ .Values.env.SM_HTTP_AUTH }}"
+          - name: SC_SM_HTTP_AUTH
+            value: "{{ .Values.env.SC_SM_HTTP_AUTH }}"
+          - name: SM_SERVICE_HTTP_AUTH
+            value: "{{ .Values.env.SM_SERVICE_HTTP_AUTH }}"
           - name: SM_WEB_HOST
             value: "{{ .Values.env.SM_WEB_HOST }}"
           - name: SM_WEB_PORT
