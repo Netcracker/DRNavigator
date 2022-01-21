@@ -4,3 +4,4 @@ jsonpatch==1.32
 kubernetes==12.0.1
 prometheus_flask_exporter==0.18.2
 gunicorn==20.1.0
+gevent
