@@ -12,17 +12,12 @@ import logging
 import threading
 import time
 import http
-import os
 import copy
-import json
-import base64
 import utils
 from flask import Flask, request, jsonify, make_response
-from logging.config import dictConfig
-from kubernetes import client, config, watch
+from kubernetes import client, config
 from prometheus_flask_exporter import PrometheusMetrics
 
-SM_CLIENT_TOKEN = ""
 
 # Define GLOBAL lists for running, ignoring, failed and done services
 services_pending = []
@@ -52,85 +47,10 @@ logging.basicConfig(format=logging_format, level=logging_level)
 lock = threading.Lock()
 
 
-def get_token(api_watch=False):
-    """
-    Method to get token of sm-client-sa from kubernetes. Method rewrites global var SM_CLIENT_TOKEN with actual token value
-
-    :param bool api_watch: special flag to define method mode: get token once or follow the token changes.
-    """
-    global SM_CLIENT_TOKEN
-
-    # In testing mode return stab
-    if utils.SM_CONFIG.get("testing", {}).get("enabled", False) and \
-            utils.SM_CONFIG.get("testing", {}).get("sm_dict", {}) != {}:
-
-        SM_CLIENT_TOKEN = utils.SM_CONFIG["testing"].get("token", "123")
-
-        return
-
-    if utils.SM_KUBECONFIG_FILE != "":
-        k8s_api_client = config.load_kube_config(config_file=utils.SM_KUBECONFIG_FILE)
-
-        _, current_context = config.list_kube_config_contexts(config_file=utils.SM_KUBECONFIG_FILE)
-        namespace = current_context['context'].get('namespace', 'default')
-
-    else:
-        k8s_api_client = config.load_incluster_config()
-        namespace = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
-
-    logging.info(f"Current namespace: {namespace}")
-
-    if not api_watch:
-
-        try:
-            service_account = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_service_account("sm-client", namespace)
-            secret_name = [s for s in service_account.secrets if 'token' in s.name][0].name
-            btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
-                name=secret_name, namespace=namespace).data['token']
-            token = base64.b64decode(btoken).decode()
-
-        except Exception as e:
-            logging.error("Can not get sm-client token: \n %s" % str(e))
-            os._exit(1)
-
-        SM_CLIENT_TOKEN = token
-
-    else:
-        counter = 1
-        w = watch.Watch()
-
-        while True:
-            logging.debug(f"Start watching serviceaccount sm-client. Iteration {counter}")
-            counter += 1
-
-            for event in w.stream(client.CoreV1Api(api_client=k8s_api_client).list_namespaced_service_account,
-                                  namespace,
-                                  timeout_seconds=30):
-                if event['object'].metadata.name == "sm-client":
-                    if event['type'] in ["ADDED", "MODIFIED"]:
-                        try:
-                            secret_name = [s for s in event['object'].secrets][0].name
-                        except: # hit here when secret for appropriate  SA is not ready yet
-                            continue
-
-                        btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
-                            name=secret_name, namespace=namespace).data['token']
-                        token = base64.b64decode(btoken).decode()
-
-                        logging.info(f"Serviceaccount sm-client was {event['type']}. Token was updated.")
-
-                        SM_CLIENT_TOKEN = token
-
-                    if event['type'] == "DELETED":
-                        logging.fatal("Serviceaccount sm-client was deleted. Exit")
-                        os._exit(1)
-            time.sleep(15)
-
-
 if utils.SM_HTTP_AUTH:
-    get_token(False)
+    utils.get_token(False)
 
-    w_thread = threading.Thread(target=get_token,
+    w_thread = threading.Thread(target=utils.get_token,
                                 args=[True, ])
     w_thread.start()
 
@@ -496,7 +416,7 @@ def sitemanager_get():
             return json_response(401, {"message": "You should use Bearer for authorization"})
 
         if len(request.headers["Authorization"].split(" ")) != 2 or \
-           request.headers["Authorization"].split(" ")[1] != SM_CLIENT_TOKEN:
+           request.headers["Authorization"].split(" ")[1] != utils.SM_CLIENT_TOKEN:
 
             return json_response(403, {"message": "Bearer is empty or wrong"})
 
@@ -527,7 +447,7 @@ def sitemanager_post():
             return json_response(401, {"message": "You should use Bearer for authorization"})
 
         if len(request.headers["Authorization"].split(" ")) != 2 or \
-           request.headers["Authorization"].split(" ")[1] != SM_CLIENT_TOKEN:
+           request.headers["Authorization"].split(" ")[1] != utils.SM_CLIENT_TOKEN:
 
             return json_response(403, {"message": "Bearer is empty or wrong"})
 
