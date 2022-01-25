@@ -380,10 +380,8 @@ def run(service, procedure, force, no_wait=True):
             if procedure == "move":
                 logging.info(f"Service: {service}. Site: {site}. Check current health status")
 
-                allowed_statuses = ["up"]
-                allowed_statuses.extend(sm_dict["services"][service]["allowedStandbyStateList"])
                 # We should check previous state of service. In that case we check "up" for standby and "allowedStandbyStateList" for active
-                if (sm_dict["sites"][site]["mode"] == "standby" and resp["services"][service]["healthz"].lower() not in allowed_statuses) or \
+                if (sm_dict["sites"][site]["mode"] == "standby" and resp["services"][service]["healthz"].lower() != "up") or \
                    (sm_dict["sites"][site]["mode"] == "active" and resp["services"][service]["healthz"].lower() not in sm_dict["services"][service]["allowedStandbyStateList"]):
 
                     logging.critical(f"Service: {service}. Site: {site}. Current health status is {resp['services'][service]['healthz'].lower()}. Service failed")
@@ -805,7 +803,7 @@ def main_func(procedure, site, run_services, skip_services, force):
     after_stateful = []
 # TODO This is an exceptional case to handle internal NC specific module. To be reworked later in more general manner.
     replicator = "cluster-replicator"
-    if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop", "standby"]:
+    if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop"]:
         sm_dict["services"][replicator]["sequence"] = ["standby"]
         run(replicator, procedure, force, no_wait)
 
@@ -864,7 +862,7 @@ def main_func(procedure, site, run_services, skip_services, force):
     for thread in threads:
         thread.join()
 
-    if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop", "active"]:
+    if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop"]:
         sm_dict["services"][replicator]["sequence"] = ["active"]
         run(replicator, procedure, force, no_wait)
         if replicator in failed_services and replicator in done_services:
@@ -873,14 +871,9 @@ def main_func(procedure, site, run_services, skip_services, force):
         failed_services = list(set(failed_services))
 
     for service in services_to_run:
-        if not procedure_results.get(service, {}):
-            procedure_results[service] = dict()
-            for site in sites_to_process:
+        for site in sites_to_process:
+            if not procedure_results[service].get(site, {}):
                 procedure_results[service][site] = {'healthz': '--', 'mode': '--', 'status': '--'}
-        else:
-            for site in sites_to_process:
-                if not procedure_results[service].get(site, {}):
-                    procedure_results[service][site] = {'healthz': '--', 'mode': '--', 'status': '--'}
 
     logging.info("---------------------------------------------------------------------")
     logging.info("Summary:")
