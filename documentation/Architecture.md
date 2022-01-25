@@ -238,7 +238,7 @@ status:
 
 ```
   - status.authenticated = true
-  - status.user.username = <name corresponding to SA-CM_Client on this environment>
+  - status.user.username = sm-auth-sa
 ```
 
 ![](/documentation/images/site-manager-http-auth.png)
