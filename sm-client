@@ -135,10 +135,10 @@ except:
 logging.debug(f"Parsed config: {conf_parsed}")
 
 global SM_HTTP_SECURE
-global SC_SM_HTTP_AUTH
+global FRONT_HTTP_AUTH
 
 SM_HTTPS_SECURE = not args.insecure
-SC_SM_HTTP_AUTH = conf_parsed.get("sm-client", {}).get("http_auth", False)
+FRONT_HTTP_AUTH = conf_parsed.get("sm-client", {}).get("http_auth", False)
 
 SERVICE_DEFAULT_TIMEOUT = conf_parsed.get("sm-client", {}).get("service_default_timeout", 200)
 
@@ -158,7 +158,7 @@ def send_post(url, obj, token):
     :param string url: the URL to service operator
     :param dict obj: the dictionary with procedure and list of services
     """
-    if token != "" and SC_SM_HTTP_AUTH:
+    if token != "" and FRONT_HTTP_AUTH:
         headers = {
             "Authorization": f"Bearer {token}"
         }
@@ -203,7 +203,7 @@ def send_get(url, token):
 
     :param string url: the URL to service operator
     """
-    if token != "" and SC_SM_HTTP_AUTH:
+    if token != "" and FRONT_HTTP_AUTH:
         headers = {
             "Authorization": f"Bearer {token}"
         }

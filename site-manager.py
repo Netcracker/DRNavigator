@@ -47,7 +47,7 @@ logging.basicConfig(format=logging_format, level=logging_level)
 lock = threading.Lock()
 
 
-if utils.SC_SM_HTTP_AUTH or utils.SM_SERVICE_HTTP_AUTH:
+if utils.FRONT_HTTP_AUTH or utils.BACK_HTTP_AUTH:
     utils.get_token(False)
 
     w_thread = threading.Thread(target=utils.get_token,
@@ -409,16 +409,9 @@ def sitemanager_get():
     """
     Method for processing GET requests to /sitemanager
     """
-    if utils.SC_SM_HTTP_AUTH:
-
-        if "Authorization" not in request.headers:
-
-            return json_response(401, {"message": "You should use Bearer for authorization"})
-
-        if len(request.headers["Authorization"].split(" ")) != 2 or \
-           request.headers["Authorization"].split(" ")[1] != utils.SM_CLIENT_TOKEN:
-
-            return json_response(403, {"message": "Bearer is empty or wrong"})
+    result = check_authorization(request)
+    if result:
+        return result
 
     try:
         response = json_response(200, get_sitemanagers_dict())
@@ -440,16 +433,9 @@ def sitemanager_post():
     global failed_services
     global procedure_results
 
-    if utils.SC_SM_HTTP_AUTH:
-
-        if "Authorization" not in request.headers:
-
-            return json_response(401, {"message": "You should use Bearer for authorization"})
-
-        if len(request.headers["Authorization"].split(" ")) != 2 or \
-           request.headers["Authorization"].split(" ")[1] != utils.SM_CLIENT_TOKEN:
-
-            return json_response(403, {"message": "Bearer is empty or wrong"})
+    result = check_authorization(request)
+    if result:
+        return result
 
     try:
         data = request.get_json()
@@ -540,3 +526,13 @@ def sitemanager_post():
     return json_response(200, {"message": f"Procedure {data['procedure']} is started",
                                "services": services_to_run,
                                "procedure": data['procedure']})
+
+
+def check_authorization(request):
+    if utils.FRONT_HTTP_AUTH:
+        if "Authorization" not in request.headers:
+            return json_response(401, {"message": "You should use Bearer for authorization"})
+
+        if len(request.headers["Authorization"].split(" ")) != 2 or \
+           request.headers["Authorization"].split(" ")[1] != utils.SM_CLIENT_TOKEN:
+            return json_response(403, {"message": "Bearer is empty or wrong"})

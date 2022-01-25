@@ -32,8 +32,8 @@ SM_WEB_HOST = os.environ.get("SM_WEB_HOST", "0.0.0.0")
 SM_WEB_PORT = os.environ.get("SM_WEB_PORT", 8443)
 
 # define authentication mode
-SC_SM_HTTP_AUTH = os.environ.get("SC_SM_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
-SM_SERVICE_HTTP_AUTH = os.environ.get("SM_SERVICE_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
+FRONT_HTTP_AUTH = os.environ.get("FRONT_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
+BACK_HTTP_AUTH = os.environ.get("BACK_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
 
 SM_DEBUG = os.environ.get("SM_DEBUG", False)
 
@@ -59,7 +59,7 @@ def send_post(url, mode, no_wait):
         'Accept': 'application/json'
     }
 
-    if SM_SERVICE_HTTP_AUTH:
+    if BACK_HTTP_AUTH:
         headers["Authorization"] = f"Bearer {SM_CLIENT_TOKEN}"
 
     logging.debug(f"REST url: {url}")
@@ -94,7 +94,7 @@ def send_get(url):
     :param string url: the URL to service operator
     """
     headers = dict()
-    if SM_SERVICE_HTTP_AUTH:
+    if BACK_HTTP_AUTH:
         headers["Authorization"] = f"Bearer {SM_CLIENT_TOKEN}"
 
     logging.debug(f"REST url: {url}")

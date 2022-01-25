@@ -176,12 +176,12 @@ To check current infra service health status `site-manager` checks URL from `hea
 To restrict access to `site-manager` from `sm-client` there is the scheme with using authorization by Bearer:
 
 1. In kubernetes cluster there is the serviceaccount sm-client without any grants in the same namespace as `site-manager`
-2. `site-manager` is started with env parameter `SC_SM_HTTP_AUTH` with value "True" or "Yes"
+2. `site-manager` is started with env parameter `FRONT_HTTP_AUTH` with value "True" or "Yes"
 3. `site-manager` reads secret created by kubernetes for serviceaccount sm-client and store token in memory. Also `site-manager` uses watch mode and wait for any updates of secret. If secret was updated the `site-manager` also updates token in memory
-4. Operator fills config.yml for `sm-client` with the same token and set env parameter `SC_SM_HTTP_AUTH` with value "True" or "Yes"
+4. Operator fills config.yml for `sm-client` with the same token and set env parameter `FRONT_HTTP_AUTH` with value "True" or "Yes"
 5. All of REST operations between `sm-client` and `site-manager` will be accompanied by a header "Authorization: Bearer <TOKEN>" where `TOKEN` is the token from serviceaccount sm-client
 
-**Note:** `site-manager` ia installed by default with with `SC_SM_HTTP_AUTH` "Yes" and enabled authorization.
+**Note:** `site-manager` ia installed by default with with `FRONT_HTTP_AUTH` "Yes" and enabled authorization.
 
 # REST API
 
@@ -195,7 +195,7 @@ This part describes which contract must implement the service so that the Site-m
 
 ### API Security model
 
-**Note:** This functionality is enabled by default: `SM_SERVICE_HTTP_AUTH: "Yes"` in the Helm chart, later this value can be changed in the SM deployment.
+**Note:** This functionality is enabled by default: `BACK_HTTP_AUTH: "Yes"` in the Helm chart, later this value can be changed in the SM deployment.
 
 To implement secure access between Site-Manager and services, the special header is added to POST and GET requests coming from Site-Manager:
 
