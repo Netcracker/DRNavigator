@@ -380,7 +380,7 @@ def collect_deployments_statuses(dr_marker, dr_mode_env):
 
 def get_token(api_watch=False):
     """
-    Method to get token of sm-client-sa from kubernetes. Method rewrites global var SM_CLIENT_TOKEN with actual token value
+    Method to get token of sm-auth-sa from kubernetes. Method rewrites global var SM_CLIENT_TOKEN with actual token value
 
     :param bool api_watch: special flag to define method mode: get token once or follow the token changes.
     """
@@ -409,14 +409,14 @@ def get_token(api_watch=False):
     if not api_watch:
 
         try:
-            service_account = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_service_account("sm-client", namespace)
+            service_account = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_service_account("sm-auth-sa", namespace)
             secret_name = [s for s in service_account.secrets if 'token' in s.name][0].name
             btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
                 name=secret_name, namespace=namespace).data['token']
             token = base64.b64decode(btoken).decode()
 
         except Exception as e:
-            logging.error("Can not get sm-client token: \n %s" % str(e))
+            logging.error("Can not get sm-auth-sa token: \n %s" % str(e))
             os._exit(1)
 
         SM_CLIENT_TOKEN = token
@@ -426,13 +426,13 @@ def get_token(api_watch=False):
         w = watch.Watch()
 
         while True:
-            logging.debug(f"Start watching serviceaccount sm-client. Iteration {counter}")
+            logging.debug(f"Start watching serviceaccount sm-auth-sa. Iteration {counter}")
             counter += 1
 
             for event in w.stream(client.CoreV1Api(api_client=k8s_api_client).list_namespaced_service_account,
                                   namespace,
                                   timeout_seconds=30):
-                if event['object'].metadata.name == "sm-client":
+                if event['object'].metadata.name == "sm-auth-sa":
                     if event['type'] in ["ADDED", "MODIFIED"]:
                         try:
                             secret_name = [s for s in event['object'].secrets][0].name
@@ -443,11 +443,11 @@ def get_token(api_watch=False):
                             name=secret_name, namespace=namespace).data['token']
                         token = base64.b64decode(btoken).decode()
 
-                        logging.info(f"Serviceaccount sm-client was {event['type']}. Token was updated.")
+                        logging.info(f"Serviceaccount sm-auth-sa was {event['type']}. Token was updated.")
 
                         SM_CLIENT_TOKEN = token
 
                     if event['type'] == "DELETED":
-                        logging.fatal("Serviceaccount sm-client was deleted. Exit")
+                        logging.fatal("Serviceaccount sm-auth-sa was deleted. Exit")
                         os._exit(1)
             time.sleep(15)
