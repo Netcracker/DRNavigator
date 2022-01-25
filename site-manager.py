@@ -42,10 +42,10 @@ metrics = PrometheusMetrics(app)
 
 if utils.SM_DEBUG:
     logging_level = logging.DEBUG
-    logging_format = "[%(asctime)s] [%(process)d] [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
+    logging_format = "[%(asctime)s] [%(thread)d]-[%(threadName)s] [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
 else:
     logging_level = logging.INFO
-    logging_format = "[%(asctime)s] [%(process)d] [%(levelname)s] %(filename)s: %(message)s"
+    logging_format = "[%(asctime)s] [%(thread)d]-[%(threadName)s] [%(levelname)s] %(filename)s: %(message)s"
 
 logging.basicConfig(format=logging_format, level=logging_level)
 
@@ -312,14 +312,18 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
     logging.info("---------------------------------------------------------------------")
     logging.info(f"Procedure:       {procedure}")
     logging.info(f"Kubernetes services managed by site-manager: {all_services}")
-    logging.info(f"Kuberneets services that will be processed:  {services_to_run}")
+    logging.info(f"Kubernetes services that will be processed:  {services_to_run}")
     logging.info("---------------------------------------------------------------------")
 
     # Checking for nonexistent dependencies
     check_dependencies(services_to_run, all_services, sm_dict)
 
     # Starting main loop to process all services
-    logging.debug("Starting main loop")
+    logging.debug("-----Starting main loop-----")
+    logging.debug(f"services_pending: {services_pending};; \n"
+                  f"running_services: {running_services};; \n"
+                  f"done_services: {done_services};; \n"
+                  f"failed_services: {failed_services};;")
     after_stateful = []
     while not all(elem in (done_services + failed_services + ignored_services + after_stateful) for elem in all_services):
 
