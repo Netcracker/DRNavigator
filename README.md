@@ -10,7 +10,7 @@
 
 DRNavigator is the project to manage applications in two or more kubernetes clusters.
 
-# Prepare kubernetes cluster to work DRNavigator
+# Prepare kubernetes cluster to work with DRNavigator
 
 To support ability of services be managed by `site-manager` you should prepare following steps:
 
