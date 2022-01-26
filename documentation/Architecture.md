@@ -204,13 +204,13 @@ This part describes which contract must implement the service so that the Site-m
 
 To implement secure access between Site-Manager and services, the special header is added to POST and GET requests coming from Site-Manager:
 
-'''
-"Authorization": "Bearer <Token>"
-'''
+```
+"Authorization": "Bearer <TOKEN>"
+```
 
 In order for the service to make sure that the request is secure, on the service side it is necessary to organize the verification of this token for authenticity and belonging to Site-Manager. This is done as follows:
 
-1) You need to use the Kube-api functionality based on `TokenReview`:
+1) You need to make a request to verify the received token (`TokenReview`) through the `Kubernetes-client` or `Kubectl` of the following format:
 
 ```
 apiVersion: authentication.k8s.io/v1
@@ -218,6 +218,9 @@ kind: TokenReview
 spec:
   token: <TOKEN>
 ```
+
+Where: `<TOKEN>` is a Bearer received from Site-Manager `Authorization` request header.
+
 
 2) Kube-api for this request will return a response in the format:
 
@@ -228,7 +231,7 @@ spec:
   token: <TOKEN>
 status:
   audiences:
-  - https://container.googleapis.com/v1/projects/product-and-telus-dr-solution/locations/us-central1/clusters/cluster-us-central1
+  - <audience identifiers>
   authenticated: true
   user:
     groups:
