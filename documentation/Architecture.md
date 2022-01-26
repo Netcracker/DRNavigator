@@ -236,15 +236,17 @@ status:
     -system:serviceaccounts:site-manager
     -system:authenticated
     uid: c1a61275-608e-462e-89df-cf2a8ecc6d13
-    username: system:serviceaccount:site-manager:site-manager-sa
+    username: system:serviceaccount:site-manager:sm-auth-sa
 ```
 
 3) In this response, we are interested in the following fields:
 
 ```
   - status.authenticated = true
-  - status.user.username = sm-auth-sa
+  - status.user.username = system:serviceaccount:site-manager:sm-auth-sa
 ```
+
+Where `site-manager` is Site-Manager's Namespace name and `sm-auth-sa` is SA name.
 
 ![](/documentation/images/site-manager-http-auth.png)
 
