@@ -221,7 +221,7 @@ spec:
 
 Where: `<TOKEN>` is a Bearer received from Site-Manager `Authorization` request header.
 
-[Kubernetes-client TokenReview Api for Go](#https://github.com/kubernetes-client/go/blob/master/kubernetes/docs/AuthenticationV1Api.md)
+[Kubernetes-client TokenReview Api for Go](https://github.com/kubernetes-client/go/blob/master/kubernetes/docs/AuthenticationV1Api.md)
 
 2) Kube-api for this request will return a response in the format:
 
