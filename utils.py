@@ -41,7 +41,7 @@ SM_KUBECONFIG_FILE = os.environ.get("SM_KUBECONFIG_FILE", "")
 
 DEPLOYMENT_ADDITIONAL_DELAY = 30
 
-SM_CLIENT_TOKEN = ""
+SM_AUTH_TOKEN = ""
 
 
 def send_post(url, mode, no_wait):
@@ -60,7 +60,7 @@ def send_post(url, mode, no_wait):
     }
 
     if BACK_HTTP_AUTH:
-        headers["Authorization"] = f"Bearer {SM_CLIENT_TOKEN}"
+        headers["Authorization"] = f"Bearer {SM_AUTH_TOKEN}"
 
     logging.debug(f"REST url: {url}")
     logging.debug(f"REST data: {obj}")
@@ -95,7 +95,7 @@ def send_get(url):
     """
     headers = dict()
     if BACK_HTTP_AUTH:
-        headers["Authorization"] = f"Bearer {SM_CLIENT_TOKEN}"
+        headers["Authorization"] = f"Bearer {SM_AUTH_TOKEN}"
 
     logging.debug(f"REST url: {url}")
 
@@ -384,13 +384,13 @@ def get_token(api_watch=False):
 
     :param bool api_watch: special flag to define method mode: get token once or follow the token changes.
     """
-    global SM_CLIENT_TOKEN
+    global SM_AUTH_TOKEN
 
     # In testing mode return stab
     if SM_CONFIG.get("testing", {}).get("enabled", False) and \
             SM_CONFIG.get("testing", {}).get("sm_dict", {}) != {}:
 
-        SM_CLIENT_TOKEN = SM_CONFIG["testing"].get("token", "123")
+        SM_AUTH_TOKEN = SM_CONFIG["testing"].get("token", "123")
 
         return
 
@@ -419,7 +419,7 @@ def get_token(api_watch=False):
             logging.error("Can not get sm-auth-sa token: \n %s" % str(e))
             os._exit(1)
 
-        SM_CLIENT_TOKEN = token
+        SM_AUTH_TOKEN = token
 
     else:
         counter = 1
@@ -445,7 +445,7 @@ def get_token(api_watch=False):
 
                         logging.info(f"Serviceaccount sm-auth-sa was {event['type']}. Token was updated.")
 
-                        SM_CLIENT_TOKEN = token
+                        SM_AUTH_TOKEN = token
 
                     if event['type'] == "DELETED":
                         logging.fatal("Serviceaccount sm-auth-sa was deleted. Exit")

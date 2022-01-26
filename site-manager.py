@@ -534,5 +534,5 @@ def check_authorization(request):
             return json_response(401, {"message": "You should use Bearer for authorization"})
 
         if len(request.headers["Authorization"].split(" ")) != 2 or \
-           request.headers["Authorization"].split(" ")[1] != utils.SM_CLIENT_TOKEN:
+           request.headers["Authorization"].split(" ")[1] != utils.SM_AUTH_TOKEN:
             return json_response(403, {"message": "Bearer is empty or wrong"})
