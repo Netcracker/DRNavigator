@@ -123,7 +123,7 @@ logging.debug(f"Script arguments: {args}")
 # Define, check and load configuration file
 conf_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yaml") if args.config == "" else args.config
 if not os.path.isfile(conf_file):
-    logging.fatal("You should define configuration file for site-manager or copy it to config.yml in site-manager main directory")
+    logging.fatal("You should define configuration file for site-manager or copy it to config.yaml in site-manager main directory")
     exit(1)
 
 try:
@@ -178,16 +178,17 @@ def send_post(url, obj, token):
             if ret_code == 200:
                 if response.get("message", ""):
                     logging.info(f"Code: {ret_code}. Message: {response['message']}")
-            if ret_code != 200:
+            if ret_code in (401, 403, 500):
                 if response.get("message", ""):
                     logging.error(f"Code: {ret_code}. Message: {response['message']}")
                 response["bad_response"] = ret_code
+                os._exit(1)
             return response
 
         except requests.exceptions.SSLError:
             logging.error("SSL certificate verify failed")
             logging.error("Please use key -k or --insecure")
-            exit(1)
+            os._exit(1)
 
         except:
             logging.debug("Wrong JSON data received")
@@ -221,12 +222,16 @@ def send_get(url, token):
     for _ in range(3):
         try:
             resp = requests.get(url, timeout=5, headers=headers, verify=SM_HTTPS_SECURE)
+            if resp.status_code in (401, 403, 500):
+                logging.error(f"Problem with URL: {url}")
+                logging.error(f"Code: {resp.status_code}. Message: {resp.json()['message']}")
+                os._exit(1)
             return resp.json()
 
         except requests.exceptions.SSLError:
             logging.error("SSL certificate verify failed")
             logging.error("Please use key -k or --insecure")
-            exit(1)
+            os._exit(1)
 
         except:
             logging.debug("Wrong JSON data received")
@@ -467,7 +472,7 @@ def run(service, procedure, force, no_wait=True):
         done_services.append(service)
 
 
-def create_sm_dict(sites, procedure, sites_active, sites_standby):
+def create_sm_dict(sites, procedure, sites_active, sites_standby, skip_services):
     """
     Method creates dictionary of downloaded data from sitemanager CRs
 
@@ -475,6 +480,7 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby):
     :param string procedure: the procedure that will be processed to services
     :param list sites_active: the list of sites with mode active
     :param list sites_standby: the list of sites with mode standby
+    :param list skip_services: the list of services to be skipped
     """
 
     if testing_mode:
@@ -484,12 +490,16 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby):
     sm_dict["sites"] = {}
     sm_dict["available"] = []
     sm_dict["services"] = {}
-    sample_set = []
-    partial_services = []
+    sample_dict = {}
 
     for site in sites:
 
-        site_url = [ i["site-manager"] for i in conf_parsed["sites"] if i ["name"] == site ][0]
+        try:
+            site_url = [ i["site-manager"] for i in conf_parsed["sites"] if i ["name"] == site ][0]
+        except KeyError:
+            logging.error("Check configuration file. Some of sites does not have 'site-manager' parameter")
+            exit(1)
+
         site_token = [ i.get("token", "") for i in conf_parsed["sites"] if i ["name"] == site ][0]
 
         sm_dict["sites"][site] = {}
@@ -516,7 +526,6 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby):
 
         try:
             response = send_get(site_url, sm_dict["sites"][site]["token"])
-
         except:
             logging.error(f"Can not download sitemanager objects from site {site}")
             continue
@@ -525,25 +534,15 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby):
             sm_dict["available"].append(site)
         else:
             logging.error(f"Site {site} does not contain any sitemanager CR")
-            continue
-
-        if not sample_set:
-            for key, value in response["services"].items():
-                sample_set.append(key)
-
-        site_set = []
-        for key, value in response["services"].items():
-            site_set.append(key)
-
-        if set(sample_set) != set(site_set):
-            for service in sample_set:
-                if service not in site_set:
-                    partial_services.append(service)
-            for service in site_set:
-                if service not in sample_set:
-                    partial_services.append(service)
+            exit(1)
 
         for key, value in response["services"].items():
+
+            # Create additional dict to check all services exist on all clusters
+            if key not in sample_dict:
+                sample_dict[key] = [site]
+            else:
+                sample_dict[key].append(site)
 
             if key not in sm_dict["services"]:
                 sm_dict["services"][key] = {}
@@ -558,10 +557,19 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby):
 
             sm_dict["services"][key]["timeout"] = value.get("timeout", SERVICE_DEFAULT_TIMEOUT)
 
-    if procedure in ("move", "stop", "status", "list") and partial_services:
-        for service in partial_services:
-            logging.error(f"Service '{service}' is not presented on all sites, it will be excluded from procedure '{procedure}' execution")
-            sm_dict["services"].pop(service)
+    wrong_service_counter = 0
+    for key, value in sample_dict.items():
+
+        if value != sites and \
+           key not in skip_services and \
+           procedure in ("move", "stop", "status", "list"):
+
+            logging.error(f"Service '{key}' is not presented on sites: {[ elem for elem in sites if elem not in value]}.")
+            wrong_service_counter += 1
+
+    if wrong_service_counter != 0:
+        logging.error("If you want to exclude any service, please add it to --skip-services argument")
+        exit(1)
 
     return sm_dict
 
@@ -779,7 +787,7 @@ def main_func(procedure, site, run_services, skip_services, force):
         sites_to_process = sites_standby
 
     # Create main dict with all services in sites
-    sm_dict = create_sm_dict(sites_to_process, procedure, sites_active, sites_standby)
+    sm_dict = create_sm_dict(sites_to_process, procedure, sites_active, sites_standby, skip_services)
 
     logging.debug(f"Compilled common services dict: {sm_dict}")
 
@@ -801,7 +809,8 @@ def main_func(procedure, site, run_services, skip_services, force):
     logging.debug("Starting main loop")
     procedure_results = dict()
     after_stateful = []
-# TODO This is an exceptional case to handle internal NC specific module. To be reworked later in more general manner.
+
+    # TODO This is an exceptional case to handle internal NC specific module. To be reworked later in more general manner.
     replicator = "cluster-replicator"
     if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop"]:
         sm_dict["services"][replicator]["sequence"] = ["standby"]
@@ -916,7 +925,7 @@ elif args.command == "list":
     sites_standby = sites_name[1:]
 
     # Create main dict with all services in sites
-    sm_dict = create_sm_dict(sites_name, "list", sites_active, sites_standby)
+    sm_dict = create_sm_dict(sites_name, "list", sites_active, sites_standby, skip_services)
 
     logging.debug(f"Compilled kubernetes CRs: {sm_dict}")
 
@@ -936,7 +945,7 @@ elif args.command == "status":
     site_standby = sites_name[1:]
 
     # Create main dict with all services in sites
-    sm_dict = create_sm_dict(sites_name, "status", site_active, site_standby)
+    sm_dict = create_sm_dict(sites_name, "status", site_active, site_standby, skip_services)
 
     logging.debug(f"Compilled kubernetes CRs: {sm_dict}")
 
