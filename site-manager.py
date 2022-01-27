@@ -312,7 +312,7 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
     logging.info("---------------------------------------------------------------------")
     logging.info(f"Procedure:       {procedure}")
     logging.info(f"Kubernetes services managed by site-manager: {all_services}")
-    logging.info(f"Kuberneets services that will be processed:  {services_to_run}")
+    logging.info(f"kubernetes services that will be processed:  {services_to_run}")
     logging.info("---------------------------------------------------------------------")
 
     # Checking for nonexistent dependencies
