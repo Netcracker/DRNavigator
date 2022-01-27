@@ -5,7 +5,8 @@ import requests
 import time
 import os
 import yaml
-from kubernetes import client, config
+import base64
+from kubernetes import client, config, watch
 
 SM_CONFIG_FILE = os.environ.get("SM_CONFIG_FILE", "")
 if SM_CONFIG_FILE != "":
@@ -31,13 +32,16 @@ SM_WEB_HOST = os.environ.get("SM_WEB_HOST", "0.0.0.0")
 SM_WEB_PORT = os.environ.get("SM_WEB_PORT", 8443)
 
 # define authentication mode
-SM_HTTP_AUTH = os.environ.get("SM_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
+FRONT_HTTP_AUTH = os.environ.get("FRONT_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
+BACK_HTTP_AUTH = os.environ.get("BACK_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
 
 SM_DEBUG = os.environ.get("SM_DEBUG", False)
 
 SM_KUBECONFIG_FILE = os.environ.get("SM_KUBECONFIG_FILE", "")
 
 DEPLOYMENT_ADDITIONAL_DELAY = 30
+
+SM_AUTH_TOKEN = ""
 
 
 def send_post(url, mode, no_wait):
@@ -54,6 +58,10 @@ def send_post(url, mode, no_wait):
         'Content-type': 'application/json',
         'Accept': 'application/json'
     }
+
+    if BACK_HTTP_AUTH:
+        headers["Authorization"] = f"Bearer {SM_AUTH_TOKEN}"
+
     logging.debug(f"REST url: {url}")
     logging.debug(f"REST data: {obj}")
 
@@ -85,12 +93,15 @@ def send_get(url):
 
     :param string url: the URL to service operator
     """
+    headers = dict()
+    if BACK_HTTP_AUTH:
+        headers["Authorization"] = f"Bearer {SM_AUTH_TOKEN}"
 
     logging.debug(f"REST url: {url}")
 
     for _ in range(5):
         try:
-            resp = requests.get(url, timeout=10)
+            resp = requests.get(url, timeout=10, headers=headers)
             return resp.json()
         except Exception as e:
             logging.error("Wrong JSON data received: \n %s" % str(e))
@@ -365,3 +376,78 @@ def collect_deployments_statuses(dr_marker, dr_mode_env):
             results[deployment_name]["mode"] = "active"
         results[deployment_name]["status"] = status
     return results
+
+
+def get_token(api_watch=False):
+    """
+    Method to get token of sm-auth-sa from kubernetes. Method rewrites global var SM_CLIENT_TOKEN with actual token value
+
+    :param bool api_watch: special flag to define method mode: get token once or follow the token changes.
+    """
+    global SM_AUTH_TOKEN
+
+    # In testing mode return stab
+    if SM_CONFIG.get("testing", {}).get("enabled", False) and \
+            SM_CONFIG.get("testing", {}).get("sm_dict", {}) != {}:
+
+        SM_AUTH_TOKEN = SM_CONFIG["testing"].get("token", "123")
+
+        return
+
+    if SM_KUBECONFIG_FILE != "":
+        k8s_api_client = config.load_kube_config(config_file=SM_KUBECONFIG_FILE)
+
+        _, current_context = config.list_kube_config_contexts(config_file=SM_KUBECONFIG_FILE)
+        namespace = current_context['context'].get('namespace', 'default')
+
+    else:
+        k8s_api_client = config.load_incluster_config()
+        namespace = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
+
+    logging.info(f"Current namespace: {namespace}")
+
+    if not api_watch:
+
+        try:
+            service_account = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_service_account("sm-auth-sa", namespace)
+            secret_name = [s for s in service_account.secrets if 'token' in s.name][0].name
+            btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
+                name=secret_name, namespace=namespace).data['token']
+            token = base64.b64decode(btoken).decode()
+
+        except Exception as e:
+            logging.error("Can not get sm-auth-sa token: \n %s" % str(e))
+            os._exit(1)
+
+        SM_AUTH_TOKEN = token
+
+    else:
+        counter = 1
+        w = watch.Watch()
+
+        while True:
+            logging.debug(f"Start watching serviceaccount sm-auth-sa. Iteration {counter}")
+            counter += 1
+
+            for event in w.stream(client.CoreV1Api(api_client=k8s_api_client).list_namespaced_service_account,
+                                  namespace,
+                                  timeout_seconds=30):
+                if event['object'].metadata.name == "sm-auth-sa":
+                    if event['type'] in ["ADDED", "MODIFIED"]:
+                        try:
+                            secret_name = [s for s in event['object'].secrets][0].name
+                        except: # hit here when secret for appropriate  SA is not ready yet
+                            continue
+
+                        btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
+                            name=secret_name, namespace=namespace).data['token']
+                        token = base64.b64decode(btoken).decode()
+
+                        logging.info(f"Serviceaccount sm-auth-sa was {event['type']}. Token was updated.")
+
+                        SM_AUTH_TOKEN = token
+
+                    if event['type'] == "DELETED":
+                        logging.fatal("Serviceaccount sm-auth-sa was deleted. Exit")
+                        os._exit(1)
+            time.sleep(15)
