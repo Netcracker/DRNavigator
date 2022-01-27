@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Company:     NetCracker 
+Company:     NetCracker
 Author:      Core PaaS Group
 Version:     0.5
 Date:        2021-05-26
@@ -12,17 +12,12 @@ import logging
 import threading
 import time
 import http
-import os
 import copy
-import json
-import base64
 import utils
 from flask import Flask, request, jsonify, make_response
-from logging.config import dictConfig
-from kubernetes import client, config, watch
+from kubernetes import client, config
 from prometheus_flask_exporter import PrometheusMetrics
 
-SM_CLIENT_TOKEN = ""
 
 # Define GLOBAL lists for running, ignoring, failed and done services
 services_pending = []
@@ -52,85 +47,10 @@ logging.basicConfig(format=logging_format, level=logging_level)
 lock = threading.Lock()
 
 
-def get_token(api_watch=False):
-    """
-    Method to get token of sm-client-sa from kubernetes. Method rewrites global var SM_CLIENT_TOKEN with actual token value
+if utils.FRONT_HTTP_AUTH or utils.BACK_HTTP_AUTH:
+    utils.get_token(False)
 
-    :param bool api_watch: special flag to define method mode: get token once or follow the token changes.
-    """
-    global SM_CLIENT_TOKEN
-
-    # In testing mode return stab
-    if utils.SM_CONFIG.get("testing", {}).get("enabled", False) and \
-            utils.SM_CONFIG.get("testing", {}).get("sm_dict", {}) != {}:
-
-        SM_CLIENT_TOKEN = utils.SM_CONFIG["testing"].get("token", "123")
-
-        return
-
-    if utils.SM_KUBECONFIG_FILE != "":
-        k8s_api_client = config.load_kube_config(config_file=utils.SM_KUBECONFIG_FILE)
-
-        _, current_context = config.list_kube_config_contexts(config_file=utils.SM_KUBECONFIG_FILE)
-        namespace = current_context['context'].get('namespace', 'default')
-
-    else:
-        k8s_api_client = config.load_incluster_config()
-        namespace = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
-
-    logging.info(f"Current namespace: {namespace}")
-
-    if not api_watch:
-
-        try:
-            service_account = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_service_account("sm-client", namespace)
-            secret_name = [s for s in service_account.secrets if 'token' in s.name][0].name
-            btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
-                name=secret_name, namespace=namespace).data['token']
-            token = base64.b64decode(btoken).decode()
-
-        except Exception as e:
-            logging.error("Can not get sm-client token: \n %s" % str(e))
-            os._exit(1)
-
-        SM_CLIENT_TOKEN = token
-
-    else:
-        counter = 1
-        w = watch.Watch()
-
-        while True:
-            logging.debug(f"Start watching serviceaccount sm-client. Iteration {counter}")
-            counter += 1
-
-            for event in w.stream(client.CoreV1Api(api_client=k8s_api_client).list_namespaced_service_account,
-                                  namespace,
-                                  timeout_seconds=30):
-                if event['object'].metadata.name == "sm-client":
-                    if event['type'] in ["ADDED", "MODIFIED"]:
-                        try:
-                            secret_name = [s for s in event['object'].secrets][0].name
-                        except: # hit here when secret for appropriate  SA is not ready yet
-                            continue
-
-                        btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
-                            name=secret_name, namespace=namespace).data['token']
-                        token = base64.b64decode(btoken).decode()
-
-                        logging.info(f"Serviceaccount sm-client was {event['type']}. Token was updated.")
-
-                        SM_CLIENT_TOKEN = token
-
-                    if event['type'] == "DELETED":
-                        logging.fatal("Serviceaccount sm-client was deleted. Exit")
-                        os._exit(1)
-            time.sleep(15)
-
-
-if utils.SM_HTTP_AUTH:
-    get_token(False)
-
-    w_thread = threading.Thread(target=get_token,
+    w_thread = threading.Thread(target=utils.get_token,
                                 args=[True, ])
     w_thread.start()
 
@@ -435,17 +355,30 @@ def cr_convert():
     spec = request.json["request"]["objects"]
     modified_spec = copy.deepcopy(spec)
     for i in range(len(modified_spec)):
-        # we only handle v1->v2 conversion, v2->v1 is not supported
-        modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
+        # v1->v2 conversion
+        if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v2":
+            modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
 
-        if "module" not in modified_spec[i]["spec"]["sitemanager"]:
-            modified_spec[i]["spec"]["sitemanager"]["module"] = modified_spec[i]["spec"]["sitemanager"].get("module", "stateful")
+            if "module" not in modified_spec[i]["spec"]["sitemanager"]:
+                modified_spec[i]["spec"]["sitemanager"]["module"] = modified_spec[i]["spec"]["sitemanager"].get("module", "stateful")
 
-        if "parameters" not in modified_spec[i]["spec"]["sitemanager"]:
-            modified_spec[i]["spec"]["sitemanager"]["parameters"] = {}
-            modified_spec[i]["spec"]["sitemanager"]["parameters"]["serviceEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("serviceEndpoint", "")
-            modified_spec[i]["spec"]["sitemanager"]["parameters"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("ingressEndpoint", "")
-            modified_spec[i]["spec"]["sitemanager"]["parameters"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("healthzEndpoint", "")
+            if "parameters" not in modified_spec[i]["spec"]["sitemanager"]:
+                modified_spec[i]["spec"]["sitemanager"]["parameters"] = {}
+                modified_spec[i]["spec"]["sitemanager"]["parameters"]["serviceEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("serviceEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["parameters"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("ingressEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["parameters"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("healthzEndpoint", "")
+        # v2->v1 conversion
+        if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v1":
+            modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
+
+            if "module" in modified_spec[i]["spec"]["sitemanager"]:
+                del modified_spec[i]["spec"]["sitemanager"]["module"]
+
+            if "parameters" in modified_spec[i]["spec"]["sitemanager"]:
+                modified_spec[i]["spec"]["sitemanager"]["serviceEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("serviceEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("ingressEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("healthzEndpoint", "")
+                del modified_spec[i]["spec"]["sitemanager"]["parameters"]
 
     logging.debug("CR convertation is started.")
     logging.debug(f"Initial spec: {spec}")
@@ -476,16 +409,9 @@ def sitemanager_get():
     """
     Method for processing GET requests to /sitemanager
     """
-    if utils.SM_HTTP_AUTH:
-
-        if "Authorization" not in request.headers:
-
-            return json_response(401, {"message": "You should use Bearer for authorization"})
-
-        if len(request.headers["Authorization"].split(" ")) != 2 or \
-           request.headers["Authorization"].split(" ")[1] != SM_CLIENT_TOKEN:
-
-            return json_response(403, {"message": "Bearer is empty or wrong"})
+    result = check_authorization(request)
+    if result:
+        return result
 
     try:
         response = json_response(200, get_sitemanagers_dict())
@@ -507,16 +433,9 @@ def sitemanager_post():
     global failed_services
     global procedure_results
 
-    if utils.SM_HTTP_AUTH:
-
-        if "Authorization" not in request.headers:
-
-            return json_response(401, {"message": "You should use Bearer for authorization"})
-
-        if len(request.headers["Authorization"].split(" ")) != 2 or \
-           request.headers["Authorization"].split(" ")[1] != SM_CLIENT_TOKEN:
-
-            return json_response(403, {"message": "Bearer is empty or wrong"})
+    result = check_authorization(request)
+    if result:
+        return result
 
     try:
         data = request.get_json()
@@ -592,17 +511,6 @@ def sitemanager_post():
         output["services"] = {}
         for item in services_to_run:
             module = import_module(sm_dict["services"][item]["module"])
-            if data.get("polling", False):
-                if procedure_results.get(item, dict()):
-                    output["services"][item] = procedure_results[item]
-                    continue
-                else:
-                    output["services"][item] = module.get_status(sm_dict["services"][item],
-                                                                 *running_services,
-                                                                 *done_services,
-                                                                 *failed_services,
-                                                                 **data)
-                    continue
             output["services"][item] = module.get_status(sm_dict["services"][item], **data)
         return json_response(200, output)
 
@@ -618,3 +526,13 @@ def sitemanager_post():
     return json_response(200, {"message": f"Procedure {data['procedure']} is started",
                                "services": services_to_run,
                                "procedure": data['procedure']})
+
+
+def check_authorization(request):
+    if utils.FRONT_HTTP_AUTH:
+        if "Authorization" not in request.headers:
+            return json_response(401, {"message": "You should use Bearer for authorization"})
+
+        if len(request.headers["Authorization"].split(" ")) != 2 or \
+           request.headers["Authorization"].split(" ")[1] != utils.SM_AUTH_TOKEN:
+            return json_response(403, {"message": "Bearer is empty or wrong"})

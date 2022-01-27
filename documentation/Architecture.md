@@ -10,6 +10,7 @@
     - [site-manager authorization](#site-manager-authorization)
 - [REST API](#rest-api)
     - [Contract for communication with infra service](#contract-for-communication-with-infra-service)
+        - [API Security model](#api-security-model)
     - [Contract for communication with site-manager](#contract-for-communication-with-site-manager)
     - [Metrics endpoint](#metrics-endpoint)
 - [DR procedures flow](#dr-procedures-flow)
@@ -174,13 +175,18 @@ To check current infra service health status `site-manager` checks URL from `hea
 
 To restrict access to `site-manager` from `sm-client` there is the scheme with using authorization by Bearer:
 
-1. In kubernetes cluster there is the serviceaccount sm-client without any grants in the same namespace as `site-manager`
-2. `site-manager` is started with env parameter `SM_HTTP_AUTH` with value "True" or "Yes"
-3. `site-manager` reads secret created by kubernetes for serviceaccount sm-client and store token in memory. Also `site-manager` uses watch mode and wait for any updates of secret. If secret was updated the `site-manager` also updates token in memory
-4. Operator fills config.yml for `sm-client` with the same token and set env parameter `SM_HTTP_AUTH` with value "True" or "Yes"
-5. All of REST operations between `sm-client` and `site-manager` will be accompanied by a header "Authorization: Bearer <TOKEN>" where `TOKEN` is the token from serviceaccount sm-client
+1. In kubernetes cluster there is the serviceaccount `sm-auth-sa` without any grants in the same namespace as `site-manager`
+2. `site-manager` is started with env parameter `FRONT_HTTP_AUTH` with value "True" or "Yes"
+3. `site-manager` reads secret created by kubernetes for serviceaccount `sm-auth-sa` and store token in memory. Also `site-manager` uses watch mode and wait for any updates of secret. If secret was updated the `site-manager` also updates token in memory
+4. Operator fills config.yml for `sm-client` with the same token and set env parameter `FRONT_HTTP_AUTH` with value "True" or "Yes"
+5. All REST operations between `sm-client` and `site-manager` will be accompanied by a header "Authorization: Bearer <TOKEN>" where `TOKEN` is the token from serviceaccount `sm-auth-sa`
 
-**Note:** `site-manager` ia installed by default with with `SM_HTTP_AUTH` "Yes" and enabled authorization.
+To secure access to manageable services from `Site-Manager` also added same scheme with using authorization by Bearer:
+
+1. The value of env variable `BACK_HTTP_AUTH` means whether the token from serviceaccount `sm-auth-sa` will be sent to manageable services in header.
+2. More about this scheme at [API Security model](#api-security-model) part.
+
+**Note:** `site-manager` installed by default with `FRONT_HTTP_AUTH` "Yes" and `BACK_HTTP_AUTH` "Yes" which means that authorization enabled.
 
 # REST API
 
@@ -191,6 +197,87 @@ This part describes which contract must implement the service so that the Site-m
 - [`serviceEndpoint` GET](#check-infra-service-mode-and-status-of-dr-procedure)
 - [`serviceEndpoint` POST](#set-new-mode-for-infra-service)
 - [`healthzEndpoint` GET](#check-infra-service-healthz-of-service)
+
+### API Security model
+
+**Note:** This functionality is enabled by default: `BACK_HTTP_AUTH: "Yes"` in the Helm chart, later this value can be changed in the SM deployment.
+
+To implement secure access between Site-Manager and services, the special header is added to POST and GET requests coming from Site-Manager:
+
+```
+"Authorization": "Bearer <TOKEN>"
+```
+
+In order for the service to make sure that the request is secure, on the service side it is necessary to organize the verification of this token for authenticity and belonging to Site-Manager. This is done as follows:
+
+1) You need to make a request to verify the received token (`TokenReview`) through the `Kubernetes-client` or `Kubectl` of the following format:
+
+```
+apiVersion: authentication.k8s.io/v1
+kind: TokenReview
+spec:
+  token: <TOKEN>
+```
+
+Where: `<TOKEN>` is a Bearer received from Site-Manager `Authorization` request header.
+
+[Kubernetes-client TokenReview Api for Go](https://github.com/kubernetes-client/go/blob/master/kubernetes/docs/AuthenticationV1Api.md)
+
+2) Kube-api for this request will return a response in the format:
+
+```
+apiVersion: authentication.k8s.io/v1
+kind: TokenReview
+spec:
+  token: <TOKEN>
+status:
+  audiences:
+  - <audience identifiers>
+  authenticated: true
+  user:
+    groups:
+    -system:serviceaccounts
+    -system:serviceaccounts:site-manager
+    -system:authenticated
+    uid: c1a61275-608e-462e-89df-cf2a8ecc6d13
+    username: system:serviceaccount:site-manager:sm-auth-sa
+```
+
+3) In this response, we are interested in the following fields:
+
+```
+  - status.authenticated = true
+  - status.user.username = system:serviceaccount:site-manager:sm-auth-sa
+```
+
+Where `site-manager` is Site-Manager's Namespace name and `sm-auth-sa` is SA name.
+
+![](/documentation/images/site-manager-http-auth.png)
+
+More information about token can be found at [site-manager authorization](#site-manager-authorization) part.
+
+What might be required to implement this approach:
+
+1. The operator which processing requests from Site-Manager must have a `serviceaccount`.
+
+2. The operator's `serviceaccount` must be wrapped in a `ClusterRoleBinding` with the `system:auth-delegator` cluster role:
+
+```
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: replicator-auth
+subjects:
+- kind: ServiceAccount
+  name: <SERVICE-ACCOUNT-NAME>
+  namespace: <NAMESPACE>
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: system:auth-delegator
+```
+
+3. Adding a handler in the operator that checks the token for GET and POST requests using `TokenReview` described earlier.
 
 ### Check infra service mode and status of DR procedure:
 

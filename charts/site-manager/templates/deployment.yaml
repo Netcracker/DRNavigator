@@ -22,14 +22,15 @@ spec:
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
         args:
           - "--bind=0.0.0.0:8443"
-          - '--preload'
-          - '--workers=3'
+          - '--worker-class=gevent'
           - "--certfile=/certs/tls.crt"
           - "--keyfile=/certs/tls.key"
           - "site-manager:app"
         env:
-          - name: SM_HTTP_AUTH
-            value: "{{ .Values.env.SM_HTTP_AUTH }}"
+          - name: FRONT_HTTP_AUTH
+            value: "{{ .Values.env.FRONT_HTTP_AUTH }}"
+          - name: BACK_HTTP_AUTH
+            value: "{{ .Values.env.BACK_HTTP_AUTH }}"
           - name: SM_WEB_HOST
             value: "{{ .Values.env.SM_WEB_HOST }}"
           - name: SM_WEB_PORT

@@ -5,7 +5,8 @@ import requests
 import time
 import os
 import yaml
-from kubernetes import client, config
+import base64
+from kubernetes import client, config, watch
 
 SM_CONFIG_FILE = os.environ.get("SM_CONFIG_FILE", "")
 if SM_CONFIG_FILE != "":
@@ -31,13 +32,16 @@ SM_WEB_HOST = os.environ.get("SM_WEB_HOST", "0.0.0.0")
 SM_WEB_PORT = os.environ.get("SM_WEB_PORT", 8443)
 
 # define authentication mode
-SM_HTTP_AUTH = os.environ.get("SM_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
+FRONT_HTTP_AUTH = os.environ.get("FRONT_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
+BACK_HTTP_AUTH = os.environ.get("BACK_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
 
 SM_DEBUG = os.environ.get("SM_DEBUG", False)
 
 SM_KUBECONFIG_FILE = os.environ.get("SM_KUBECONFIG_FILE", "")
 
 DEPLOYMENT_ADDITIONAL_DELAY = 30
+
+SM_AUTH_TOKEN = ""
 
 
 def send_post(url, mode, no_wait):
@@ -54,12 +58,16 @@ def send_post(url, mode, no_wait):
         'Content-type': 'application/json',
         'Accept': 'application/json'
     }
+
+    if BACK_HTTP_AUTH:
+        headers["Authorization"] = f"Bearer {SM_AUTH_TOKEN}"
+
     logging.debug(f"REST url: {url}")
     logging.debug(f"REST data: {obj}")
 
     for _ in range(5):
         try:
-            resp = requests.post(url, timeout=10, data=obj, headers=headers)
+            resp = requests.post(url, timeout=20, data=obj, headers=headers)
             logging.debug(f"REST response: {resp} and return code: {resp.status_code}")
             response = resp.json()
             ret_code = resp.status_code
@@ -85,12 +93,15 @@ def send_get(url):
 
     :param string url: the URL to service operator
     """
+    headers = dict()
+    if BACK_HTTP_AUTH:
+        headers["Authorization"] = f"Bearer {SM_AUTH_TOKEN}"
 
     logging.debug(f"REST url: {url}")
 
     for _ in range(5):
         try:
-            resp = requests.get(url, timeout=10)
+            resp = requests.get(url, timeout=10, headers=headers)
             return resp.json()
         except Exception as e:
             logging.error("Wrong JSON data received: \n %s" % str(e))
@@ -186,7 +197,7 @@ def poll_deployment(name, namespace, mode, options, k8s_api_client, session_data
     :param ApiClient k8s_api_client: kube-api client
     :param dict session_data: dictionary for storing microservices statuses
     """
-
+    dr_mode_env = options["parameters"]["drModeEnv"]
     logging.info("starting deployment check: namespace=%s name=%s " % (namespace, name))
     deployment_name = namespace + "/" + name
     session_data[deployment_name] = dict()
@@ -211,16 +222,18 @@ def poll_deployment(name, namespace, mode, options, k8s_api_client, session_data
             if _check_env(deployment_info, options, mode):
                 env_updated = True
                 continue
-        if not env_updated:
+        if not env_updated and _is_env_exists(deployment_info, dr_mode_env):
             session_data[deployment_name]["mode"] = "Unchanged"
             session_data[deployment_name]["status"] = "Unhealthy"
             return
     if _check_deployment_status(deployment_info):
-        session_data[deployment_name]["mode"] = mode
+        if _is_env_exists(deployment_info, dr_mode_env):
+            session_data[deployment_name]["mode"] = mode
+        else:
+            session_data[deployment_name]["mode"] = "active"
         session_data[deployment_name]["status"] = "Ready"
         return
-    rp = deployment_info["spec"]["template"]["spec"]["containers"]["readinessProbe"]
-    timeout = rp["initialDelaySeconds"] + (rp["timeoutSeconds"] + rp["periodSeconds"]) * rp["failureThreshold"] + DEPLOYMENT_ADDITIONAL_DELAY
+    timeout = _get_timeout_for_deployment(deployment_info)
     init_time = int(time.time())
     while int(time.time()) < init_time + int(timeout):
         logging.info("trying to recheck deployment status namespace=%s name=%s " % (namespace, name))
@@ -231,11 +244,18 @@ def poll_deployment(name, namespace, mode, options, k8s_api_client, session_data
             session_data[deployment_name]["status"] = "Unknown"
             return
         if _check_deployment_status(deployment_info):
-            session_data[deployment_name]["mode"] = mode
+            if _is_env_exists(deployment_info, dr_mode_env):
+                session_data[deployment_name]["mode"] = mode
+            else:
+                session_data[deployment_name]["mode"] = "active"
             session_data[deployment_name]["status"] = "Ready"
             return
-    session_data[deployment_name]["mode"] = mode
+    if _is_env_exists(deployment_info, dr_mode_env):
+        session_data[deployment_name]["mode"] = mode
+    else:
+        session_data[deployment_name]["mode"] = "active"
     session_data[deployment_name]["status"] = "Unhealthy"
+    return
 
 
 def _check_env(deployment_info, options, mode):
@@ -256,6 +276,18 @@ def _check_env(deployment_info, options, mode):
                 break
         if not env_updated:
             return False
+    return True
+
+
+def _is_env_exists(deployment_info, dr_mode_env):
+    counter = 0
+    for container in deployment_info["spec"]["template"]["spec"]["containers"]:
+        for env in container.get("env", {}):
+            if env["name"] == dr_mode_env:
+                counter += 1
+                break
+    if counter == 0:
+        return False
     return True
 
 
@@ -288,6 +320,20 @@ def _read_deployment_info(name, namespace, k8s_api_client):
     except Exception as e:
         logging.error("Can't find deployment: \n %s" % str(e))
     return deployment_info
+
+
+def _get_timeout_for_deployment(deployment_info):
+    timeouts = list()
+    for i, container in enumerate(deployment_info["spec"]["template"]["spec"]["containers"]):
+        if container.get("readinessProbe", {}):
+            rp = container["readinessProbe"]
+            timeouts.append(rp["initialDelaySeconds"] + (rp["timeoutSeconds"] + rp["periodSeconds"]) \
+                      * rp["failureThreshold"] + DEPLOYMENT_ADDITIONAL_DELAY)
+        else:
+            timeouts.append(DEPLOYMENT_ADDITIONAL_DELAY)
+    timeouts.sort(reverse=True)
+    logging.error(f"timeouts: {timeouts}")
+    return timeouts[0]
 
 
 def collect_deployments_statuses(dr_marker, dr_mode_env):
@@ -324,6 +370,84 @@ def collect_deployments_statuses(dr_marker, dr_mode_env):
                 if item["status"]["replicas"] == item["status"]["ready_replicas"]:
                     status = "Ready"
         results[deployment_name] = dict()
-        results[deployment_name]["mode"] = dr_mode_env_value
+        if _is_env_exists(item, dr_mode_env):
+            results[deployment_name]["mode"] = dr_mode_env_value
+        else:
+            results[deployment_name]["mode"] = "active"
         results[deployment_name]["status"] = status
     return results
+
+
+def get_token(api_watch=False):
+    """
+    Method to get token of sm-auth-sa from kubernetes. Method rewrites global var SM_CLIENT_TOKEN with actual token value
+
+    :param bool api_watch: special flag to define method mode: get token once or follow the token changes.
+    """
+    global SM_AUTH_TOKEN
+
+    # In testing mode return stab
+    if SM_CONFIG.get("testing", {}).get("enabled", False) and \
+            SM_CONFIG.get("testing", {}).get("sm_dict", {}) != {}:
+
+        SM_AUTH_TOKEN = SM_CONFIG["testing"].get("token", "123")
+
+        return
+
+    if SM_KUBECONFIG_FILE != "":
+        k8s_api_client = config.load_kube_config(config_file=SM_KUBECONFIG_FILE)
+
+        _, current_context = config.list_kube_config_contexts(config_file=SM_KUBECONFIG_FILE)
+        namespace = current_context['context'].get('namespace', 'default')
+
+    else:
+        k8s_api_client = config.load_incluster_config()
+        namespace = open("/var/run/secrets/kubernetes.io/serviceaccount/namespace").read()
+
+    logging.info(f"Current namespace: {namespace}")
+
+    if not api_watch:
+
+        try:
+            service_account = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_service_account("sm-auth-sa", namespace)
+            secret_name = [s for s in service_account.secrets if 'token' in s.name][0].name
+            btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
+                name=secret_name, namespace=namespace).data['token']
+            token = base64.b64decode(btoken).decode()
+
+        except Exception as e:
+            logging.error("Can not get sm-auth-sa token: \n %s" % str(e))
+            os._exit(1)
+
+        SM_AUTH_TOKEN = token
+
+    else:
+        counter = 1
+        w = watch.Watch()
+
+        while True:
+            logging.debug(f"Start watching serviceaccount sm-auth-sa. Iteration {counter}")
+            counter += 1
+
+            for event in w.stream(client.CoreV1Api(api_client=k8s_api_client).list_namespaced_service_account,
+                                  namespace,
+                                  timeout_seconds=30):
+                if event['object'].metadata.name == "sm-auth-sa":
+                    if event['type'] in ["ADDED", "MODIFIED"]:
+                        try:
+                            secret_name = [s for s in event['object'].secrets][0].name
+                        except: # hit here when secret for appropriate  SA is not ready yet
+                            continue
+
+                        btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
+                            name=secret_name, namespace=namespace).data['token']
+                        token = base64.b64decode(btoken).decode()
+
+                        logging.info(f"Serviceaccount sm-auth-sa was {event['type']}. Token was updated.")
+
+                        SM_AUTH_TOKEN = token
+
+                    if event['type'] == "DELETED":
+                        logging.fatal("Serviceaccount sm-auth-sa was deleted. Exit")
+                        os._exit(1)
+            time.sleep(15)
