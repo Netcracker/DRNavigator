@@ -43,7 +43,7 @@ To support ability of services be managed by `site-manager` you should prepare f
     Create CA certificate:
 
     ```bash
-    $ openssl req -nodes -new -x509 -keyout ca.key -out ca.crt -subj "/CN=SM service"
+    $ openssl req -days 730 -nodes -new -x509 -keyout ca.key -out ca.crt -subj "/CN=SM service"
     ```
 
     Create KEY for `site-manager` service:
@@ -56,7 +56,7 @@ To support ability of services be managed by `site-manager` you should prepare f
 
     ```bash
     $ openssl req -new -key site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config server.conf | \
-      openssl x509 -req -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
+      openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
     ```
 
 2. Create CRD `sitemanagers.netcracker.com`
