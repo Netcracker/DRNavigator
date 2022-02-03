@@ -311,6 +311,9 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
         time.sleep(5)
 
     if data:
+        if data["services"][service].get("mode", "--") == "--" or \
+           data["services"][service].get("status", "--") == "--":
+            return unknown_state
         return data["services"][service]
     else:
         return unknown_state
@@ -346,7 +349,9 @@ def run(service, procedure, force, no_wait=True):
         service_status = resp["services"][service]
 
         if "mode" not in resp.get("services", {}).get(service, {}) or \
-           "status" not in resp.get("services", {}).get(service, {}):
+           resp["services"][service]["mode"] == "--" or \
+           "status" not in resp.get("services", {}).get(service, {}) or \
+           resp["services"][service]["status"] == "--":
 
             logging.warning(f"Service: {service}. Site: {site}. Service is unavailable.")
             if sm_dict["sites"][site]["need"] != "wanted":
@@ -536,7 +541,10 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby, skip_services)
             sm_dict["available"].append(site)
         else:
             logging.error(f"Site {site} does not contain any sitemanager CR")
-            exit(1)
+            if not sm_dict.get("corrupted_sites", []):
+                sm_dict["corrupted_sites"] = []
+            sm_dict["corrupted_sites"].append(site)
+            continue
 
         for key, value in response["services"].items():
 
@@ -558,6 +566,15 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby, skip_services)
             sm_dict["services"][key]["allowedStandbyStateList"] = value.get("allowedStandbyStateList", ["up"])
 
             sm_dict["services"][key]["timeout"] = value.get("timeout", SERVICE_DEFAULT_TIMEOUT)
+
+    if len(sm_dict.get("corrupted_sites", [])) > 0:
+        if procedure == "status":
+            for site in sm_dict["corrupted_sites"]:
+                logging.error(f"Site {site} is unreachable or it doesn't have any CR's")
+                del sm_dict["sites"][site]
+                sites.remove(site)
+        else:
+            exit(0)
 
     wrong_service_counter = 0
     for key, value in sample_dict.items():
@@ -814,9 +831,12 @@ def main_func(procedure, site, run_services, skip_services, force):
 
     # TODO This is an exceptional case to handle internal NC specific module. To be reworked later in more general manner.
     replicator = "cluster-replicator"
-    if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop", "standby"]:
-        sm_dict["services"][replicator]["sequence"] = ["standby"]
-        run(replicator, procedure, force, no_wait)
+    if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop", "standby", "active"]:
+        if procedure in ["active"]:
+            done_services.append(replicator)
+        else:
+            sm_dict["services"][replicator]["sequence"] = ["standby"]
+            run(replicator, procedure, force, no_wait)
 
     while not all(elem in (done_services + failed_services + ignored_services + after_stateful) for elem in all_services):
 
@@ -970,7 +990,10 @@ elif args.command == "status":
                 status_dict[service_item][sites_item] = {'healthz': '--', 'mode': '--', 'status': '--'}
             else:
                 status_dict[service_item][sites_item] = data["services"][service_item]
-
+        for item in sm_dict.get("corrupted_sites", []):
+            status_dict[service_item][item] = {'healthz': '--', 'mode': '--', 'status': '--'}
+    if sm_dict.get("corrupted_sites"):
+        sites_name.extend(sm_dict["corrupted_sites"])
     logging.debug(f"status_dict: {status_dict}")
 
     print_main_table(status_dict, services_to_run, sites_name)
