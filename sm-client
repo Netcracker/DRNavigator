@@ -440,6 +440,12 @@ def run(service, procedure, force, no_wait=True):
                 return service_status
 
             elif service_status["status"] == "done":
+                if service_status["mode"] != sm_dict['sites'][site]['mode']:
+                    logging.error(f"Service: {service}. Site: {site}. Procedure {procedure} has not been applied to service.")
+                    if service not in failed_services and sm_dict["sites"][site]["need"] != "wanted":
+                        failed_services.append(service)
+                    return service_status
+
                 logging.info(f"Service: {service}. Site: {site}. Procedure {procedure} is in done status.")
 
                 if (sm_dict["sites"][site]["mode"] == "active" and service_status["healthz"].lower() != "up") or \
@@ -568,13 +574,10 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby, skip_services)
             sm_dict["services"][key]["timeout"] = value.get("timeout", SERVICE_DEFAULT_TIMEOUT)
 
     if len(sm_dict.get("corrupted_sites", [])) > 0:
-        if procedure == "status":
-            for site in sm_dict["corrupted_sites"]:
-                logging.error(f"Site {site} is unreachable or it doesn't have any CR's")
-                del sm_dict["sites"][site]
-                sites.remove(site)
-        else:
-            exit(0)
+        for site in sm_dict["corrupted_sites"]:
+            logging.error(f"Site {site} is unreachable or it doesn't have any CR's")
+            del sm_dict["sites"][site]
+            sites.remove(site)
 
     wrong_service_counter = 0
     for key, value in sample_dict.items():
