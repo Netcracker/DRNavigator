@@ -65,26 +65,39 @@ def send_post(url, mode, no_wait):
     logging.debug(f"REST url: {url}")
     logging.debug(f"REST data: {obj}")
 
-    for _ in range(5):
-        try:
-            resp = requests.post(url, timeout=20, data=obj, headers=headers)
-            logging.debug(f"REST response: {resp} and return code: {resp.status_code}")
-            response = resp.json()
-            ret_code = resp.status_code
-            if ret_code == 200:
-                if response.get("message", ""):
-                    logging.info(f"Code: {ret_code}. Message: {response['message']}")
-            if ret_code != 200:
-                if response.get("message", ""):
-                    logging.error(f"Code: {ret_code}. Message: {response['message']}")
-                response["bad_response"] = ret_code
-            return response
-        except Exception as e:
-            logging.error("Wrong JSON data received: \n %s" % str(e))
+    response = _send_post(url, obj, headers)
+    if response:
+        return response
 
+    for _ in range(4):
+        status = send_get(url)
+        if status.get("mode", "") != mode:
+            response = _send_post(url, obj, headers)
+            if response:
+                return response
         time.sleep(2)
+
     logging.fatal(f"Can't successfully send post request to service endpoint {url}")
     return dict.fromkeys(['fatal'], True)
+
+
+def _send_post(url, obj, headers):
+    try:
+        resp = requests.post(url, timeout=20, data=obj, headers=headers)
+        logging.debug(f"REST response: {resp} and return code: {resp.status_code}")
+        response = resp.json()
+        ret_code = resp.status_code
+        if ret_code == 200:
+            if response.get("message", ""):
+                logging.info(f"Code: {ret_code}. Message: {response['message']}")
+        if ret_code != 200:
+            if response.get("message", ""):
+                logging.error(f"Code: {ret_code}. Message: {response['message']}")
+                response["bad_response"] = ret_code
+        return response
+    except Exception as e:
+        logging.error("Wrong JSON data received: \n %s" % str(e))
+        return None
 
 
 def send_get(url):

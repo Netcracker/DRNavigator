@@ -325,6 +325,8 @@ Output:
 
 ### Set new mode for infra service:
 
+**Important**: The contract between the Site-Manager and manageable services for changing the mode implies that the Rest API of the service has the property of idempotency, which means that changing the mode of the service to an already existing mode does not bring the service into an inconsistent state. If the service is already moving to the required mode, the response should contain the corresponding mode and the status equal to `running`.
+
 **URL**: `<service>.<namespace>.svc.cluster.local/sitemanager`
 
 **Method**: `/POST`

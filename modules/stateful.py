@@ -54,6 +54,10 @@ def run_service(service, options, procedure, force, no_wait):
             if not is_healthy(service, procedure, options, service_status, force):
                 return "unhealthy", service_status
 
+    elif resp["mode"] == mode and resp["status"] == "running":
+        logging.warning(f"Service: {service}. Service is already in the process of moving to {mode} mode.")
+        service_status = {"mode": resp["mode"], "status": resp["status"], "healthz": "--"}
+
     else:
         logging.info(f"Service: {service}. Current mode is {resp['mode']} and status is {resp['status']}")
 
