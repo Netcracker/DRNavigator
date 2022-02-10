@@ -181,11 +181,7 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
     global failed_services
     global procedure_results
 
-    running_services = []
-    done_services = []
-    failed_services = []
     ignored_services = []
-
     logging.info(f"Starting procedure {procedure} for services {run_services}")
 
     def run_service(service, options, procedure, force, no_wait):
@@ -303,6 +299,12 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
     logging.info(f"services that failed:            {failed_services}")
     logging.info(f"services that ignored:           {ignored_services}")
     logging.info("---------------------------------------------------------------------")
+
+    for service in run_services:
+        if service in done_services:
+            done_services.remove(service)
+        if service in failed_services:
+            failed_services.remove(service)
 
 
 def json_response(code, body):
