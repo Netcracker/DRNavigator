@@ -924,7 +924,9 @@ def main_func(procedure, site, run_services, skip_services, force):
     print_additional_table(procedure_results, services_to_run, sites_to_process)
 
     if len(failed_services) != 0:
+        logging.fatal(f"Some services finished {procedure} with failed status")
         exit(1)
+
     # Clear working lists
     running_procedure = ""
     running_services = []
