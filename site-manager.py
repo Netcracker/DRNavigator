@@ -9,6 +9,7 @@ Description: Service for management of microservices in active-standby scheme of
 
 import importlib.util
 import logging
+from datetime import datetime
 import threading
 import time
 import http
@@ -17,6 +18,7 @@ import utils
 from flask import Flask, request, jsonify, make_response
 from kubernetes import client, config
 from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_client import Gauge
 
 
 # Define GLOBAL lists for running, ignoring, failed and done services
@@ -34,6 +36,11 @@ app = Flask(__name__)
 app.config['DEBUG'] = utils.SM_DEBUG
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 metrics = PrometheusMetrics(app)
+
+done_site_manager_tasks = Gauge('done_site_manager_tasks', 'SM Tasks tracking', labelnames=['task',
+                                                                                            'timestamp',
+                                                                                            'services_to_process'])
+site_manager_health = Gauge('site_manager_health', 'SM pod health')
 
 if utils.SM_DEBUG:
     logging_level = logging.DEBUG
@@ -181,11 +188,7 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
     global failed_services
     global procedure_results
 
-    running_services = []
-    done_services = []
-    failed_services = []
     ignored_services = []
-
     logging.info(f"Starting procedure {procedure} for services {run_services}")
 
     def run_service(service, options, procedure, force, no_wait):
@@ -304,6 +307,16 @@ def run_procedure(procedure, run_services, skip_services, force, no_wait):
     logging.info(f"services that ignored:           {ignored_services}")
     logging.info("---------------------------------------------------------------------")
 
+    check_on_successfulness = 1
+    for service in run_services:
+        if service in done_services:
+            done_services.remove(service)
+        if service in failed_services:
+            check_on_successfulness = 0
+            failed_services.remove(service)
+    done_site_manager_tasks.labels(task=procedure, timestamp=datetime.now(),
+                                   services_to_process=run_services).set(check_on_successfulness)
+
 
 def json_response(code, body):
     """
@@ -401,6 +414,7 @@ def cr_convert():
 
 @app.route("/health", methods=["GET"])
 def health():
+    site_manager_health.set(1)
     return ("", http.HTTPStatus.NO_CONTENT)
 
 
@@ -442,13 +456,16 @@ def sitemanager_post():
 
     except Exception as e:
         logging.error("Some problem occurred: \n %s" % str(e))
+        done_site_manager_tasks.labels(task="unknown", timestamp=datetime.now(),
+                                       services_to_process="unknown").set(2)
         return json_response(401, {"message": "No valid JSON data was received"})
 
     logging.info(f"Data was received: {data}")
 
     # Check all parameters in received data
     if data.get("procedure", "") not in command_list:
-
+        done_site_manager_tasks.labels(task="unknown", timestamp=datetime.now(),
+                                       services_to_process="unknown").set(2)
         return json_response(401, {"message": f"You should define procedure from list: {command_list}"})
 
     force = True if data.get("force", "") in (1, "1", True, "true", "True") else False
@@ -481,7 +498,13 @@ def sitemanager_post():
     wrong_services = [elem for elem in (run_services + skip_services) if elem not in all_services]
 
     if len(wrong_services) > 0:
-
+        if len(run_services) == 0:
+            run_services.extend(all_services)
+            for service in skip_services:
+                run_services.remove(service)
+        done_site_manager_tasks.labels(task=data['procedure'],
+                                       timestamp=datetime.now(),
+                                       services_to_process=run_services).set(2)
         return json_response(401, {"message": f"You defined service that does not exist in cluster",
                                    "wrong-services": wrong_services})
 
@@ -494,7 +517,9 @@ def sitemanager_post():
     if data['procedure'] in ["active", "standby", "disable"]:
         with lock:
             if any(elem in services_pending for elem in services_to_run):
-
+                done_site_manager_tasks.labels(task=data['procedure'],
+                                               timestamp=datetime.now(),
+                                               services_to_process=services_to_run).set(2)
                 return json_response(409, {"message": f"Another procedure is still running. Procedure {data['procedure']} rejected!"})
             else:
                 services_pending.extend(services_to_run)
@@ -502,7 +527,9 @@ def sitemanager_post():
     logging.debug(f"All processed services: {services_pending}")
 
     if data["procedure"] == "list":
-
+        done_site_manager_tasks.labels(task=data['procedure'],
+                                       timestamp=datetime.now(),
+                                       services_to_process=services_to_run).set(1)
         return json_response(200, {"all-services": all_services,
                                    "running-services": services_to_run})
 
@@ -512,6 +539,13 @@ def sitemanager_post():
         for item in services_to_run:
             module = import_module(sm_dict["services"][item]["module"])
             output["services"][item] = module.get_status(sm_dict["services"][item], **data)
+
+        procedure = data['procedure']
+        if data.get("polling", ""):
+            procedure = "status_polling"
+        done_site_manager_tasks.labels(task=procedure,
+                                       timestamp=datetime.now(),
+                                       services_to_process=services_to_run).set(1)
         return json_response(200, output)
 
     logging.info(f"Start process services: {services_to_run}")
@@ -531,8 +565,14 @@ def sitemanager_post():
 def check_authorization(request):
     if utils.FRONT_HTTP_AUTH:
         if "Authorization" not in request.headers:
+            done_site_manager_tasks.labels(task="unknown",
+                                           timestamp=datetime.now(),
+                                           services_to_process="unknown").set(3)
             return json_response(401, {"message": "You should use Bearer for authorization"})
 
         if len(request.headers["Authorization"].split(" ")) != 2 or \
            request.headers["Authorization"].split(" ")[1] != utils.SM_AUTH_TOKEN:
+            done_site_manager_tasks.labels(task="unknown",
+                                           timestamp=datetime.now(),
+                                           services_to_process="unknown").set(3)
             return json_response(403, {"message": "Bearer is empty or wrong"})
