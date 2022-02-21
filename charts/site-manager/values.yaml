@@ -27,6 +27,9 @@ serviceAccount:
   create: true
   name: site-manager-sa
 
+metricCollector:
+  install: true
+
 image:
   repository: ghcr.io/netcracker/site-manager
   pullPolicy: Always

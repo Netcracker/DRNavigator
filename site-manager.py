@@ -17,6 +17,7 @@ import utils
 from flask import Flask, request, jsonify, make_response
 from kubernetes import client, config
 from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_client import Gauge
 
 
 # Define GLOBAL lists for running, ignoring, failed and done services
@@ -34,6 +35,8 @@ app = Flask(__name__)
 app.config['DEBUG'] = utils.SM_DEBUG
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 metrics = PrometheusMetrics(app)
+
+site_manager_health = Gauge('site_manager_health', 'SM pod health')
 
 if utils.SM_DEBUG:
     logging_level = logging.DEBUG
@@ -403,6 +406,7 @@ def cr_convert():
 
 @app.route("/health", methods=["GET"])
 def health():
+    site_manager_health.set(1)
     return ("", http.HTTPStatus.NO_CONTENT)
 
 

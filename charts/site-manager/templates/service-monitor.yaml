@@ -1,0 +1,31 @@
+{{- if and (.Values.metricCollector.install) }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: site-manager-service-monitor
+  labels:
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/name: site-manager-service-monitor
+    app.kubernetes.io/part-of: platform-monitoring
+    k8s-app: site-manager-service-monitor
+spec:
+  endpoints:
+    - interval: 30s
+      path: /metrics
+      port: web
+      scheme: https
+      tlsConfig:
+        insecureSkipVerify: true
+  jobLabel: k8s-app
+  namespaceSelector:
+    {{ if  .Release.Namespace }}
+    matchNames:
+      - {{ .Release.Namespace }}
+    {{ else }}
+    matchNames:
+      - {{ default "site-manager" .Values.namespace }}
+    {{ end }}
+  selector:
+    matchLabels:
+      app: matchLabels
+{{ end }}
