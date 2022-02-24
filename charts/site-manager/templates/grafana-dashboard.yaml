@@ -8,5 +8,5 @@ metadata:
 spec:
   name: dashboard-with-plugins.json
   json: >
-{{ .Files.Get "templates/grafana-dashboard.json" | indent 4 }}
+{{ .Files.Get "monitoring/grafana-dashboard.json" | indent 4 }}
 {{ end }}

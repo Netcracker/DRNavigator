@@ -22,7 +22,7 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": 114,
-  "iteration": 1645130651051,
+  "iteration": 1645718795130,
   "links": [],
   "liveNow": false,
   "panels": [
@@ -119,7 +119,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "PD9699BB2B9132EAF"
+            "uid": "$datasource"
           },
           "exemplar": false,
           "expr": "site_manager_health{namespace='$namespace'}",
@@ -137,7 +137,6 @@
       "bars": true,
       "dashLength": 10,
       "dashes": false,
-      "datasource": {},
       "fill": 1,
       "fillGradient": 0,
       "gridPos": {
@@ -184,10 +183,10 @@
           "$$hashKey": "object:140",
           "datasource": {
             "type": "prometheus",
-            "uid": "PD9699BB2B9132EAF"
+            "uid": "$datasource"
           },
           "exemplar": true,
-          "expr": "increase(flask_http_request_total[1m])",
+          "expr": "increase(flask_http_request_total{namespace='$namespace'}[1m])",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -273,10 +272,10 @@
           "$$hashKey": "object:638",
           "datasource": {
             "type": "prometheus",
-            "uid": "PD9699BB2B9132EAF"
+            "uid": "$datasource"
           },
           "exemplar": true,
-          "expr": "process_resident_memory_bytes{job=\"site-manager-iala-test\"}",
+          "expr": "process_resident_memory_bytes{job=\"site-manager\", namespace='$namespace'}",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -365,10 +364,10 @@
           "$$hashKey": "object:214",
           "datasource": {
             "type": "prometheus",
-            "uid": "PD9699BB2B9132EAF"
+            "uid": "$datasource"
           },
           "exemplar": true,
-          "expr": "rate(flask_http_request_duration_seconds_count{status=~\"204|200\" }[60s])",
+          "expr": "rate(flask_http_request_duration_seconds_count{status=~\"204|200\", namespace='$namespace' }[60s])",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -459,10 +458,10 @@
           "$$hashKey": "object:766",
           "datasource": {
             "type": "prometheus",
-            "uid": "PD9699BB2B9132EAF"
+            "uid": "$datasource"
           },
           "exemplar": true,
-          "expr": "sum(rate(flask_http_request_duration_seconds_count{status!~\"204|200\"}[60s]))",
+          "expr": "sum(rate(flask_http_request_duration_seconds_count{status!~\"204|200\", namespace='$namespace'}[60s]))",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -548,10 +547,10 @@
           "$$hashKey": "object:638",
           "datasource": {
             "type": "prometheus",
-            "uid": "PD9699BB2B9132EAF"
+            "uid": "$datasource"
           },
           "exemplar": true,
-          "expr": "rate(process_cpu_seconds_total{job=\"site-manager-iala-test\"}[60s])",
+          "expr": "rate(process_cpu_seconds_total{job=\"site-manager\", namespace='$namespace'}[60s])",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -640,10 +639,10 @@
           "$$hashKey": "object:146",
           "datasource": {
             "type": "prometheus",
-            "uid": "PD9699BB2B9132EAF"
+            "uid": "$datasource"
           },
           "exemplar": true,
-          "expr": "rate(flask_http_request_duration_seconds_sum{status=~\"204|200\", method=\"GET\"}[60s])\n/\nrate(flask_http_request_duration_seconds_count{status=~\"204|200\", method=\"GET\"}[60s])",
+          "expr": "rate(flask_http_request_duration_seconds_sum{status=~\"204|200\", method=\"GET\", namespace='$namespace'}[60s])\n/\nrate(flask_http_request_duration_seconds_count{status=~\"204|200\", method=\"GET\", namespace='$namespace'}[60s])",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -733,10 +732,10 @@
           "$$hashKey": "object:146",
           "datasource": {
             "type": "prometheus",
-            "uid": "PD9699BB2B9132EAF"
+            "uid": "$datasource"
           },
           "exemplar": true,
-          "expr": "rate(flask_http_request_duration_seconds_sum{status=~\"204|200\", method=\"POST\"}[60s])\n/\nrate(flask_http_request_duration_seconds_count{status=~\"204|200\", method=\"POST\"}[60s])",
+          "expr": "rate(flask_http_request_duration_seconds_sum{status=~\"204|200\", method=\"POST\", namespace='$namespace'}[60s])\n/\nrate(flask_http_request_duration_seconds_count{status=~\"204|200\", method=\"POST\", namespace='$namespace'}[60s])",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -824,10 +823,10 @@
           "$$hashKey": "object:1079",
           "datasource": {
             "type": "prometheus",
-            "uid": "PD9699BB2B9132EAF"
+            "uid": "$datasource"
           },
           "exemplar": true,
-          "expr": "increase(flask_http_request_duration_seconds_bucket{status=~\"204|200\",le=\"0.25\"}[60s]) \n/ ignoring (le) increase(flask_http_request_duration_seconds_count{status=~\"204|200\"}[60s])",
+          "expr": "increase(flask_http_request_duration_seconds_bucket{status=~\"204|200\",le=\"0.25\", namespace='$namespace'}[60s]) \n/ ignoring (le) increase(flask_http_request_duration_seconds_count{status=~\"204|200\", namespace='$namespace'}[60s])",
           "format": "time_series",
           "instant": false,
           "interval": "",
@@ -920,10 +919,10 @@
           "$$hashKey": "object:426",
           "datasource": {
             "type": "prometheus",
-            "uid": "PD9699BB2B9132EAF"
+            "uid": "$datasource"
           },
           "exemplar": true,
-          "expr": "histogram_quantile(0.5, rate(flask_http_request_duration_seconds_bucket{status=~\"204|200\"}[60s]))",
+          "expr": "histogram_quantile(0.5, rate(flask_http_request_duration_seconds_bucket{status=~\"204|200\", namespace='$namespace'}[60s]))",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -1012,10 +1011,10 @@
           "$$hashKey": "object:426",
           "datasource": {
             "type": "prometheus",
-            "uid": "PD9699BB2B9132EAF"
+            "uid": "$datasource"
           },
           "exemplar": true,
-          "expr": "histogram_quantile(0.9, rate(flask_http_request_duration_seconds_bucket{status=~\"204|200\"}[60s]))",
+          "expr": "histogram_quantile(0.9, rate(flask_http_request_duration_seconds_bucket{status=~\"204|200\", namespace='$namespace'}[60s]))",
           "format": "time_series",
           "interval": "",
           "intervalFactor": 1,
@@ -1062,7 +1061,7 @@
     "list": [
       {
         "current": {
-          "selected": false,
+          "selected": true,
           "text": "default",
           "value": "default"
         },
@@ -1180,9 +1179,9 @@
       },
       {
         "current": {
-          "selected": false,
-          "text": "site-manager-iala-test",
-          "value": "site-manager-iala-test"
+          "selected": true,
+          "text": "site-manager",
+          "value": "site-manager"
         },
         "datasource": {
           "uid": "$datasource"
@@ -1210,8 +1209,8 @@
     ]
   },
   "time": {
-    "from": "2022-02-21T16:54:30.100Z",
-    "to": "2022-02-21T16:55:42.823Z"
+    "from": "now-5m",
+    "to": "now"
   },
   "timepicker": {
     "refresh_intervals": [
@@ -1229,6 +1228,6 @@
   "timezone": "browser",
   "title": "SM Monitoring",
   "uid": "6KrOYLHGk1",
-  "version": 27,
+  "version": 28,
   "weekStart": ""
 }
