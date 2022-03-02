@@ -126,4 +126,3 @@ The `site-manager` helm chart can be customized with following parameters:
 | image.tag                   | docker image tag                                                      | v1.0                            |
 | ingress.create              | enable/disable ingress creation                                       | true                            |
 | ingress.name                | define URL for `site-manager` ingress                                 | ""                              |
-| metricCollector.install     | enable/disable monitoring installation                                | true                            |
