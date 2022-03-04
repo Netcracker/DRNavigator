@@ -9,6 +9,11 @@ metadata:
   labels:
     app: {{ .Chart.Name }}
 spec:
+  {{- if .Values.ingress.name }}
+  tls:
+    - hosts: {{ .Values.ingress.name }}
+      secretName: sm-certs
+  {{- end }}
   rules:
   {{- if .Values.ingress.name }}
   - host: {{ .Values.ingress.name }}
