@@ -11,7 +11,8 @@ metadata:
 spec:
   {{- if .Values.ingress.name }}
   tls:
-    - hosts: {{ .Values.ingress.name }}
+    - hosts:
+        - {{ .Values.ingress.name }}
       secretName: sm-certs
   {{- end }}
   rules:
