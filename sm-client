@@ -140,6 +140,10 @@ global FRONT_HTTP_AUTH
 
 SM_HTTPS_SECURE = args.cacert if args.cacert != '' else not args.insecure
 
+if args.cacert != '' and not os.path.isfile(args.cacert):
+    logging.fatal("You should define correct path to CA certificate")
+    exit(1)
+
 FRONT_HTTP_AUTH = conf_parsed.get("sm-client", {}).get("http_auth", False)
 
 SERVICE_DEFAULT_TIMEOUT = conf_parsed.get("sm-client", {}).get("service_default_timeout", 200)
