@@ -138,11 +138,11 @@ logging.debug(f"Parsed config: {conf_parsed}")
 global SM_HTTP_SECURE
 global FRONT_HTTP_AUTH
 
-SM_HTTPS_SECURE = args.cacert if args.cacert != '' else not args.insecure
-
 if args.cacert != '' and not os.path.isfile(args.cacert):
     logging.fatal("You should define correct path to CA certificate")
     exit(1)
+
+SM_HTTPS_SECURE = args.cacert if args.cacert != '' else not args.insecure
 
 FRONT_HTTP_AUTH = conf_parsed.get("sm-client", {}).get("http_auth", False)
 
