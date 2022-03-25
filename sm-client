@@ -66,6 +66,7 @@ parser.add_argument('-v', '--verbose', default=False, action='store_true', help=
 parser.add_argument('-c', '--config', default="", help='define the path to configuration file')
 parser.add_argument('-f', '--force', default=False, action='store_true', help='force apply DR action and ignore healthz')
 parser.add_argument('-k', '--insecure', default=False, action='store_true', help='enable self-signed certificates')
+parser.add_argument('--cacert', default='', help='define path to CA cert for self-signed certificates')
 parser.add_argument('--run-services', default='', help='define the list of services to apply DR action, by default all services participate')
 parser.add_argument('--skip-services',  default='', help='define the list of services what will not participate in DR action')
 
@@ -137,7 +138,8 @@ logging.debug(f"Parsed config: {conf_parsed}")
 global SM_HTTP_SECURE
 global FRONT_HTTP_AUTH
 
-SM_HTTPS_SECURE = not args.insecure
+SM_HTTPS_SECURE = args.cacert if args.cacert != '' else not args.insecure
+
 FRONT_HTTP_AUTH = conf_parsed.get("sm-client", {}).get("http_auth", False)
 
 SERVICE_DEFAULT_TIMEOUT = conf_parsed.get("sm-client", {}).get("service_default_timeout", 200)
