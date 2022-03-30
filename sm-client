@@ -66,7 +66,6 @@ parser.add_argument('-v', '--verbose', default=False, action='store_true', help=
 parser.add_argument('-c', '--config', default="", help='define the path to configuration file')
 parser.add_argument('-f', '--force', default=False, action='store_true', help='force apply DR action and ignore healthz')
 parser.add_argument('-k', '--insecure', default=False, action='store_true', help='enable self-signed certificates')
-parser.add_argument('--cacert', default='', help='define path to CA cert for self-signed certificates')
 parser.add_argument('--run-services', default='', help='define the list of services to apply DR action, by default all services participate')
 parser.add_argument('--skip-services',  default='', help='define the list of services what will not participate in DR action')
 
@@ -138,11 +137,7 @@ logging.debug(f"Parsed config: {conf_parsed}")
 global SM_HTTP_SECURE
 global FRONT_HTTP_AUTH
 
-if args.cacert != '' and not os.path.isfile(args.cacert):
-    logging.fatal("You should define correct path to CA certificate")
-    exit(1)
-
-SM_HTTPS_SECURE = args.cacert if args.cacert != '' else not args.insecure
+SM_HTTPS_SECURE = not args.insecure
 
 FRONT_HTTP_AUTH = conf_parsed.get("sm-client", {}).get("http_auth", False)
 
@@ -157,7 +152,7 @@ else:
 sites_name = [ i["name"] for i in conf_parsed["sites"] ]
 
 
-def send_post(url, obj, token):
+def send_post(url, obj, token, verify):
     """
     Method to send POST requests to services
 
@@ -178,7 +173,7 @@ def send_post(url, obj, token):
 
     for _ in range(3):
         try:
-            resp = requests.post(url, json=obj, timeout=30, headers=headers, verify=SM_HTTPS_SECURE)
+            resp = requests.post(url, json=obj, timeout=30, headers=headers, verify=verify)
             response = resp.json()
             ret_code = resp.status_code
             if ret_code == 200:
@@ -204,7 +199,7 @@ def send_post(url, obj, token):
     return {}
 
 
-def send_get(url, token):
+def send_get(url, token, verify):
     """
     Method to send GET requests to services
 
@@ -227,7 +222,7 @@ def send_get(url, token):
 
     for _ in range(3):
         try:
-            resp = requests.get(url, timeout=5, headers=headers, verify=SM_HTTPS_SECURE)
+            resp = requests.get(url, timeout=5, headers=headers, verify=verify)
             if resp.status_code in (401, 403, 500):
                 logging.error(f"Problem with URL: {url}")
                 logging.error(f"Code: {resp.status_code}. Message: {resp.json()['message']}")
@@ -266,7 +261,8 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
 
         data = send_post(sm_dict["sites"][site]["url"],
                          {"procedure": "status", "run-services": service, "polling": True},
-                         sm_dict["sites"][site]["token"])
+                         sm_dict["sites"][site]["token"],
+                         sm_dict["sites"][site]["cacert"])
 
         logging.debug(f"Service: {service}. Site: {site}. Received data: {data}")
         if "status" not in data.get("services", {}).get(service, {}) or \
@@ -298,7 +294,8 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
 
         data = send_post(sm_dict["sites"][site]["url"],
                          {"procedure": "status", "run-services": service, "polling": True},
-                         sm_dict["sites"][site]["token"])
+                         sm_dict["sites"][site]["token"],
+                         sm_dict["sites"][site]["cacert"])
 
         logging.debug(f"Service: {service}. Site: {site}. Received status: {data['services'][service]['healthz']}")
         if "healthz" not in data.get("services", {}).get(service, {}):
@@ -351,7 +348,8 @@ def run(service, procedure, force, no_wait=True):
         logging.info(f"Service: {service}. Site: {site}. Check current mode")
         resp = send_post(sm_dict["sites"][site]["url"],
                          {"procedure": "status", "run-services": service},
-                         sm_dict["sites"][site]["token"])
+                         sm_dict["sites"][site]["token"],
+                         sm_dict["sites"][site]["cacert"])
         service_status = resp["services"][service]
 
         if "mode" not in resp.get("services", {}).get(service, {}) or \
@@ -417,7 +415,10 @@ def run(service, procedure, force, no_wait=True):
             logging.info(f"Service: {service}. Site: {site}. Set mode {sm_dict['sites'][site]['mode']}")
 
             obj = {"procedure": sm_dict['sites'][site]['mode'], "run-services": service, "no-wait": no_wait, "force": force}
-            resp = send_post(url=sm_dict['sites'][site]['url'], obj=obj, token=sm_dict["sites"][site]["token"])
+            resp = send_post(url=sm_dict['sites'][site]['url'],
+                             obj=obj,
+                             token=sm_dict["sites"][site]["token"],
+                             verify=sm_dict["sites"][site]["cacert"])
             if resp.get("bad_response"):
                 failed_services.append(service)
                 return dict()
@@ -520,10 +521,16 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby, skip_services)
             exit(1)
 
         site_token = [ i.get("token", "") for i in conf_parsed["sites"] if i ["name"] == site ][0]
+        site_cacert = [ i.get("cacert", "") for i in conf_parsed["sites"] if i ["name"] == site ][0]
+
+        if site_cacert != '' and not os.path.isfile(site_cacert):
+            logging.fatal(f"You should define correct path to CA certificate for site {site}")
+            exit(1)
 
         sm_dict["sites"][site] = {}
         sm_dict["sites"][site]["url"] = site_url
         sm_dict["sites"][site]["token"] = site_token
+        sm_dict["sites"][site]["cacert"] = SM_HTTPS_SECURE if not SM_HTTPS_SECURE else site_cacert
 
         # Set mode for site
         if site in sites_active:
@@ -544,7 +551,9 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby, skip_services)
             sm_dict["sites"][site]["need"] = "wanted"
 
         try:
-            response = send_get(site_url, sm_dict["sites"][site]["token"])
+            response = send_get(site_url,
+                                sm_dict["sites"][site]["token"],
+                                sm_dict["sites"][site]["cacert"])
         except:
             logging.error(f"Can not download sitemanager objects from site {site}")
             continue
@@ -998,7 +1007,10 @@ elif args.command == "status":
 
         for sites_item in sites_name:
             status_dict[service_item][sites_item] = {}
-            data = send_post(url=sm_dict["sites"][sites_item]["url"], obj={"procedure": "status", "run-services": service_item}, token=sm_dict["sites"][sites_item]["token"])
+            data = send_post(url=sm_dict["sites"][sites_item]["url"],
+                             obj={"procedure": "status", "run-services": service_item},
+                             token=sm_dict["sites"][sites_item]["token"],
+                             verify=sm_dict["sites"][sites_item]["cacert"])
             if data == {}:
                 status_dict[service_item][sites_item] = {'healthz': '--', 'mode': '--', 'status': '--'}
             else:
