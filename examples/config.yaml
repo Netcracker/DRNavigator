@@ -8,3 +8,6 @@ sites:
     token: <TOKEN>
     site-manager: http://site-manager.k8s-2.example.com/sitemanager
     cacert: <path-to-ca-certificate>
+
+sm-client:
+  http_auth: True

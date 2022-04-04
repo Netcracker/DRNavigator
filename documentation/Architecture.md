@@ -802,6 +802,9 @@ sites:
     token: <TOKEN>
     site-manager: http://site-manager.k8s-2.example.com/sitemanager
     cacert: <path-to-ca-certificate>
+
+sm-client:
+  http_auth: True
 ```
 
 where:
@@ -809,6 +812,7 @@ where:
  - `name` is the short name of cluster
  - `token` is the token to have access to `site-manager` in kubernetes cluster
  - `cacert` is the path to CA certificate for `site-manager` with self-signed certificate
+ - `http_auth` defines to use token for `site-manager` authorization
 
 ## Examples of using sm-client
 
