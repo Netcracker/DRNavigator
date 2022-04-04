@@ -796,22 +796,19 @@ The main configuration file for `sm-client` in short format looks like this:
 sites:
   - name: k8s-1
     token: <TOKEN>
-    site-manager: http://site-manager.k8s-1.openshift.sdntest.netcracker.com/sitemanager
+    site-manager: http://site-manager.k8s-1.example.com/sitemanager
+    cacert: <path-to-ca-certificate>
   - name: k8s-2
     token: <TOKEN>
-    site-manager: http://site-manager.k8s-2.openshift.sdntest.netcracker.com/sitemanager
-
-sm-client:
-  logging-url: <URL to server to collect logs>
-  logging-dir: <Directory to collect logs>
-  logging-dir-size: 256
-  bind-address: 0.0.0.0
-  bind-port: 8080
+    site-manager: http://site-manager.k8s-2.example.com/sitemanager
+    cacert: <path-to-ca-certificate>
 ```
 
 where:
  - `sites` is the list of kubernetes clusters.
- - `sm-client` is the section for specific settings for `sm-client` as logging, listening port and ip in daemon mode and other.
+ - `name` is the short name of cluster
+ - `token` is the token to have access to `site-manager` in kubernetes cluster
+ - `cacert` is the path to CA certificate for `site-manager` with self-signed certificate
 
 ## Examples of using sm-client
 
