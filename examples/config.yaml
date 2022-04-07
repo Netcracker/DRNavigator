@@ -1,0 +1,13 @@
+---
+sites:
+  - name: k8s-1
+    token: <TOKEN>
+    site-manager: http://site-manager.k8s-1.example.com/sitemanager
+    cacert: <path-to-ca-certificate>
+  - name: k8s-2
+    token: <TOKEN>
+    site-manager: http://site-manager.k8s-2.example.com/sitemanager
+    cacert: <path-to-ca-certificate>
+
+sm-client:
+  http_auth: True
