@@ -234,7 +234,7 @@ def poll_deployment(name, namespace, mode, options, k8s_api_client, session_data
                 return
             if _check_env(deployment_info, options, mode):
                 env_updated = True
-                continue
+                break
         if not env_updated and _is_env_exists(deployment_info, dr_mode_env):
             session_data[deployment_name]["mode"] = "Unchanged"
             session_data[deployment_name]["status"] = "Unhealthy"
