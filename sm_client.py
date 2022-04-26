@@ -9,11 +9,11 @@ Description: Client util to manage site-manager in kubernetes clusters
 
 import argparse
 import logging
-import threading
 import time
 import yaml
 import requests
 import os
+import importlib.util
 from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from prettytable import PrettyTable
 
@@ -51,6 +51,7 @@ running_services = []
 done_services = []
 ignored_services = []
 failed_services = []
+after_stateful = []
 procedure_results = dict()
 
 sm_dict = {}
@@ -155,6 +156,11 @@ else:
     testing_mode = False
 
 sites_name = [ i["name"] for i in conf_parsed["sites"] ]
+
+if conf_parsed.get("module", ""):
+    module_name = conf_parsed["module"]
+else:
+    module_name = "default"
 
 
 def send_post(url, obj, token):
@@ -762,6 +768,20 @@ def print_additional_table(status_dict, services_to_run, sites_name):
         print(pt)
 
 
+def import_module(services_module):
+    """
+    Method for importing a module
+
+    :param string services_module: module name
+    """
+
+    logging.info("loading module: %s" % services_module)
+    spec = importlib.util.spec_from_file_location(services_module, "sm-modules/" + services_module + ".py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def main_func(procedure, site, run_services, skip_services, force):
     """
     Method for processing procedure for all sites
@@ -780,6 +800,7 @@ def main_func(procedure, site, run_services, skip_services, force):
     global running_procedure
     global sm_dict
     global procedure_results
+    global after_stateful
 
     sites_active = []
     sites_standby = []
@@ -835,79 +856,21 @@ def main_func(procedure, site, run_services, skip_services, force):
     # Starting main loop to process all services
     logging.debug("Starting main loop")
     procedure_results = dict()
-    after_stateful = []
+    module = import_module(module_name)
+    module.seq(sm_dict,
+               procedure,
+               services_to_run,
+               all_services,
+               running_services,
+               done_services,
+               failed_services,
+               ignored_services,
+               after_stateful,
+               force,
+               no_wait)
 
-    # TODO This is an exceptional case to handle internal NC specific module. To be reworked later in more general manner.
-    replicator = "cluster-replicator"
-    if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop", "standby", "active"]:
-        if procedure in ["active"]:
-            done_services.append(replicator)
-        else:
-            sm_dict["services"][replicator]["sequence"] = ["standby"]
-            run(replicator, procedure, force, no_wait)
-
-    while not all(elem in (done_services + failed_services + ignored_services + after_stateful) for elem in all_services):
-
-        for service_name in all_services:
-            if service_name not in (done_services + running_services + failed_services + ignored_services):
-                after_services = sm_dict["services"][service_name]["after"]
-                if "stateful" in after_services:
-                    logging.info(f"Founded service {service_name} which should be executed after stateful services")
-                    after_stateful.append(service_name)
-                    continue
-
-                # Set service as failed when any of dependencies is failed
-                if any(elem in failed_services for elem in after_services) and service_name not in failed_services:
-                    logging.error(f"Service {service_name} marked as failed due to dependencies")
-                    failed_services.append(service_name)
-                    continue
-
-                if service_name not in services_to_run:
-                    ignored_services.append(service_name)
-
-                else:
-                    # Run service if it is not in running, failed or done lists
-                    if all(elem in (done_services + ignored_services) for elem in after_services) or after_services == ['']:
-                        thread = threading.Thread(target=run,
-                                                  args=(service_name,
-                                                        procedure,
-                                                        force,
-                                                        no_wait))
-                        thread.name = f"Thread: {service_name}"
-                        thread.start()
-
-        if len(done_services) != 0:
-            logging.debug('done_services = %s' % done_services)
-        if len(ignored_services) != 0:
-            logging.debug('ignored_services = %s' % ignored_services)
-        if len(running_services) != 0:
-            logging.debug('running_services = %s' % running_services)
-        if len(failed_services) != 0:
-            logging.debug('failed_services = %s' % failed_services)
-
-        time.sleep(5)
-
-    threads = list()
-    for service in after_stateful:
-        thread = threading.Thread(target=run,
-                                  args=(service,
-                                        procedure,
-                                        force,
-                                        no_wait))
-        thread.name = f"Thread: {service}"
-        threads.append(thread)
-        thread.start()
-
-    for thread in threads:
-        thread.join()
-
-    if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop", "active"]:
-        sm_dict["services"][replicator]["sequence"] = ["active"]
-        run(replicator, procedure, force, no_wait)
-        if replicator in failed_services and replicator in done_services:
-            done_services.remove(replicator)
-        done_services = list(set(done_services))
-        failed_services = list(set(failed_services))
+    done_services = list(set(done_services))
+    failed_services = list(set(failed_services))
 
     for service in services_to_run:
         if not procedure_results.get(service, {}):

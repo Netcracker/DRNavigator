@@ -5,7 +5,8 @@ ARG SM_UID=1001
 
 USER root
 
-COPY sm-client /app/
+COPY sm_client.py /app/
+COPY sc-modules /app/modules
 COPY requirements-sc.txt /app/requirements.txt
 
 WORKDIR /app/
@@ -16,4 +17,4 @@ RUN useradd -r -u "${SM_UID}" "${SM_USER}" && \
 
 USER "${SM_USER}"
 
-CMD ["python", "sm-client"]
+CMD ["python", "sm_client.py"]
