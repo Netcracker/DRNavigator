@@ -271,25 +271,25 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
         logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
 
         data = send_post(sm_dict["sites"][site]["url"],
-                         {"procedure": "status", "run-services": service, "polling": True},
+                         {"procedure": "status", "run-service": service, "polling": True},
                          sm_dict["sites"][site]["token"])
 
         logging.debug(f"Service: {service}. Site: {site}. Received data: {data}")
-        if "status" not in data.get("services", {}).get(service, {}) or \
-           "mode" not in data.get("services", {}).get(service, {}):
+        if "status" not in data.get(service, {}) or \
+           "mode" not in data.get(service, {}):
             time.sleep(5)
             continue
 
-        if data["services"][service]["status"] == "running":
+        if data[service]["status"] == "running":
             time.sleep(5)
             continue
 
-        if data["services"][service]["mode"] == sm_dict["sites"][site]["mode"]:
+        if data[service]["mode"] == sm_dict["sites"][site]["mode"]:
 
-            if data["services"][service]["status"] == "failed":
-                return data["services"][service]
+            if data[service]["status"] == "failed":
+                return data[service]
 
-            if data["services"][service]["status"] == "done":
+            if data[service]["status"] == "done":
                 break
 
         time.sleep(5)
@@ -303,30 +303,30 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
         logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
 
         data = send_post(sm_dict["sites"][site]["url"],
-                         {"procedure": "status", "run-services": service, "polling": True},
+                         {"procedure": "status", "run-service": service, "polling": True},
                          sm_dict["sites"][site]["token"])
 
-        logging.debug(f"Service: {service}. Site: {site}. Received status: {data['services'][service]['healthz']}")
-        if "healthz" not in data.get("services", {}).get(service, {}):
+        logging.debug(f"Service: {service}. Site: {site}. Received status: {data[service]['healthz']}")
+        if "healthz" not in data.get(service, {}):
             time.sleep(5)
             continue
 
-        if (sm_dict['sites'][site]['mode'] == "active" and data["services"][service]["healthz"] == "up") or \
+        if (sm_dict['sites'][site]['mode'] == "active" and data[service]["healthz"] == "up") or \
                 (sm_dict['sites'][site]['mode'] == "standby" and
-                 data["services"][service]["healthz"] in sm_dict["services"][service]["allowedStandbyStateList"]):
+                 data[service]["healthz"] in sm_dict["services"][service]["allowedStandbyStateList"]):
             break
 
-        if data["services"][service]["healthz"] in ("degraded", "down"):
+        if data[service]["healthz"] in ("degraded", "down"):
             time.sleep(5)
             continue
 
         time.sleep(5)
 
     if data:
-        if data["services"][service].get("mode", "--") == "--" or \
-           data["services"][service].get("status", "--") == "--":
+        if data[service].get("mode", "--") == "--" or \
+           data[service].get("status", "--") == "--":
             return unknown_state
-        return data["services"][service]
+        return data[service]
     else:
         return unknown_state
 
@@ -356,14 +356,14 @@ def run(service, procedure, force, no_wait=True):
 
         logging.info(f"Service: {service}. Site: {site}. Check current mode")
         resp = send_post(sm_dict["sites"][site]["url"],
-                         {"procedure": "status", "run-services": service},
+                         {"procedure": "status", "run-service": service},
                          sm_dict["sites"][site]["token"])
-        service_status = resp["services"][service]
-
-        if "mode" not in resp.get("services", {}).get(service, {}) or \
-           resp["services"][service]["mode"] == "--" or \
-           "status" not in resp.get("services", {}).get(service, {}) or \
-           resp["services"][service]["status"] == "--":
+        service_status = resp[service]
+        print(resp)
+        if "mode" not in service_status or \
+           resp[service]["mode"] == "--" or \
+           "status" not in service_status or \
+           resp[service]["status"] == "--":
 
             logging.warning(f"Service: {service}. Site: {site}. Service is unavailable.")
             if sm_dict["sites"][site]["need"] != "wanted":
@@ -372,18 +372,18 @@ def run(service, procedure, force, no_wait=True):
             return service_status
 
         # Check the current service state
-        if resp["services"][service]["mode"] == sm_dict['sites'][site]['mode'] and \
-           resp["services"][service]["status"] == "done":
+        if resp[service]["mode"] == sm_dict['sites'][site]['mode'] and \
+           resp[service]["status"] == "done":
 
             logging.warning(f"Service: {service}. Site: {site}. Service is already {sm_dict['sites'][site]['mode']} and has status done.")
 
             # Check current health status
             logging.info(f"Service: {service}. Site: {site}. Check current health status")
 
-            if (sm_dict["sites"][site]["mode"] == "active" and resp["services"][service]["healthz"].lower() != "up") or \
-               (sm_dict["sites"][site]["mode"] == "standby" and resp["services"][service]["healthz"].lower() not in sm_dict["services"][service]["allowedStandbyStateList"]):
+            if (sm_dict["sites"][site]["mode"] == "active" and resp[service]["healthz"].lower() != "up") or \
+               (sm_dict["sites"][site]["mode"] == "standby" and resp[service]["healthz"].lower() not in sm_dict["services"][service]["allowedStandbyStateList"]):
 
-                logging.critical(f"Service: {service}. Site: {site}. Current health status is {resp['services'][service]['healthz'].lower()}. Service failed")
+                logging.critical(f"Service: {service}. Site: {site}. Current health status is {resp[service]['healthz'].lower()}. Service failed")
 
                 if not force:
                     if service not in failed_services:
@@ -393,10 +393,10 @@ def run(service, procedure, force, no_wait=True):
                 else:
                     logging.warning(f"Service: {service}. Site: {site}. Force mode enabled. Service healthz ignored")
             else:
-                logging.info(f"Service: {service}. Site: {site}. Current health status is {resp['services'][service]['healthz'].lower()}")
+                logging.info(f"Service: {service}. Site: {site}. Current health status is {resp[service]['healthz'].lower()}")
 
         else:
-            logging.info(f"Service: {service}. Site: {site}. Current mode is {resp['services'][service]['mode']} and status is {resp['services'][service]['status']}")
+            logging.info(f"Service: {service}. Site: {site}. Current mode is {resp[service]['mode']} and status is {resp[service]['status']}")
 
             # Check current health status
             if procedure == "move":
@@ -405,10 +405,10 @@ def run(service, procedure, force, no_wait=True):
                 allowed_statuses = ["up"]
                 allowed_statuses.extend(sm_dict["services"][service]["allowedStandbyStateList"])
                 # We should check previous state of service. In that case we check allowed_statuses for standby and "allowedStandbyStateList" for active
-                if (sm_dict["sites"][site]["mode"] == "standby" and resp["services"][service]["healthz"].lower() not in allowed_statuses) or \
-                   (sm_dict["sites"][site]["mode"] == "active" and resp["services"][service]["healthz"].lower() not in sm_dict["services"][service]["allowedStandbyStateList"]):
+                if (sm_dict["sites"][site]["mode"] == "standby" and resp[service]["healthz"].lower() not in allowed_statuses) or \
+                   (sm_dict["sites"][site]["mode"] == "active" and resp[service]["healthz"].lower() not in sm_dict["services"][service]["allowedStandbyStateList"]):
 
-                    logging.critical(f"Service: {service}. Site: {site}. Current health status is {resp['services'][service]['healthz'].lower()}. Service failed")
+                    logging.critical(f"Service: {service}. Site: {site}. Current health status is {resp[service]['healthz'].lower()}. Service failed")
 
                     if not force:
                         if service not in failed_services:
@@ -418,11 +418,11 @@ def run(service, procedure, force, no_wait=True):
                     else:
                         logging.warning(f"Service: {service}. Site: {site}. Force mode enabled. Service healthz ignored")
                 else:
-                    logging.info(f"Service: {service}. Site: {site}. Current health status is {resp['services'][service]['healthz'].lower()}")
+                    logging.info(f"Service: {service}. Site: {site}. Current health status is {resp[service]['healthz'].lower()}")
 
             logging.info(f"Service: {service}. Site: {site}. Set mode {sm_dict['sites'][site]['mode']}")
 
-            obj = {"procedure": sm_dict['sites'][site]['mode'], "run-services": service, "no-wait": no_wait, "force": force}
+            obj = {"procedure": sm_dict['sites'][site]['mode'], "run-service": service, "no-wait": no_wait, "force": force}
             resp = send_post(url=sm_dict['sites'][site]['url'], obj=obj, token=sm_dict["sites"][site]["token"])
             if resp.get("bad_response"):
                 failed_services.append(service)
@@ -776,7 +776,7 @@ def import_module(services_module):
     """
 
     logging.info("loading module: %s" % services_module)
-    spec = importlib.util.spec_from_file_location(services_module, "sm-modules/" + services_module + ".py")
+    spec = importlib.util.spec_from_file_location(services_module, "sc-modules/" + services_module + ".py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -960,12 +960,12 @@ elif args.command == "status":
         status_dict[service_item] = {}
 
         for sites_item in sites_name:
-            status_dict[service_item][sites_item] = {}
-            data = send_post(url=sm_dict["sites"][sites_item]["url"], obj={"procedure": "status", "run-services": service_item}, token=sm_dict["sites"][sites_item]["token"])
+            data = send_post(url=sm_dict["sites"][sites_item]["url"], obj={"procedure": "status", "run-service": service_item}, token=sm_dict["sites"][sites_item]["token"])
             if data == {}:
                 status_dict[service_item][sites_item] = {'healthz': '--', 'mode': '--', 'status': '--'}
             else:
-                status_dict[service_item][sites_item] = data["services"][service_item]
+                status_dict[service_item][sites_item] = data[service_item]
+
         for item in sm_dict.get("corrupted_sites", []):
             status_dict[service_item][item] = {'healthz': '--', 'mode': '--', 'status': '--'}
     if sm_dict.get("corrupted_sites"):

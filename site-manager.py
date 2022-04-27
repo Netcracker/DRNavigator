@@ -303,12 +303,11 @@ def sitemanager_post():
         return json_response(401, {"message": f"You should define procedure from list: {command_list}"})
 
     no_wait = True if data.get("no-wait", "") in (1, "1", True, "true", "True") else False
-
     # Check service for running
-    if type(data.get("run-service", None)) == type(str):
+    if isinstance(data.get("run-service", None), str):
         run_service = data["run-service"]
     else:
-        return json_response(401, {"message": f"Parameter's run-service value should be String"})
+        return json_response(401, {"message": f"run-service value should be String"})
 
     sm_dict = get_sitemanagers_dict()
     all_services = get_all_services(sm_dict)

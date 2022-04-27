@@ -6,7 +6,7 @@ ARG SM_UID=1001
 USER root
 
 COPY sm_client.py /app/
-COPY sc-modules /app/modules
+COPY sc-modules /app/sc-modules
 COPY requirements-sc.txt /app/requirements.txt
 
 WORKDIR /app/
