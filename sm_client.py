@@ -768,15 +768,15 @@ def print_additional_table(status_dict, services_to_run, sites_name):
         print(pt)
 
 
-def import_module(services_module):
+def import_module(module_to_load):
     """
     Method for importing a module
 
     :param string services_module: module name
     """
-
-    logging.info("loading module: %s" % services_module)
-    spec = importlib.util.spec_from_file_location(services_module, "sc-modules/" + services_module + ".py")
+    print(module_to_load)
+    logging.info("loading module: %s" % module_to_load)
+    spec = importlib.util.spec_from_file_location(module_to_load, "sc-modules/" + module_to_load + ".py")
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
