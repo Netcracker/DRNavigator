@@ -503,18 +503,18 @@ Output:
 
 **Data Params**: `{"procedure": "status"}`
 
-**Answer**: `[{"name": "service-name-1", "mode": "active|standby|disable", "status": "running|done|failed"}, {"name": "service-name-2", "mode": "active|standby|disable", "status": "running|done|failed"}]`
+**Answer**: `[{"service-name-1": {"healthz": "up|down|degraded", "mode": "active|standby|disable", "status": "running|done|failed"}}`
 
 This command shows current status of DR procedures and results of health checks.
 
 **Note**: response may contain section `additional`, which will contain specific information for the module in dictionary format. 
 
-Example of `/GET` request with `curl` command shows output for services `paas` and `paas-1`:
+Example of `/GET` request with `curl` command shows output for service `paas`:
 
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"status", "run-services": ["paas","paas-1"]}' \
+       -d '{"procedure":"status", "run-service": "paas"}' \
        http://site-manager.example.com/sitemanager
 
 ```
@@ -523,18 +523,10 @@ Output:
 
 ```json
 {
-  "running-procedure": "", 
-  "services": {
-    "paas": {
-      "healthz": "--", 
-      "mode": "active", 
-      "status": "done"
-    }, 
-    "paas-1": {
-      "healthz": "up", 
-      "mode": "active", 
-      "status": "done"
-    }
+  "paas": {
+    "healthz": "--", 
+    "mode": "active", 
+    "status": "done"
   }
 }
 ```
@@ -549,7 +541,7 @@ Output:
 
 **Data Params**: `{"procedure": "list"}`
 
-**Answer**: `{"all_services": ["service-1", "service-2"], "running-services": ["service-1", "service-2"]}`
+**Answer**: `{"all_services": ["service-1", "service-2"]}`
 
 Example:
 
@@ -574,16 +566,6 @@ Output:
     "streaming-platform", 
     "paas-1", 
     "spark-operator-gcp-site-manager"
-  ], 
-  "running-services": [
-    "postgres", 
-    "postgres-service-site-manager", 
-    "paas", 
-    "kafka", 
-    "mongo", 
-    "streaming-platform", 
-    "paas-1", 
-    "spark-operator-gcp-site-manager"
   ]
 }
 ```
@@ -598,9 +580,9 @@ Output:
 
 **Data Params**: `{"procedure": "active|standby|disable"}`
 
-**Answer**: `{"message": "Procedure active is started", "procedure": "active", "services": ["paas","paas-1"]}`
+**Answer**: `{"message": "Procedure active is started", "procedure": "active", "service": "paas"}`
 
-This command performs the specified procedure for the selected services.
+This command performs the specified procedure for the selected service.
 
 **Note**: response may contain section `additional`, which will contain specific information for the module in dictionary format. 
 
@@ -609,7 +591,7 @@ Example:
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"active", "run-services": "paas,paas-1"}' \
+       -d '{"procedure":"active", "run-service": "paas"}' \
        http://site-manager.example.com/sitemanager
 
 ```
@@ -620,10 +602,7 @@ Output:
 {
   "message": "Procedure active is started", 
   "procedure": "active", 
-  "services": [
-    "paas", 
-    "paas-1"
-  ]
+  "service": "paas"
 }
 ```
 
@@ -634,7 +613,7 @@ Output:
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"wrong", "run-services": "paas,paas-1"}' \
+       -d '{"procedure":"wrong", "run-service": "paas"}' \
        http://site-manager.example.com/sitemanager
 ```
 
@@ -653,7 +632,7 @@ HTTP Code: 401
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"active", "run-services": "paas,paas-1"}' \
+       -d '{"procedure":"active", "run-service": "paas"}' \
        http://site-manager.example.com/sitemanager
 ```
 
@@ -672,7 +651,7 @@ HTTP Code: 409
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"active", "run-services": "paas,paas-12"}' \
+       -d '{"procedure":"active", "run-service": "paas-12"}' \
        http://site-manager.example.com/sitemanager
 ```
 
@@ -681,9 +660,7 @@ Output:
 ```json
 {
   "message": "You defined service that does not exist in cluster", 
-  "wrong-services": [
-    "paas-12"
-  ]
+  "wrong-service": "paas-12"
 }
 
 ```
@@ -807,11 +784,14 @@ sm-client:
   logging-dir-size: 256
   bind-address: 0.0.0.0
   bind-port: 8080
+
+module: default
 ```
 
 where:
  - `sites` is the list of kubernetes clusters.
  - `sm-client` is the section for specific settings for `sm-client` as logging, listening port and ip in daemon mode and other.
+ - `module` is the property which define module would execute part of the specific logic. If the parameter `module` is not defined, the [`default`](/sc-modules/default.py) one will be used.
 
 ## Examples of using sm-client
 
