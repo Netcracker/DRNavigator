@@ -601,6 +601,8 @@ Output:
 **Answer**: `{"message": "Procedure active is started", "procedure": "active", "services": ["paas","paas-1"]}`
 
 This command performs the specified procedure for the selected services.
+    
+Active|standby|disable are the atomic operations and sm-client don't need to check both clusters. The decision should be taken by operator.
 
 **Note**: response may contain section `additional`, which will contain specific information for the module in dictionary format. 
 
