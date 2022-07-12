@@ -357,8 +357,7 @@ def run(service, procedure, force, no_wait=True):
                 logging.info(f"Service: {service}. Site: {site}. Current health status is {resp['services'][service]['healthz'].lower()}")
 
         else:
-            logging.info(
-                f"Service: {service}. Site: {site}. Current mode is {resp['services'][service]['mode']} and status is {resp['services'][service]['status']}")
+            logging.info(f"Service: {service}. Site: {site}. Current mode is {resp['services'][service]['mode']} and status is {resp['services'][service]['status']}")
 
             # Check current health status
             if procedure == "move":
@@ -384,8 +383,7 @@ def run(service, procedure, force, no_wait=True):
 
             logging.info(f"Service: {service}. Site: {site}. Set mode {sm_dict['sites'][site]['mode']}")
 
-            obj = {"procedure": sm_dict['sites'][site]['mode'], "run-services": service, "no-wait": no_wait,
-                   "force": force}
+            obj = {"procedure": sm_dict['sites'][site]['mode'], "run-services": service, "no-wait": no_wait, "force": force}
             resp,_ = io_http_json_request(url=sm_dict['sites'][site]['url'],
                              token=sm_dict["sites"][site]["token"],
                              verify_ssl=sm_dict["sites"][site]["cacert"],
@@ -419,8 +417,7 @@ def run(service, procedure, force, no_wait=True):
 
             elif service_status["status"] == "done":
                 if service_status["mode"] != sm_dict['sites'][site]['mode']:
-                    logging.error(
-                        f"Service: {service}. Site: {site}. Procedure {procedure} has not been applied to service.")
+                    logging.error(f"Service: {service}. Site: {site}. Procedure {procedure} has not been applied to service.")
                     if service not in failed_services and sm_dict["sites"][site]["need"] != "wanted":
                         failed_services.append(service)
                     return service_status
@@ -428,8 +425,7 @@ def run(service, procedure, force, no_wait=True):
                 logging.info(f"Service: {service}. Site: {site}. Procedure {procedure} is in done status.")
 
                 if (sm_dict["sites"][site]["mode"] == "active" and service_status["healthz"].lower() != "up") or \
-                        (sm_dict["sites"][site]["mode"] == "standby" and service_status["healthz"].lower() not in
-                         sm_dict["services"][service]["allowedStandbyStateList"]):
+                   (sm_dict["sites"][site]["mode"] == "standby" and service_status["healthz"].lower() not in sm_dict["services"][service]["allowedStandbyStateList"]):
 
                     logging.critical(
                         f"Service: {service}. Site: {site}. Current health status is {service_status['healthz'].lower()}. Service failed")
@@ -438,11 +434,9 @@ def run(service, procedure, force, no_wait=True):
                             failed_services.append(service)
                         return service_status
                     else:
-                        logging.warning(
-                            f"Service: {service}. Site: {site}. Force mode enabled. Service healthz ignored")
+                        logging.warning(f"Service: {service}. Site: {site}. Force mode enabled. Service healthz ignored")
                 else:
-                    logging.info(
-                        f"Service: {service}. Site: {site}. Current health status is {service_status['healthz'].lower()}")
+                    logging.info(f"Service: {service}. Site: {site}. Current health status is {service_status['healthz'].lower()}")
                     logging.info(f"Service: {service}. Site: {site}. Procedure {procedure} is finished successfully.")
         return service_status
 
