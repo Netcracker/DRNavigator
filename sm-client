@@ -427,8 +427,7 @@ def run(service, procedure, force, no_wait=True):
                 if (sm_dict["sites"][site]["mode"] == "active" and service_status["healthz"].lower() != "up") or \
                    (sm_dict["sites"][site]["mode"] == "standby" and service_status["healthz"].lower() not in sm_dict["services"][service]["allowedStandbyStateList"]):
 
-                    logging.critical(
-                        f"Service: {service}. Site: {site}. Current health status is {service_status['healthz'].lower()}. Service failed")
+                    logging.critical(f"Service: {service}. Site: {site}. Current health status is {service_status['healthz'].lower()}. Service failed")
                     if not force:
                         if service not in failed_services:
                             failed_services.append(service)
