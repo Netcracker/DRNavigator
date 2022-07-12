@@ -496,8 +496,8 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby, skip_services)
             logging.error("Check configuration file. Some of sites does not have 'site-manager' parameter")
             exit(1)
 
-        site_token = [ i.get("token", "") for i in conf_parsed["sites"] if i["name"] == site ][0]
-        site_cacert = [ i.get("cacert", True) for i in conf_parsed["sites"] if i["name"] == site ][0]
+        site_token = [ i.get("token", "") for i in conf_parsed["sites"] if i ["name"] == site ][0]
+        site_cacert = [ i.get("cacert", True) for i in conf_parsed["sites"] if i ["name"] == site ][0]
 
         if site_cacert != True and not os.path.isfile(site_cacert):
             logging.fatal(f"You should define correct path to CA certificate for site {site}")
@@ -556,8 +556,7 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby, skip_services)
 
             sm_dict["services"][key]["after"] = value.get("after", [])
             sm_dict["services"][key]["before"] = value.get("before", [])
-            sm_dict["services"][key]["sequence"] = ["standby", "active"] if value.get("sequence", []) == [] else value[
-                "sequence"]
+            sm_dict["services"][key]["sequence"] = ["standby", "active"] if value.get("sequence", []) == [] else value["sequence"]
             sm_dict["services"][key]["allowedStandbyStateList"] = value.get("allowedStandbyStateList", ["up"])
 
             sm_dict["services"][key]["timeout"] = value.get("timeout", SERVICE_DEFAULT_TIMEOUT)
@@ -575,7 +574,7 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby, skip_services)
            key not in skip_services and \
            procedure in ("move", "stop", "status", "list"):
 
-            logging.error(f"Service '{key}' is not presented on sites: {[elem for elem in sites if elem not in value]}.")
+            logging.error(f"Service '{key}' is not presented on sites: {[ elem for elem in sites if elem not in value]}.")
             wrong_service_counter += 1
 
     if wrong_service_counter != 0:
@@ -643,6 +642,7 @@ def get_services_to_run(run_services, skip_services, all_services):
             else:
                 logging.fatal(f"Service {item} does not exist in provided kubernetes clusters")
                 exit(1)
+
     elif len(skip_services) != 0:
         services_to_run = all_services.copy()
         for item in skip_services:
@@ -650,6 +650,7 @@ def get_services_to_run(run_services, skip_services, all_services):
                 services_to_run.remove(item)
             else:
                 logging.warning(f"Service {item} from skip_services list doesn't present on cluster")
+
     else:
         services_to_run = all_services.copy()
 
@@ -817,15 +818,14 @@ def main_func(procedure, site, run_services, skip_services, force):
 
     # TODO This is an exceptional case to handle internal NC specific module. To be reworked later in more general manner.
     replicator = "cluster-replicator"
-    if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop", "standby","active"]:
+    if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop", "standby", "active"]:
         if procedure in ["active"]:
             done_services.append(replicator)
         else:
             sm_dict["services"][replicator]["sequence"] = ["standby"]
             run(replicator, procedure, force, no_wait)
 
-    while not all(
-            elem in (done_services + failed_services + ignored_services + after_stateful) for elem in all_services):
+    while not all(elem in (done_services + failed_services + ignored_services + after_stateful) for elem in all_services):
 
         for service_name in all_services:
             if service_name not in (done_services + running_services + failed_services + ignored_services):
@@ -845,8 +845,7 @@ def main_func(procedure, site, run_services, skip_services, force):
                     ignored_services.append(service_name)
                 else:
                     # Run service if it is not in running, failed or done lists
-                    if all(elem in (done_services + ignored_services) for elem in after_services) or after_services == [
-                        '']:
+                    if all(elem in (done_services + ignored_services) for elem in after_services) or after_services == ['']:
                         thread = threading.Thread(target=run,
                                                   args=(service_name,
                                                         procedure,
