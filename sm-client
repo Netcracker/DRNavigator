@@ -184,6 +184,7 @@ def io_http_json_request(url, token="", verify_ssl=True, http_body={}) -> Tuple[
     retries = Retry(total=3)
     session.mount('http://', HTTPAdapter(max_retries=retries))
     session.mount('https://', HTTPAdapter(max_retries=retries))
+    logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
     try:
         if any(http_body):
