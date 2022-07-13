@@ -162,13 +162,13 @@ sites_name = [ i["name"] for i in conf_parsed["sites"] ]
 
 def io_http_json_request(url, token="", verify_ssl=True, http_body={}) -> Tuple[Dict,int]:
     """
-    Method to send GET/POST requests to service
+    Method to send GET/POST requests to service rep
     :param string url: the URL to service operator
     :param token
     :param verify_ssl
     :param http_body: the dictionary with procedure and list of services
     :returns:
-    :Dict none empty json body in case Ok
+    :Dict not empty json body in case Ok
     :HTTP_CODE or False in case not http request issue
     """
     if token != "" and FRONT_HTTP_AUTH:
@@ -206,6 +206,8 @@ def io_http_json_request(url, token="", verify_ssl=True, http_body={}) -> Tuple[
         logging.error("Wrong JSON data received")
     except requests.exceptions.RequestException as e:
         logging.error("General request error %s",e.__doc__)
+    except:
+        logging.error("General error")
 
     return {},False
 
@@ -599,10 +601,11 @@ def check_dependencies(services_to_run, all_services, sm_dict):
                 if after_item not in all_services:
                     dep_dict[svc_item].append(after_item)
 
-    if len(dep_dict) > 0:
-        for dep_item in dep_dict:
-            logging.critical(f"Service: {dep_item}. Service has nonexistent dependencies: {dep_dict[dep_item]}")
+    for dep_item in dep_dict:
+        logging.critical(f"Service: {dep_item}. Service has nonexistent dependencies: {dep_dict[dep_item]}")
 
+    if len(dep_dict) and \
+            not any( site['need'] == 'wanted' for site in sm_dict["sites"].values()): # do not exit in case failover,list,status
         exit(1)
 
     logging.info(f"Services: {services_to_run}. Services don\'t have nonexistent dependencies")
