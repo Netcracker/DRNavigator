@@ -202,6 +202,7 @@ def io_http_json_request(url, token="", verify_ssl=True, http_body={}) -> Tuple[
     except requests.exceptions.SSLError:
         logging.error("SSL certificate verify failed")
         logging.error("Please use key -k or --insecure")
+        raise # re-raise SSL exception to handle in the calling code TBD in more general manner
     except requests.exceptions.JSONDecodeError:
         logging.error("Wrong JSON data received")
     except requests.exceptions.RequestException as e:
@@ -519,42 +520,47 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby, skip_services)
         elif site not in sites_active and procedure in ("stop", "status", "list"):
             sm_dict["sites"][site]["need"] = "wanted"
 
-        response,_ = io_http_json_request(site_url,
+        try:
+            response,_ = io_http_json_request(site_url,
                                 sm_dict["sites"][site]["token"],
                                 sm_dict["sites"][site]["cacert"])
-        if not response:
-            logging.error(f"Can not download sitemanager objects from site {site}")
-            continue
+            if not response:
+                logging.error(f"Can not download sitemanager objects from site {site}")
+                continue
 
-        if "services" in response:
-            sm_dict["available"].append(site)
-        else:
-            logging.error(f"Site {site} does not contain any sitemanager CR")
-            if not sm_dict.get("corrupted_sites", []):
-                sm_dict["corrupted_sites"] = []
-            sm_dict["corrupted_sites"].append(site)
-            continue
-
-        for key, value in response["services"].items():
-
-            # Create additional dict to check all services exist on all clusters
-            if key not in sample_dict:
-                sample_dict[key] = [site]
+            if "services" in response:
+                sm_dict["available"].append(site)
             else:
-                sample_dict[key].append(site)
+                logging.error(f"Site {site} does not contain any sitemanager CR")
+                if not sm_dict.get("corrupted_sites", []):
+                    sm_dict["corrupted_sites"] = []
+                sm_dict["corrupted_sites"].append(site)
+                continue
 
-            if key not in sm_dict["services"]:
-                sm_dict["services"][key] = {}
+            for key, value in response["services"].items():
 
-            sm_dict["services"][key]["name"] = key
-            sm_dict["services"][key]["namespace"] = value.get("namespace", "")
+                # Create additional dict to check all services exist on all clusters
+                if key not in sample_dict:
+                    sample_dict[key] = [site]
+                else:
+                    sample_dict[key].append(site)
 
-            sm_dict["services"][key]["after"] = value.get("after", [])
-            sm_dict["services"][key]["before"] = value.get("before", [])
-            sm_dict["services"][key]["sequence"] = ["standby", "active"] if value.get("sequence", []) == [] else value["sequence"]
-            sm_dict["services"][key]["allowedStandbyStateList"] = value.get("allowedStandbyStateList", ["up"])
+                if key not in sm_dict["services"]:
+                    sm_dict["services"][key] = {}
 
-            sm_dict["services"][key]["timeout"] = value.get("timeout", SERVICE_DEFAULT_TIMEOUT)
+                sm_dict["services"][key]["name"] = key
+                sm_dict["services"][key]["namespace"] = value.get("namespace", "")
+
+                sm_dict["services"][key]["after"] = value.get("after", [])
+                sm_dict["services"][key]["before"] = value.get("before", [])
+                sm_dict["services"][key]["sequence"] = ["standby", "active"] if value.get("sequence", []) == [] else value["sequence"]
+                sm_dict["services"][key]["allowedStandbyStateList"] = value.get("allowedStandbyStateList", ["up"])
+
+                sm_dict["services"][key]["timeout"] = value.get("timeout", SERVICE_DEFAULT_TIMEOUT)
+        except requests.exceptions.SSLError:
+            if procedure not in ("stop") and sm_dict["sites"][site]["need"] != "wanted": # do not exit in case Failover for exActive
+                logging.error("Exiting....")
+                os._exit(1)
 
     if len(sm_dict.get("corrupted_sites", [])) > 0:
         for site in sm_dict["corrupted_sites"]:
