@@ -17,17 +17,16 @@ import yaml
 import requests
 import os
 
-from requests import Response, Request
 from requests.adapters import HTTPAdapter
-from requests.packages.urllib3.exceptions import InsecureRequestWarning
+#from requests.packages.urllib3.exceptions import InsecureRequestWarning
 from prettytable import PrettyTable
 
 #Disable warnings about self-signed certificates from requests library
-from typing import Tuple, Dict, Type
+#requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
+from typing import Tuple, Dict
 from urllib3 import Retry
 
-requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 MAIN_HELP_SECTION = """
 Script to manage DR cases in kubernetes Active-Standby scheme
