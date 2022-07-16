@@ -65,6 +65,7 @@ testing_mode = None
 sites_name = None
 SERVICE_DEFAULT_TIMEOUT = None
 
+
 def config_checks_init() -> None:
     """
     Main entry point. Provides validations, config parsing and initialization
@@ -227,9 +228,9 @@ def config_checks_init() -> None:
             for sites_item in sites_name:
                 status_dict[service_item][sites_item] = {}
                 data,_ = io_http_json_request(url=sm_dict["sites"][sites_item]["url"],
-                                 token=sm_dict["sites"][sites_item]["token"],
-                                 verify_ssl=sm_dict["sites"][sites_item]["cacert"],
-                                 http_body={"procedure": "status", "run-services": service_item})
+                                              token=sm_dict["sites"][sites_item]["token"],
+                                              verify=sm_dict["sites"][sites_item]["cacert"],
+                                              http_body={"procedure": "status", "run-services": service_item})
                 if data == {}:
                     status_dict[service_item][sites_item] = {'healthz': '--', 'mode': '--', 'status': '--'}
                 else:
@@ -244,12 +245,13 @@ def config_checks_init() -> None:
 
         print_additional_table(status_dict, services_to_run, sites_name)
 
-def io_http_json_request(url, token="", verify_ssl=True, http_body={}) -> Tuple[Dict,int]:
+def io_http_json_request(url, token="", verify=True, http_body={}, retry=3) -> Tuple[Dict, int]:
     """
     Method to send GET/POST requests to service rep
     :param string url: the URL to service operator
-    :param token
-    :param verify_ssl
+    :param token: Bearer toke
+    :param verify: Server side SSL verification
+    :param retry: the number of retries
     :param http_body: the dictionary with procedure and list of services
     :returns:
     :Dict not empty json body in case Ok
@@ -265,16 +267,17 @@ def io_http_json_request(url, token="", verify_ssl=True, http_body={}) -> Tuple[
     logging.debug(f"REST headers: {headers}")
 
     session = requests.Session()
-    retries = Retry(total=3)
-    session.mount('http://', HTTPAdapter(max_retries=retries))
+    retries = Retry(total=retry)
     session.mount('https://', HTTPAdapter(max_retries=retries))
+    session.mount('http://', HTTPAdapter(max_retries=retries))
+
     logging.getLogger("urllib3").setLevel(logging.CRITICAL)
 
     try:
         if any(http_body):
-            resp = session.post(url, json=http_body, timeout=30, headers=headers, verify=verify_ssl)
+            resp = session.post(url, json=http_body, timeout=30, headers=headers, verify=verify)
         else:
-            resp = session.get(url, timeout=5, headers=headers, verify=verify_ssl)
+            resp = session.get(url, timeout=5, headers=headers, verify=verify)
 
         if resp.status_code == HTTPStatus.OK:
             if resp.json().get("message", ""):
@@ -473,9 +476,9 @@ def run(service, procedure, force, no_wait=True):
 
             obj = {"procedure": sm_dict['sites'][site]['mode'], "run-services": service, "no-wait": no_wait, "force": force}
             resp,_ = io_http_json_request(url=sm_dict['sites'][site]['url'],
-                             token=sm_dict["sites"][site]["token"],
-                             verify_ssl=sm_dict["sites"][site]["cacert"],
-                             http_body = obj)
+                                          token=sm_dict["sites"][site]["token"],
+                                          verify=sm_dict["sites"][site]["cacert"],
+                                          http_body = obj)
             if resp.get("bad_response"):
                 failed_services.append(service)
                 return dict()
