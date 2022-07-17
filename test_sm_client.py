@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 pytest based unit test
-SSL_UNTRUSTED_SITE="https://accessible_ssl_untrusted.com" python3  -m pytest test_sm_client.py
+python3  -m pytest -s test_sm_client.py
 """
 import json
 import os
