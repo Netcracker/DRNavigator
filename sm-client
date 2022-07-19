@@ -216,7 +216,7 @@ def config_checks_init() -> None:
         # Create main dict with all services in sites
         sm_dict = create_sm_dict(sites_name, "status", site_active, site_standby, skip_services)
 
-        logging.debug(f"Compilled kubernetes CRs: {sm_dict}")
+        logging.debug(f"Compiled kubernetes CRs: {sm_dict}")
 
         all_services = get_all_services(sm_dict)
         services_to_run = get_services_to_run(run_services, skip_services, all_services)
@@ -227,14 +227,19 @@ def config_checks_init() -> None:
 
             for sites_item in sites_name:
                 status_dict[service_item][sites_item] = {}
-                data,_ = io_http_json_request(url=sm_dict["sites"][sites_item]["url"],
-                                              token=sm_dict["sites"][sites_item]["token"],
-                                              verify=sm_dict["sites"][sites_item]["cacert"],
-                                              http_body={"procedure": "status", "run-services": service_item})
+                try:
+                    data_t,_ = io_http_json_request(url=sm_dict["sites"][sites_item]["url"],
+                                                  token=sm_dict["sites"][sites_item]["token"],
+                                                  verify=sm_dict["sites"][sites_item]["cacert"],
+                                                  http_body={"procedure": "status", "run-services": service_item})
+                except requests.exceptions.SSLError:
+                    data_t = {} # in case site is Down except balancers, getting SSL exception
+                data=data_t
                 if data == {}:
                     status_dict[service_item][sites_item] = {'healthz': '--', 'mode': '--', 'status': '--'}
                 else:
                     status_dict[service_item][sites_item] = data["services"][service_item]
+
             for item in sm_dict.get("corrupted_sites", []):
                 status_dict[service_item][item] = {'healthz': '--', 'mode': '--', 'status': '--'}
         if sm_dict.get("corrupted_sites"):
