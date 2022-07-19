@@ -663,7 +663,7 @@ def create_sm_dict(sites, procedure, sites_active, sites_standby, skip_services)
             logging.error(f"Service '{key}' is not presented on sites: {[ elem for elem in sites if elem not in value]}.")
             wrong_service_counter += 1
 
-    if wrong_service_counter != 0:
+    if wrong_service_counter != 0 and procedure not in ("stop") and sm_dict["sites"][site]["need"] != "wanted":
         logging.error("If you want to exclude any service, please add it to --skip-services argument")
         exit(1)
 
