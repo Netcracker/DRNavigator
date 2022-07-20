@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """
 pytest based unit test
-python3  -m pytest -s test_sm_client.py
+python3  -m pytest -v -k test_sm_client.py
+TODO
+ - use mock instead of http call
 """
 import json
 import os

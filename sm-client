@@ -296,6 +296,8 @@ def io_http_json_request(url, token="", verify=True, http_body={}, retry=3) -> T
         logging.error("SSL certificate verify failed")
         logging.error("Please use key -k or --insecure")
         raise # re-raise SSL exception to handle in the calling code TBD in more general manner
+        # SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
+        # SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)'))
     except requests.exceptions.JSONDecodeError:
         logging.error("Wrong JSON data received")
     except requests.exceptions.RequestException as e:
@@ -700,8 +702,9 @@ def check_dependencies(services_to_run, all_services, sm_dict):
     for dep_item in dep_dict:
         logging.critical(f"Service: {dep_item}. Service has nonexistent dependencies: {dep_dict[dep_item]}")
 
-    if len(dep_dict) and \
-            not any( site['need'] == 'wanted' for site in sm_dict["sites"].values()): # do not exit in case failover,list,status
+    if len(dep_dict) and (
+            running_procedure != "stop" and # do not exit in case failover
+            not any( site['need'] == 'wanted' for site in sm_dict["sites"].values())): # do not exit in case failover,list,status
         exit(1)
 
     logging.info(f"Services: {services_to_run}. Services don\'t have nonexistent dependencies")
