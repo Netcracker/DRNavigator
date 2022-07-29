@@ -8,20 +8,25 @@ Description: Client util to manage site-manager in kubernetes clusters
 """
 
 import argparse
+import json
 import logging
+import ssl
 import threading
 import time
+from collections import OrderedDict
 from http import HTTPStatus
+from ssl import SSLCertVerificationError
 
 import yaml
 import requests
 import os
 
+
 from requests.adapters import HTTPAdapter
 from prettytable import PrettyTable
 from typing import Tuple, Dict
 from urllib3 import Retry
-
+from urllib3.exceptions import InsecureRequestWarning
 
 MAIN_HELP_SECTION = """
 Script to manage DR cases in kubernetes Active-Standby scheme
@@ -56,77 +61,31 @@ ignored_services = []
 failed_services = []
 procedure_results = dict()
 
-sm_dict = {}
-
-command_list = ["stop", "move", "return", "mntc", "active", "standby", "list", "status"]
+sm_conf={}
 
 conf_parsed = None
 testing_mode = None
-sites_name = None
+site_names = None
 SERVICE_DEFAULT_TIMEOUT = None
 
+DR_cmds = ("move", "stop", "status", "list")
+site_cmds = ("active", "standby", "return", "mntc", "status", "list")
 
-def config_checks_init() -> None:
+run_services = None
+skip_services = None
+
+def config_checks_init(args) -> list:
     """
     Main entry point. Provides validations, config parsing and initialization
+    Returns:
+        site_names
     """
-
-    # Main argument parser
-    parser = argparse.ArgumentParser(description=MAIN_HELP_SECTION,
-                                     argument_default=argparse.SUPPRESS,
-                                     formatter_class=argparse.RawTextHelpFormatter)
-
-    parser.add_argument('-v', '--verbose', default=False, action='store_true', help='enable the verbosity mode')
-    parser.add_argument('-c', '--config', default="", help='define the path to configuration file')
-    parser.add_argument('-f', '--force', default=False, action='store_true', help='force apply DR action and ignore healthz')
-    parser.add_argument('-k', '--insecure', default=False, action='store_true', help='enable self-signed certificates')
-    parser.add_argument('--run-services', default='', help='define the list of services to apply DR action, by default all services participate')
-    parser.add_argument('--skip-services',  default='', help='define the list of services what will not participate in DR action')
-
-    subparsers = parser.add_subparsers()
-
-    parser_1 = subparsers.add_parser('move', help='move Active functionality to Standby site')  # DR switchover
-    parser_1.add_argument('site', help=SITE_HELP_SECTION)
-    parser_1.set_defaults(command='move')
-
-    parser_2 = subparsers.add_parser('stop', help='excludes site from Active-Standby scheme')  # DR failover
-    parser_2.add_argument('site', help=SITE_HELP_SECTION)
-    parser_2.set_defaults(command='stop')
-
-    parser_3 = subparsers.add_parser('return', help='return stopped Kubernetes cluster to Standby role')
-    parser_3.add_argument('site', help=SITE_HELP_SECTION)
-    parser_3.set_defaults(command='return')
-
-    parser_4 = subparsers.add_parser('mntc', help='stop Standby kubernetes cluster for maintenance')
-    parser_4.add_argument('site', help=SITE_HELP_SECTION)
-    parser_4.set_defaults(command='mntc')
-
-    parser_5 = subparsers.add_parser('active', help='set kubernetes cluster services to active mode')
-    parser_5.add_argument('site', help=SITE_HELP_SECTION)
-    parser_5.set_defaults(command='active')
-
-    parser_6 = subparsers.add_parser('standby', help='set kubernetes cluster services to standby mode')
-    parser_6.add_argument('site', help=SITE_HELP_SECTION)
-    parser_6.set_defaults(command='standby')
-
-    parser_7 = subparsers.add_parser('list', help='list all services from Active-Standby scheme managed by site-manager with dependencies')
-    parser_7.set_defaults(command='list')
-
-    parser_8 = subparsers.add_parser('status', help='show current status of clusters and all services')
-    parser_8.set_defaults(command='status')
-
-    parser_9 = subparsers.add_parser('daemon', help='run site-manager as a service')
-    parser_9.set_defaults(command='daemon')
-
-    args = parser.parse_args()
 
     # Set verbosity for logging
     if args.verbose:
-        verbose_mode = True
         logging_level = logging.DEBUG
         logging_format = "%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
     else:
-        verbose_mode = False
         logging_level = logging.INFO
         logging_format = "%(asctime)s [%(levelname)s] %(filename)s: %(message)s"
 
@@ -148,8 +107,6 @@ def config_checks_init() -> None:
         logging.fatal("Can not parse configuration file!")
         exit(1)
 
-
-
     logging.debug(f"Parsed config: {conf_parsed}")
 
     global SM_HTTP_SECURE
@@ -169,63 +126,84 @@ def config_checks_init() -> None:
         testing_mode = True
     else:
         testing_mode = False
-    global sites_name
-    sites_name = [ i["name"] for i in conf_parsed["sites"] ]
 
+    global site_names
+    site_names = [i["name"] for i in conf_parsed["sites"]]
+    global run_services
     # Check services for running
     if args.run_services != '':
         run_services = args.run_services.replace(',', ' ').replace('  ', ' ').split(' ')
     else:
         run_services = []
-
+    global skip_services
     if args.skip_services != '':
         skip_services = args.skip_services.replace(',', ' ').replace('  ', ' ').split(' ')
     else:
         skip_services = []
 
-    # Process commands for script
-    if args.command in ("move", "stop", "return", "mntc", "active", "standby"):
-        main_func(args.command, args.site, run_services, skip_services, args.force)
+    for site in site_names:
+        try:
+            site_url = [ i["site-manager"] for i in conf_parsed["sites"] if i ["name"] == site ][0]
+        except KeyError:
+            logging.error("Check configuration file. Some of sites does not have 'site-manager' parameter")
+            exit(1)
+
+        site_token = [ i.get("token", "") for i in conf_parsed["sites"] if i ["name"] == site ][0]
+        site_cacert = [ i.get("cacert", True) for i in conf_parsed["sites"] if i ["name"] == site ][0]
+
+        if site_cacert != True and not os.path.isfile(site_cacert):
+            logging.fatal(f"You should define correct path to CA certificate for site {site}")
+            exit(1)
+        global sm_conf
+        sm_conf[site] = {}
+        sm_conf[site]["url"] = site_url
+        sm_conf[site]["token"] = site_token
+        sm_conf[site]["cacert"] = SM_HTTPS_SECURE if not SM_HTTPS_SECURE else site_cacert
+
+    return True
+
+def list_status_tmp(command, skip_services=None):
+    services_to_run = {}
 
     # Process command 'list'
-    elif args.command == "list":
+    if command == "list":
 
-        sites_active = sites_name[0]
-        sites_standby = sites_name[1:]
+        sites_active = site_names[0]
+        sites_standby = site_names[1:]
 
         # Create main dict with all services in sites
-        sm_dict = create_sm_dict(sites_name, "list", sites_active, sites_standby, skip_services)
+        sm_dict = create_sm_dict(site_names, "list", sites_active, sites_standby, skip_services)
 
         logging.debug(f"Compilled kubernetes CRs: {sm_dict}")
 
         all_services = get_all_services(sm_dict)
-        services_to_run = get_services_to_run(run_services, skip_services, all_services)
+        #services_to_run = get_services_to_run(run_services, skip_services, all_services)
 
         print(f"---------------------------------------------------------------------\n" +
-              f"Sites managed by site-manager:               {sites_name}\n\n" +
+              f"Sites managed by site-manager:               {site_names}\n\n" +
               f"Kubernetes services managed by site-manager: {all_services}\n" +
               f"Kubernetes services that will be processed:  {services_to_run}\n" +
               f"---------------------------------------------------------------------")
 
     # Process command 'status'
-    elif args.command == "status":
+    elif command == "status":
 
-        site_active = sites_name[0]
-        site_standby = sites_name[1:]
+        site_active = site_names[0]
+        site_standby = site_names[1:]
 
         # Create main dict with all services in sites
-        sm_dict = create_sm_dict(sites_name, "status", site_active, site_standby, skip_services)
+        sm_dict = create_sm_dict(site_names, "status", site_active, site_standby, skip_services)
 
         logging.debug(f"Compiled kubernetes CRs: {sm_dict}")
 
         all_services = get_all_services(sm_dict)
-        services_to_run = get_services_to_run(run_services, skip_services, all_services)
+        #services_to_run = get_services_to_run(run_services, skip_services, all_services)
 
         status_dict = {}
         for service_item in services_to_run:
             status_dict[service_item] = {}
 
-            for sites_item in sites_name:
+            for sites_item in site_names:
                 status_dict[service_item][sites_item] = {}
                 try:
                     data_t,_ = io_http_json_request(url=sm_dict["sites"][sites_item]["url"],
@@ -243,16 +221,156 @@ def config_checks_init() -> None:
             for item in sm_dict.get("corrupted_sites", []):
                 status_dict[service_item][item] = {'healthz': '--', 'mode': '--', 'status': '--'}
         if sm_dict.get("corrupted_sites"):
-            sites_name.extend(sm_dict["corrupted_sites"])
+            site_names.extend(sm_dict["corrupted_sites"])
         logging.debug(f"status_dict: {status_dict}")
 
-        print_main_table(status_dict, services_to_run, sites_name)
+        print_main_table(status_dict, services_to_run, site_names)
 
-        print_additional_table(status_dict, services_to_run, sites_name)
+        print_additional_table(status_dict, services_to_run, site_names)
+
+def main(sm_conf, services="", cmd=""):
+    sm_dict = {"sites":{}}
+
+    for site in sm_conf.keys():
+        sm_dict["sites"][site]={}
+        sm_dict["sites"][site]["available"] = False
+        sm_dict["sites"][site]["corrupted"] = False
+
+        response, code = process_service(site,"site-manager","status")
+        if "services" in response and code:
+            sm_dict["sites"][site]["available"]=True
+        else:
+            logging.error(f"Site {site} does not return valid responce. Error code:", code)
+            if not sm_dict.get("corrupted_sites", []):
+                sm_dict["sites"][site]["corrupted"] = True
+            continue
+
+        sm_dict["sites"][site].update(response)
+    print(json.dumps(sm_dict))
+    return
+
+    # assemble ordered service list keeping in services list specified in cli
+    service_dep_ordered = make_ordered_services(sm_dict["sites"], services)
+
+    # raw_site_services_list validation to satisfy cmd
+    if not validate_cmd(raw_site_services_list, service_dep_ordered, cmd):
+        exit(False)
+
+    if cmd in DR_cmds and not site:  # DR command, both sites
+        # handle each DR command
+        if cmd in ("list", "status"):
+            print_status(service_dep_ordered, cmd)
+        elif cmd in ("move", "stop"):
+            for serv in service_dep_ordered:
+                for site, mode in get_sequence(raw_site_services_list[serv]):  # run in Thread
+                    process_service(site, serv, mode)
+            polling()
+    elif cmd in site_cmds and site:  # per site command
+        if cmd in ("return"):
+            for serv in service_dep_ordered:  # run in Thread
+                process_service(site, serv, "standby")
+        elif cmd in ("mntc"):
+            for serv in service_dep_ordered:  # run in Thread
+                process_service(site, serv, "mntc")
+        else:
+            for serv in service_dep_ordered:  # run in Thread
+                process_service(site, serv, cmd)
+        polling()
+
+
+def process_service(site, service, site_cmd: str, no_wait=False, force=False) -> Tuple[Dict, bool]:
+    """
+    Method to process the service with specific SM cmd
+    """
+    global sm_conf
+    if site_cmd in ["status","list"]:  # RO operations
+        body = "" if service == "site-manager" else {"procedure": "status", "run-services": [service]}
+    elif site_cmd in ["active", "standby", "return", "mntc"]:
+        if site_cmd == "mntc":
+            site_cmd = "disable"
+        elif site_cmd == "return":
+            site_cmd = "standby"
+        body = {"procedure": site_cmd, "run-services": [service], "no-wait": no_wait, "force": force}
+
+    response, return_code = io_http_json_request(sm_conf[site]["url"],
+                                               sm_conf[site]["token"],
+                                               sm_conf[site]["cacert"],
+                                               body)
+    #TODO: ERROR handling should be here SSL, timeout and so on
+    return response,True if return_code == HTTPStatus.OK else return_code
+
+
+def print_status(site_services_list, cmd):
+    pass
+
+def get_sequence(param):
+    pass
+
+raw_site_services_list = {}
+service_dep_ordered = OrderedDict({})
+
+
+def make_ordered_services(sm_dict,services_to_process=[]):
+    """
+    TODO validate same services on both sides
+        before , after params are the same and EXISTS
+        leave only service presented on all sites
+    """
+
+    def after_sort(ll: list):
+        """
+        TODO list consistency validation
+         before procedure support
+         multiple dependency service support
+        """
+        sorted_list = [ list(i.keys())[ 0 ] for i in ll ]  # make a list to be sorted
+        # print(sorted_list)
+        for i in ll:
+            if i[ list(i.keys())[ 0 ] ][ 'after' ] and \
+                    i[ list(i.keys())[ 0 ] ][ 'after' ][ 0 ] in sorted_list: # if after not empty put i item AFTER dependant item
+                sorted_list.insert(sorted_list.index(i[ list(i.keys())[ 0 ] ][ 'after' ][ 0 ]) + 1,
+                                   sorted_list.pop(sorted_list.index(list(i.keys())[ 0 ])))
+        return sorted_list
+
+    temp_dict = sm_dict.copy()
+
+    # leave only service listed in service_to_process
+    for site in temp_dict[ 'sites' ]:
+        for serv in temp_dict[ 'sites' ][ site ][ 'services' ].copy().keys():
+            if services_to_process and serv not in services_to_process:
+                temp_dict['sites'][site]['services'].pop(serv,None)
+
+
+    #collect sorted ordered service list from both sites
+    service_lists = {}
+    for site in temp_dict['sites']:
+        service_lists[site] =  after_sort([ {serv:{'after':value['after']} } for serv,value in
+                            temp_dict['sites'][site]['services'].items() ])
+
+    # compare service lists
+    equal_list = True
+    for i in range(len(service_lists.keys()) - 1):
+        if list(service_lists.values())[i] != list(service_lists.values())[i+1]:
+            equal_list = False
+
+    if equal_list:
+        return list(service_lists.values())[0]
+    else: #TODO to rework intersect in general manner(several sites support) with comprehensive warning
+        print("The service lists are different on sites:", \
+              list(set(set(list(service_lists.values())[1]).
+                       difference(set(list(service_lists.values())[0])))))
+        return list(set(set(list(service_lists.values())[1]).
+                        intersection(set(list(service_lists.values())[0]))))
+
+
+
+
+def validate_cmd(raw_site_services_list, service_dep_ordered, cmd):
+    pass
 
 def io_http_json_request(url, token="", verify=True, http_body={}, retry=3) -> Tuple[Dict, int]:
     """
-    Method to send GET/POST requests to service rep
+    Method to send GET/POST requests to service
     :param string url: the URL to service operator
     :param token: Bearer toke
     :param verify: Server side SSL verification
@@ -260,8 +378,14 @@ def io_http_json_request(url, token="", verify=True, http_body={}, retry=3) -> T
     :param http_body: the dictionary with procedure and list of services
     :returns:
     :Dict not empty json body in case Ok
-    :HTTP_CODE or False in case not http request issue
+    :HTTP_CODE or
+    :False in case not http request issue
+    :IO SSL codes ssl.SSLErrorNumber.SSL_ERROR_SSL SSLErrorNumber.SSL_ERROR_EOF
     """
+    if(os.getenv("DEBUG")):
+        # Disable warnings about self-signed certificates from requests library
+        requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
     if token != "" and FRONT_HTTP_AUTH:
         headers = {"Authorization": f"Bearer {token}"}
     else:
@@ -284,28 +408,25 @@ def io_http_json_request(url, token="", verify=True, http_body={}, retry=3) -> T
         else:
             resp = session.get(url, timeout=5, headers=headers, verify=verify)
 
-        if resp.status_code == HTTPStatus.OK:
-            if resp.json().get("message", ""):
-                logging.info(f"Code: {resp.status_code}. Message: {resp.json()['message']}")
-            return resp.json(),resp.status_code # success
-        else:
-            logging.debug(f"Problem with URL: {url}")
-            logging.debug(f"Code: {resp.status_code}. Message:",resp.json()['message'] if resp.json().get('message') else "none")
-            return {},resp.status_code
-    except requests.exceptions.SSLError:
+        return resp.json() if resp.json() else {},resp.status_code # return ANY content with HTTP code
+
+    except requests.exceptions.SSLError as e:
         logging.error("SSL certificate verify failed")
         logging.error("Please use key -k or --insecure")
-        raise # re-raise SSL exception to handle in the calling code TBD in more general manner
-        # SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
-        # SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)'))
+        #TODO in more accurate manner error handling manner
+        if "SSLCertVerificationError" in str(e.args): ## SSL Verification fails ; SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)')
+            return {}, ssl.SSLErrorNumber.SSL_ERROR_SSL.__int__() # - 1
+        elif "SSLEOFError" in str(e.args): # SSL connect error, SSL resource is not accessible vi ha-proxy  ; SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
+            #TODO need a test for this case
+            return {}, ssl.SSLErrorNumber.SSL_ERROR_EOF.__int__() # - 8
     except requests.exceptions.JSONDecodeError:
         logging.error("Wrong JSON data received")
     except requests.exceptions.RequestException as e:
         logging.error("General request error %s",e.__doc__)
-    except:
-        logging.error("General error")
+    except Exception as e :
+        logging.error("General error %s",e.__doc__)
 
-    return {},False
+    return {}, False
 
 def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
     """
@@ -326,9 +447,9 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
         logging.info(f"Service: {service}. Site: {site}. Polling procedure status. Iteration {count}")
         logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
 
-        data,_ = io_http_json_request(sm_dict["sites"][site]["url"],
-                         sm_dict["sites"][site]["token"],
-                         sm_dict["sites"][site]["cacert"],
+        data,_ = io_http_json_request(sm_conf["sites"][site]["url"],
+                         sm_conf["sites"][site]["token"],
+                         sm_conf["sites"][site]["cacert"],
                          {"procedure": "status", "run-services": service, "polling": True})
 
         logging.debug(f"Service: {service}. Site: {site}. Received data: {data}")
@@ -387,7 +508,6 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
         return data["services"][service]
     else:
         return unknown_state
-
 
 def run(service, procedure, force, no_wait=True):
     """
@@ -556,126 +676,6 @@ def run(service, procedure, force, no_wait=True):
 
     if service not in failed_services:
         done_services.append(service)
-
-
-def create_sm_dict(sites, procedure, sites_active, sites_standby, skip_services) -> dict:
-    """
-    Method creates dictionary of downloaded data from sitemanager CRs
-
-    :param list sites: the list of sites to be processed
-    :param string procedure: the procedure that will be processed to services
-    :param list sites_active: the list of sites with mode active
-    :param list sites_standby: the list of sites with mode standby
-    :param list skip_services: the list of services to be skipped
-    """
-
-    if testing_mode:
-        return conf_parsed["testing"].get("sm_dict", [])
-
-    sm_dict = {}
-    sm_dict["sites"] = {}  # list of sites with configuration
-    sm_dict["available"] = []  # list of available sites
-    sm_dict["services"] = {}  # service CRs
-    sm_dict["corrupted_sites"] = {}  # sites without CRs
-    sample_dict = {}
-
-    for site in sites:
-
-        try:
-            site_url = [ i["site-manager"] for i in conf_parsed["sites"] if i ["name"] == site ][0]
-        except KeyError:
-            logging.error("Check configuration file. Some of sites does not have 'site-manager' parameter")
-            exit(1)
-
-        site_token = [ i.get("token", "") for i in conf_parsed["sites"] if i ["name"] == site ][0]
-        site_cacert = [ i.get("cacert", True) for i in conf_parsed["sites"] if i ["name"] == site ][0]
-
-        if site_cacert != True and not os.path.isfile(site_cacert):
-            logging.fatal(f"You should define correct path to CA certificate for site {site}")
-            exit(1)
-
-        sm_dict["sites"][site] = {}
-        sm_dict["sites"][site]["url"] = site_url
-        sm_dict["sites"][site]["token"] = site_token
-        sm_dict["sites"][site]["cacert"] = SM_HTTPS_SECURE if not SM_HTTPS_SECURE else site_cacert
-
-        # Set desired mode for site
-        if site in sites_active:
-            sm_dict["sites"][site]["mode"] = "active"
-        elif site in sites_standby and procedure != "mntc":
-            sm_dict["sites"][site]["mode"] = "standby"
-        elif site in sites_standby and procedure == "mntc":
-            sm_dict["sites"][site]["mode"] = "disable"
-
-        # Define necessity to send REST request to site
-        if site in sites_active and procedure in ("stop", "move", "status", "list", "active"):
-            sm_dict["sites"][site]["need"] = "required"
-        elif site not in sites_active and procedure in ("return", "mntc", "move", "standby"):
-            sm_dict["sites"][site]["need"] = "required"
-        elif site not in sites_active and procedure in ("stop", "status", "list"):
-            sm_dict["sites"][site]["need"] = "wanted"
-
-        try:
-            response,_ = io_http_json_request(site_url,
-                                sm_dict["sites"][site]["token"],
-                                sm_dict["sites"][site]["cacert"])
-
-            if "services" in response:
-                sm_dict["available"].append(site)
-            else:
-                logging.error(f"Site {site} does not contain any sitemanager CR")
-                if not sm_dict.get("corrupted_sites", []):
-                    sm_dict["corrupted_sites"] = []
-                sm_dict["corrupted_sites"].append(site)
-                continue
-
-            for key, value in response["services"].items():
-
-                # Create additional dict to check all services exist on all clusters
-                if key not in sample_dict:
-                    sample_dict[key] = [site]
-                else:
-                    sample_dict[key].append(site)
-
-                if key not in sm_dict["services"]:
-                    sm_dict["services"][key] = {}
-
-                sm_dict["services"][key]["name"] = key
-                sm_dict["services"][key]["namespace"] = value.get("namespace", "")
-
-                sm_dict["services"][key]["after"] = value.get("after", [])
-                sm_dict["services"][key]["before"] = value.get("before", [])
-                sm_dict["services"][key]["sequence"] = ["standby", "active"] if value.get("sequence", []) == [] else value["sequence"]
-                sm_dict["services"][key]["allowedStandbyStateList"] = value.get("allowedStandbyStateList", ["up"])
-
-                sm_dict["services"][key]["timeout"] = value.get("timeout", SERVICE_DEFAULT_TIMEOUT)
-        except requests.exceptions.SSLError:
-            if procedure not in ("stop") and sm_dict["sites"][site]["need"] != "wanted": # do not exit in case Failover for exActive
-                logging.error("Exiting....")
-                os._exit(1)
-
-    if len(sm_dict.get("corrupted_sites", [])) > 0:
-        for site in sm_dict["corrupted_sites"]:
-            logging.error(f"Site {site} is unreachable or it doesn't have any CR's")
-            del sm_dict["sites"][site]
-            sites.remove(site)
-
-    wrong_service_counter = 0
-    for key, value in sample_dict.items():
-
-        if value != sites and \
-           key not in skip_services and \
-           procedure in ("move", "stop", "status", "list"):
-
-            logging.error(f"Service '{key}' is not presented on sites: {[ elem for elem in sites if elem not in value]}.")
-            wrong_service_counter += 1
-
-    if wrong_service_counter != 0 and procedure not in ("stop") and sm_dict["sites"][site]["need"] != "wanted":
-        logging.error("If you want to exclude any service, please add it to --skip-services argument")
-        exit(1)
-
-    return sm_dict
-
 
 def check_dependencies(services_to_run, all_services, sm_dict):
     """
@@ -866,25 +866,25 @@ def main_func(procedure, site, run_services, skip_services, force):
     no_wait = True
     if procedure == "move":  # DR e2e operation on both sites
         sites_active.append(site)
-        sites_standby = [elem for elem in sites_name if elem not in sites_active]
+        sites_standby = [elem for elem in site_names if elem not in sites_active]
         sites_to_process = sites_active + sites_standby
         no_wait = False
     elif procedure == "stop":
         sites_standby.append(site)
-        sites_active = [elem for elem in sites_name if elem not in sites_standby]
+        sites_active = [elem for elem in site_names if elem not in sites_standby]
         sites_to_process = sites_active + sites_standby
 
     if procedure in ("return", "mntc"):  # DR operation on single site
         sites_standby.append(site)
-        sites_active = [elem for elem in sites_name if elem not in sites_standby]
+        sites_active = [elem for elem in site_names if elem not in sites_standby]
         sites_to_process = sites_standby
     elif procedure == "active":
         sites_active.append(site)
-        sites_standby = [elem for elem in sites_name if elem not in sites_active]
+        sites_standby = [elem for elem in site_names if elem not in sites_active]
         sites_to_process = sites_active
     elif procedure == "standby":
         sites_standby.append(site)
-        sites_active = [elem for elem in sites_name if elem not in sites_standby]
+        sites_active = [elem for elem in site_names if elem not in sites_standby]
         sites_to_process = sites_standby
 
     # Create main dict with all services in sites
@@ -1011,9 +1011,56 @@ def main_func(procedure, site, run_services, skip_services, force):
     done_services = []
     ignored_services = []
     failed_services = []
-    after_stateful = []
-    run_services = []
-    skip_services = []
 
 if __name__ == "__main__":
-    config_checks_init()
+    # Main argument parser
+    parser = argparse.ArgumentParser(description=MAIN_HELP_SECTION,
+                                     argument_default=argparse.SUPPRESS,
+                                     formatter_class=argparse.RawTextHelpFormatter)
+
+    parser.add_argument('-v', '--verbose', default=False, action='store_true', help='enable the verbosity mode')
+    parser.add_argument('-c', '--config', default="", help='define the path to configuration file')
+    parser.add_argument('-f', '--force', default=False, action='store_true', help='force apply DR action and ignore healthz')
+    parser.add_argument('-k', '--insecure', default=False, action='store_true', help='enable self-signed certificates')
+    parser.add_argument('--run-services', default='', help='define the list of services to apply DR action, by default all services participate')
+    parser.add_argument('--skip-services',  default='', help='define the list of services what will not participate in DR action')
+
+    subparsers = parser.add_subparsers()
+
+    parser_1 = subparsers.add_parser('move', help='move Active functionality to Standby site')  # DR switchover
+    parser_1.add_argument('site', help=SITE_HELP_SECTION)
+    parser_1.set_defaults(command='move')
+
+    parser_2 = subparsers.add_parser('stop', help='excludes site from Active-Standby scheme')  # DR failover
+    parser_2.add_argument('site', help=SITE_HELP_SECTION)
+    parser_2.set_defaults(command='stop')
+
+    parser_3 = subparsers.add_parser('return', help='return stopped Kubernetes cluster to Standby role')
+    parser_3.add_argument('site', help=SITE_HELP_SECTION)
+    parser_3.set_defaults(command='return')
+
+    parser_4 = subparsers.add_parser('mntc', help='stop Standby kubernetes cluster for maintenance')
+    parser_4.add_argument('site', help=SITE_HELP_SECTION)
+    parser_4.set_defaults(command='mntc')
+
+    parser_5 = subparsers.add_parser('active', help='set kubernetes cluster services to active mode')
+    parser_5.add_argument('site', help=SITE_HELP_SECTION)
+    parser_5.set_defaults(command='active')
+
+    parser_6 = subparsers.add_parser('standby', help='set kubernetes cluster services to standby mode')
+    parser_6.add_argument('site', help=SITE_HELP_SECTION)
+    parser_6.set_defaults(command='standby')
+
+    parser_7 = subparsers.add_parser('list', help='list all services from Active-Standby scheme managed by site-manager with dependencies')
+    parser_7.set_defaults(command='list')
+
+    parser_8 = subparsers.add_parser('status', help='show current status of clusters and all services')
+    parser_8.set_defaults(command='status')
+
+    parser_9 = subparsers.add_parser('daemon', help='run site-manager as a service')
+    parser_9.set_defaults(command='daemon')
+
+    args = parser.parse_args()
+
+    config_checks_init(args)
+    main(sm_conf,[i for i in run_services if i not in skip_services])
