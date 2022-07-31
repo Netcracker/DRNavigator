@@ -11,12 +11,12 @@ import os
 from logging import INFO
 
 import pytest
-import requests
-from smclient import io_http_json_request,config_checks_init,process_service
+from smclient import io_http_json_request,config_checks_init,process_service,get_sequence,make_ordered_services
 from http import HTTPStatus
 import http.server
 import ssl
 import threading
+
 
 def test_process_service__status_ok(caplog):
     """ SUCCESS basic general success case without SSL verification
@@ -57,6 +57,71 @@ def test_process_service__rw_ok(caplog):
             and json.loads('"' + str(json_body_s) + '"') \
             and code == True, \
         "Returned: non empty dict, valid JSON, JSON contains valid response"
+
+def test_get_sequence():
+    """ DR commands sequence calculation check
+    """
+    sm_dict = { "sites":
+        {"site1":{"services":{
+                          "serv1":{"sequence":["standby","active"]}}},
+         "site2":{"services":{
+                          "serv1":{"sequence":["standby","active"]}}}}}
+
+    sm_dict2 = { "sites":
+        { "site1":{ "services":{
+            "serv1":{ "sequence":["active","standby"] } } },
+            "site2":{ "services":{
+                "serv1":{ "sequence":["active","active"] } } } } }
+
+    seq_1 = get_sequence(sm_dict, 'serv1', 'move','site2') # switchover to site2
+    seq_2 = get_sequence(sm_dict,'serv1','stop','site1')  # failover to site2
+    seq_3 = get_sequence(sm_dict,'serv1','stop','site2')  # failover to site1
+
+    seq2_1 = get_sequence(sm_dict2,'serv1','move','site2')  # switchover to site2
+    assert seq_1 == [['site1','standby'],['site2','active']] and \
+           seq_2 == [['site1','standby'],['site2','active']] and \
+           seq_3 == [['site2','standby'],['site1','active']] and \
+           seq2_1 == [['site2','active'],['site1','standby']]
+
+def test_make_ordered_services():
+    sm_dict = {"sites":
+        {"site1":{"services":{
+            "a":{"after":["e"]},
+            "b":{"after":[]},
+            "c":{"after":["b"]},
+            "d":{"after":["c"]},
+            "e":{"after":["d"]},
+            "f":{"after":["a"]}}},
+         "site2":{"services":{
+             "a":{"after":["e"]},
+             "b":{"after":[]},
+             "c":{"after":["b"]},
+             "d":{"after":["c"]},
+             "e":{"after":["d"]},
+             "f":{"after":["a"]}
+         }}}}
+    sm_dict_wrong = {"sites":
+        {"site1":{"services":{
+            "a":{"after":["e"]},
+            "b":{"after":[]},
+            "c":{"after":["g"]},
+            "d":{"after":[""]},
+            "e":{"after":["d"]},
+            "f":{"after":["a"]}}},
+         "site2":{"services":{
+             "a":{"after":["e"]},
+             "b":{"after":["z"]},
+             "c":{"after":["g"]},
+             "d":{"after":[]},
+             "e":{"after":["d"]},
+             "f":{"after":["az"]}
+         }}}}
+
+
+    sorted_list,code = make_ordered_services(sm_dict)
+    assert sorted_list == ['b','c','d','e','a','f'] and  \
+           code == True
+
 
 def test_io_http_json_request_ok():
     """ SUCCESS basic general success case with SSL verification

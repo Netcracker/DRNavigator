@@ -74,11 +74,11 @@ site_cmds = ("active", "standby", "return", "mntc", "status", "list")
 run_services = None
 skip_services = None
 
-def config_checks_init(args) -> list:
+def config_checks_init(args) -> bool:
     """
     Main entry point. Provides validations, config parsing and initialization
     Returns:
-        site_names
+        True of False
     """
 
     # Set verbosity for logging
@@ -105,7 +105,7 @@ def config_checks_init(args) -> list:
         conf_parsed = yaml.load(open(conf_file), Loader=yaml.FullLoader)
     except:
         logging.fatal("Can not parse configuration file!")
-        exit(1)
+        return False
 
     logging.debug(f"Parsed config: {conf_parsed}")
 
@@ -146,14 +146,14 @@ def config_checks_init(args) -> list:
             site_url = [ i["site-manager"] for i in conf_parsed["sites"] if i ["name"] == site ][0]
         except KeyError:
             logging.error("Check configuration file. Some of sites does not have 'site-manager' parameter")
-            exit(1)
+            return False
 
         site_token = [ i.get("token", "") for i in conf_parsed["sites"] if i ["name"] == site ][0]
         site_cacert = [ i.get("cacert", True) for i in conf_parsed["sites"] if i ["name"] == site ][0]
 
         if site_cacert != True and not os.path.isfile(site_cacert):
             logging.fatal(f"You should define correct path to CA certificate for site {site}")
-            exit(1)
+            return False
         global sm_conf
         sm_conf[site] = {}
         sm_conf[site]["url"] = site_url
@@ -228,59 +228,56 @@ def list_status_tmp(command, skip_services=None):
 
         print_additional_table(status_dict, services_to_run, site_names)
 
-def main(sm_conf, services="", cmd=""):
+def main(sm_conf, services="", cmd="",args="",site=""):
     sm_dict = {"sites":{}}
 
     for site in sm_conf.keys():
         sm_dict["sites"][site]={}
-        sm_dict["sites"][site]["available"] = False
-        sm_dict["sites"][site]["corrupted"] = False
-
+        sm_dict["sites"][site]["status"] = False # True - site is fully OK or io_http_json_request return code in case error
         response, code = process_service(site,"site-manager","status")
         if "services" in response and code:
-            sm_dict["sites"][site]["available"]=True
+            sm_dict["sites"][site]["status"] = True
         else:
             logging.error(f"Site {site} does not return valid responce. Error code:", code)
-            if not sm_dict.get("corrupted_sites", []):
-                sm_dict["sites"][site]["corrupted"] = True
-            continue
+            sm_dict["sites"][site]["status"] = code
 
         sm_dict["sites"][site].update(response)
     print(json.dumps(sm_dict))
-    return
 
     # assemble ordered service list keeping in services list specified in cli
-    service_dep_ordered = make_ordered_services(sm_dict["sites"], services)
+    service_dep_ordered,_ = make_ordered_services(sm_dict, services)
 
-    # raw_site_services_list validation to satisfy cmd
-    if not validate_cmd(raw_site_services_list, service_dep_ordered, cmd):
+    # raw_site_services_list validation to satisfy cmd and current site status
+    if not validate_operation(sm_dict,service_dep_ordered,cmd,args,site):
         exit(False)
 
-    if cmd in DR_cmds and not site:  # DR command, both sites
+    if cmd in site_cmds and site:  # per site command
+        if cmd in ("return"):
+            for serv in service_dep_ordered:
+                process_service(site, serv, "standby") # run in Thread
+        elif cmd in ("mntc"):
+            for serv in service_dep_ordered:
+                process_service(site, serv, "mntc") # run in Thread
+        else:
+            for serv in service_dep_ordered:
+                process_service(site, serv, cmd) # run in Thread
+        polling()
+    elif cmd in DR_cmds :  # DR command, both sites
         # handle each DR command
         if cmd in ("list", "status"):
             print_status(service_dep_ordered, cmd)
         elif cmd in ("move", "stop"):
             for serv in service_dep_ordered:
-                for site, mode in get_sequence(raw_site_services_list[serv]):  # run in Thread
-                    process_service(site, serv, mode)
+                for site_process, mode in get_sequence(sm_dict,serv,cmd,site):
+                    process_service(site_process, serv, mode) # run in Thread
             polling()
-    elif cmd in site_cmds and site:  # per site command
-        if cmd in ("return"):
-            for serv in service_dep_ordered:  # run in Thread
-                process_service(site, serv, "standby")
-        elif cmd in ("mntc"):
-            for serv in service_dep_ordered:  # run in Thread
-                process_service(site, serv, "mntc")
-        else:
-            for serv in service_dep_ordered:  # run in Thread
-                process_service(site, serv, cmd)
-        polling()
+
+    return
 
 
 def process_service(site, service, site_cmd: str, no_wait=False, force=False) -> Tuple[Dict, bool]:
     """
-    Method to process the service with specific SM cmd
+    Method to process the service with specific site cmd
     """
     global sm_conf
     if site_cmd in ["status","list"]:  # RO operations
@@ -296,41 +293,72 @@ def process_service(site, service, site_cmd: str, no_wait=False, force=False) ->
                                                sm_conf[site]["token"],
                                                sm_conf[site]["cacert"],
                                                body)
-    #TODO: ERROR handling should be here SSL, timeout and so on
     return response,True if return_code == HTTPStatus.OK else return_code
 
 
 def print_status(site_services_list, cmd):
     pass
 
-def get_sequence(param):
-    pass
-
-raw_site_services_list = {}
-service_dep_ordered = OrderedDict({})
-
-
-def make_ordered_services(sm_dict,services_to_process=[]):
+def get_sequence(sm_dict,serv,cmd,site) -> [[],[]]: # move active, stop standby
     """
+    Get DR operation(cmd) site sequence for specific service
+    Return:
+        [['site1','standby'],['site2','active']]
+    """
+    opposite_site = None
+    for s in sm_dict['sites'].keys():
+        if s != site:
+            opposite_site = s
+
+    if cmd == 'move': #switchover
+        mode = sm_dict['sites'][site]['services'][serv]['sequence'][0]
+        if mode == 'standby':
+            site_sequence=[[opposite_site,'standby'],[site,'active']]
+        elif mode == 'active':
+            site_sequence = [[site,'active'],[opposite_site,'standby']]
+    elif cmd == 'stop': #failover
+        mode = sm_dict['sites'][opposite_site]['services'][serv]['sequence'][0]
+        if mode == 'standby':
+            site_sequence = [[site,'standby'],[opposite_site,'active']]
+        elif mode == 'active':
+            site_sequence = [[opposite_site,'active'],[site,'standby']]
+    else:
+        return False
+
+    return site_sequence
+
+
+def make_ordered_services(sm_dict,services_to_process=[]) -> Tuple[list,bool]:
+    """
+    Make ordered and validated services list from all sites in sm_dict
     TODO validate same services on both sides
-        before , after params are the same and EXISTS
+        before , after params are the same and exists
         leave only service presented on all sites
     """
 
-    def after_sort(ll: list):
+    def after_sort(ll: list) -> [list,list]:
         """
+        Sort service list using AFTER dependency
+        ll = m=[{'a':{'after':['e']}},
+                {'b':{'after':['z']}},
         TODO list consistency validation
          before procedure support
          multiple dependency service support
+        Return:
+            list of sorted list
+            list of services with non exist deps [[service, wrong_dep]]
         """
-        sorted_list = [ list(i.keys())[ 0 ] for i in ll ]  # make a list to be sorted
-        # print(sorted_list)
+        sorted_list = [ list(i.keys())[0] for i in ll ]  # make a list to be sorted
+        wrong_dep_list = []
         for i in ll:
-            if i[ list(i.keys())[ 0 ] ][ 'after' ] and \
-                    i[ list(i.keys())[ 0 ] ][ 'after' ][ 0 ] in sorted_list: # if after not empty put i item AFTER dependant item
-                sorted_list.insert(sorted_list.index(i[ list(i.keys())[ 0 ] ][ 'after' ][ 0 ]) + 1,
-                                   sorted_list.pop(sorted_list.index(list(i.keys())[ 0 ])))
-        return sorted_list
+            if i[list(i.keys())[0]]['after'] and \
+                    i[list(i.keys())[0]]['after'][0] in sorted_list: # if after not empty put i item AFTER dependant item
+                sorted_list.insert(sorted_list.index(i[list(i.keys())[0] ]['after'][0]) + 1,
+                                   sorted_list.pop(sorted_list.index(list(i.keys())[0])))
+            elif i[list(i.keys())[0]]['after'] and \
+                    i[list(i.keys())[0]]['after'][0] not in sorted_list: #if wrong dep - collect them
+                wrong_dep_list.append([list(i.keys()),i[list(i.keys())[0]]['after']])
+        return sorted_list, wrong_dep_list
 
     temp_dict = sm_dict.copy()
 
@@ -344,8 +372,10 @@ def make_ordered_services(sm_dict,services_to_process=[]):
     #collect sorted ordered service list from both sites
     service_lists = {}
     for site in temp_dict['sites']:
-        service_lists[site] =  after_sort([ {serv:{'after':value['after']} } for serv,value in
+        service_lists[site],wrong_dep_list =  after_sort([ {serv:{'after':value['after']} } for serv,value in
                             temp_dict['sites'][site]['services'].items() ])
+        for i in wrong_dep_list:
+            print(f"Site: {site}. Service: {i[0]}. Service has nonexistent dependencies: {i[1]}")
 
     # compare service lists
     equal_list = True
@@ -353,20 +383,27 @@ def make_ordered_services(sm_dict,services_to_process=[]):
         if list(service_lists.values())[i] != list(service_lists.values())[i+1]:
             equal_list = False
 
+    #check services equality on all sites
     if equal_list:
-        return list(service_lists.values())[0]
+        return list(service_lists.values())[0], True
     else: #TODO to rework intersect in general manner(several sites support) with comprehensive warning
         print("The service lists are different on sites:", \
-              list(set(set(list(service_lists.values())[1]).
-                       difference(set(list(service_lists.values())[0])))))
-        return list(set(set(list(service_lists.values())[1]).
-                        intersection(set(list(service_lists.values())[0]))))
+              list(service_lists.values())[0], list(service_lists.values())[1])
+        return list(set(set(list(service_lists.values())[1]). #return intersect from both lists
+                        intersection(set(list(service_lists.values())[0])))), False
 
 
 
 
-def validate_cmd(raw_site_services_list, service_dep_ordered, cmd):
-    pass
+def validate_operation(sm_dict, service_dep_ordered, cmd, args, site) -> bool:
+    """
+    Validate procedure
+    """
+    for site in sm_dict['sites'].keys():
+        if not sm_dict['sites'][site]['status'] and site:
+            logging.error("Site: ",site," is not available")
+            return False
+    return True
 
 def io_http_json_request(url, token="", verify=True, http_body={}, retry=3) -> Tuple[Dict, int]:
     """
@@ -428,7 +465,8 @@ def io_http_json_request(url, token="", verify=True, http_body={}, retry=3) -> T
 
     return {}, False
 
-def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
+def polling(service="", site="", timeout=SERVICE_DEFAULT_TIMEOUT):
+    pass
     """
     Method to poll GET|POST requests to services
 
@@ -708,16 +746,6 @@ def check_dependencies(services_to_run, all_services, sm_dict):
         exit(1)
 
     logging.info(f"Services: {services_to_run}. Services don\'t have nonexistent dependencies")
-
-
-def get_all_services(sm_dict):
-    """
-    Method for definition of list of all services in kubernetes cluster managed by site-manager
-
-    :param dict sm_dict: the dictionary generated by get_sitemanagers_dict() and based on CRs from kubernetes clusters
-    """
-
-    return list(set([ i for i in sm_dict["services"].keys() ]))
 
 
 def get_services_to_run(run_services, skip_services, all_services):
@@ -1062,5 +1090,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    config_checks_init(args)
-    main(sm_conf,[i for i in run_services if i not in skip_services])
+    if not config_checks_init(args):
+        exit(False)
+    main(sm_conf, [i for i in run_services if i not in skip_services], args.command, args, args.site)
