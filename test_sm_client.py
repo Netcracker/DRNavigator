@@ -1,17 +1,16 @@
 #!/usr/bin/env python3
 """
 pytest based unit test
-python3  -m pytest -s -k test_sm_client.py
+python3  -m pytest -s -v test_sm_client.py <-k  test_name*>
 TODO
  - use mock instead of http call
 """
 import json
 import logging
 import os
-from logging import INFO
 
 import pytest
-from smclient import io_http_json_request,config_checks_init,process_service,get_sequence,make_ordered_services
+from smclient import io_http_json_request,config_checks_init,service_process,get_sequence,make_ordered_services
 from http import HTTPStatus
 import http.server
 import ssl
@@ -31,7 +30,8 @@ def test_process_service__status_ok(caplog):
     args.run_services = ""
     args.skip_services = ""
     config_checks_init(args)
-    json_body_s,code = process_service("k8s-2","site-manager","status")
+    json_body_s,code = service_process("k8s-1","site-manager","status")
+    print(json_body_s)
     assert type(json_body_s) is dict \
            and json.loads('"' + str(json_body_s) + '"') \
            and json_body_s["services"] \
@@ -51,7 +51,7 @@ def test_process_service__rw_ok(caplog):
     args.run_services=""
     args.skip_services=""
     config_checks_init(args)
-    json_body_s,code = process_service("k8s-2","kafka-kafka-service","status")
+    json_body_s,code = service_process("k8s-2","dmsh-pg-test-site-manager","status")
     assert  json_body_s \
             and type(json_body_s) is dict \
             and json.loads('"' + str(json_body_s) + '"') \
@@ -121,7 +121,6 @@ def test_make_ordered_services():
     sorted_list,code = make_ordered_services(sm_dict)
     assert sorted_list == ['b','c','d','e','a','f'] and  \
            code == True
-
 
 def test_io_http_json_request_ok():
     """ SUCCESS basic general success case with SSL verification
