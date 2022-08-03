@@ -15,8 +15,13 @@ from http import HTTPStatus
 import http.server
 import ssl
 import threading
+import yaml
 
+def pytest_namespace():
+    return {'site_name': None}
 
+@pytest.mark.skipif(not os.path.exists("config.yaml"),
+                    reason="Need to populate config.yaml https://github.com/Netcracker/DRNavigator/blob/main/documentation/Architecture.md#configuration-file")
 def test_process_service__status_ok(caplog):
     """ SUCCESS basic general success case without SSL verification
     """
@@ -30,14 +35,22 @@ def test_process_service__status_ok(caplog):
     args.run_services = ""
     args.skip_services = ""
     config_checks_init(args)
-    json_body_s,code = service_process("k8s-1","site-manager","status")
-    print(json_body_s)
+    with open("config.yaml",'r') as stream:
+        try:
+            parsed_yaml=yaml.safe_load(stream)
+        except yaml.YAMLError as exc:
+            print(exc)
+    site = [i["name"] for i in parsed_yaml["sites"]][0]
+    print(f"Using {site}")
+    pytest.site_name = site
+    json_body_s,code = service_process(site,"site-manager","status")
     assert type(json_body_s) is dict \
            and json.loads('"' + str(json_body_s) + '"') \
            and json_body_s["services"] \
            and code == True , \
         "Returned: dict, valid JSON, JSON contains valid response"
 
+@pytest.mark.depends(on=['test_process_service__status_ok'])
 def test_process_service__rw_ok(caplog):
     """ SUCCESS basic general success case without SSL verification
     """
@@ -51,7 +64,7 @@ def test_process_service__rw_ok(caplog):
     args.run_services=""
     args.skip_services=""
     config_checks_init(args)
-    json_body_s,code = service_process("k8s-2","dmsh-pg-test-site-manager","status")
+    json_body_s,code = service_process(pytest.site_name,"dmsh-pg-test-site-manager","status")
     assert  json_body_s \
             and type(json_body_s) is dict \
             and json.loads('"' + str(json_body_s) + '"') \
