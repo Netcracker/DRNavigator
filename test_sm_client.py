@@ -10,7 +10,8 @@ import logging
 import os
 
 import pytest
-from smclient import io_http_json_request,config_checks_init,service_process,get_sequence,make_ordered_services
+from smclient import io_http_json_request,\
+    init_and_check_config,service_process,get_DR_operation_sequence,make_ordered_services,parse_command_line
 from http import HTTPStatus
 import http.server
 import ssl
@@ -34,7 +35,7 @@ def test_process_service__status_ok(caplog):
     args.config = "config.yaml"
     args.run_services = ""
     args.skip_services = ""
-    config_checks_init(args)
+    init_and_check_config(args)
     with open("config.yaml",'r') as stream:
         try:
             parsed_yaml=yaml.safe_load(stream)
@@ -50,7 +51,7 @@ def test_process_service__status_ok(caplog):
            and code == True , \
         "Returned: dict, valid JSON, JSON contains valid response"
 
-@pytest.mark.depends(on=['test_process_service__status_ok'])
+#@pytest.mark.depends(on=['test_process_service__status_ok'])
 def test_process_service__rw_ok(caplog):
     """ SUCCESS basic general success case without SSL verification
     """
@@ -61,10 +62,11 @@ def test_process_service__rw_ok(caplog):
     args.verbose = True
     args.insecure = True
     args.config = "config.yaml"
-    args.run_services=""
-    args.skip_services=""
-    config_checks_init(args)
-    json_body_s,code = service_process(pytest.site_name,"dmsh-pg-test-site-manager","status")
+    args.run_services = ""
+    args.skip_services = ""
+    init_and_check_config(args)
+    json_body_s,code = service_process(pytest.site_name if hasattr(pytest,"site_name") else "k8s-1",
+                                       "dmsh-pg-test-site-manager","status")
     assert  json_body_s \
             and type(json_body_s) is dict \
             and json.loads('"' + str(json_body_s) + '"') \
@@ -86,11 +88,11 @@ def test_get_sequence():
             "site2":{ "services":{
                 "serv1":{ "sequence":["active","active"] } } } } }
 
-    seq_1 = get_sequence(sm_dict, 'serv1', 'move','site2') # switchover to site2
-    seq_2 = get_sequence(sm_dict,'serv1','stop','site1')  # failover to site2
-    seq_3 = get_sequence(sm_dict,'serv1','stop','site2')  # failover to site1
+    seq_1 = get_DR_operation_sequence(sm_dict, 'serv1', 'move', 'site2') # switchover to site2
+    seq_2 = get_DR_operation_sequence(sm_dict, 'serv1', 'stop', 'site1')  # failover to site2
+    seq_3 = get_DR_operation_sequence(sm_dict, 'serv1', 'stop', 'site2')  # failover to site1
 
-    seq2_1 = get_sequence(sm_dict2,'serv1','move','site2')  # switchover to site2
+    seq2_1 = get_DR_operation_sequence(sm_dict2, 'serv1', 'move', 'site2')  # switchover to site2
     assert seq_1 == [['site1','standby'],['site2','active']] and \
            seq_2 == [['site1','standby'],['site2','active']] and \
            seq_3 == [['site2','standby'],['site1','active']] and \
@@ -146,6 +148,7 @@ def test_io_http_json_request_ok():
 def test_io_http_json_request_ok_warning():
     """ SUCCESS basic general success case without SSL verification
     """
+    os.environ.setdefault('DEBUG', 'True')  # set DEBUG which is used to print warning
     with pytest.warns(Warning,match=r"Unverified HTTPS request is being made") as record:
         json_body, http_code = io_http_json_request("https://api.github.com",verify=False)
 
