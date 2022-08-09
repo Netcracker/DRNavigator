@@ -24,7 +24,6 @@ def test_io_http_json_request_ok():
            type(json_body) is dict and \
            json.loads('"'+str(json_body)+'"'), "Returned: 200 OK, dict, JSON"
 
-
 def test_io_http_json_request_ok_warning():
     """ SUCCESS basic general success case without SSL verification
     """
@@ -35,7 +34,6 @@ def test_io_http_json_request_ok_warning():
            json.loads('"'+str(json_body)+'"') and \
            len(record)>1, "Returned: 200 OK, dict, JSON, SSL warning "
 
-
 def test_io_http_json_request_200_not_json():
     """ FAIL in case not JSON returned with 200 OK
     """
@@ -43,7 +41,6 @@ def test_io_http_json_request_200_not_json():
     assert http_code == False and \
            type(json_body) is dict and \
            bool(dict), "Returned: False and empy dict"
-
 
 def test_io_http_json_request_404():
     """ FAIL in case 404
