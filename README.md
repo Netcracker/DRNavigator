@@ -119,7 +119,7 @@ To support ability of services be managed by `site-manager` you should prepare f
     $ helm install site-manager charts/site-manager/
                   -n site-manager \
                   --set image.repository=ghcr.io/netcracker/site-manager \
-                  --set image.tag=0.6.6 \
+                  --set image.tag=<image tag> \
                   --set paas_platform=openshift \
                   --set ingress.name=site-manager.apps.example.com
     ```
@@ -127,3 +127,4 @@ To support ability of services be managed by `site-manager` you should prepare f
     where:
       - `ingress.name` parameter is mandatory for OpenShift
       - `paas_platform` should be set to "openshift"
+      - `<image tag>` image tag reference
