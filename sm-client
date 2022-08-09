@@ -250,7 +250,6 @@ def config_checks_init() -> None:
 
         print_additional_table(status_dict, services_to_run, sites_name)
 
-
 def io_http_json_request(url, token="", verify=True, http_body={}, retry=3) -> Tuple[Dict, int]:
     """
     Method to send GET/POST requests to service rep
@@ -307,7 +306,6 @@ def io_http_json_request(url, token="", verify=True, http_body={}, retry=3) -> T
         logging.error("General error")
 
     return {},False
-
 
 def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
     """
@@ -1016,7 +1014,6 @@ def main_func(procedure, site, run_services, skip_services, force):
     after_stateful = []
     run_services = []
     skip_services = []
-
 
 if __name__ == "__main__":
     config_checks_init()
