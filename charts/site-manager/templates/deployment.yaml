@@ -17,8 +17,10 @@ spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
       - name: {{ .Chart.Name }}
+{{- if eq .Values.paas_platform "kubernetes" }}
         securityContext:
           runAsUser: 1001
+{{- end }}
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
         args:
           - "--bind=0.0.0.0:8443"
