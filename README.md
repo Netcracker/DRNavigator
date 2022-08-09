@@ -65,29 +65,13 @@ To support ability of services be managed by `site-manager` you should prepare f
     Generate base64 string from ca.crt certificate:
 
     ```
-    cat ca.crt | base64 - | tr -d '\n'
-    ```
-
-    Open file `manifests/crd-sitemanager.yaml` end insert output of previous command to `caBundle` parameter:
-
-    ```
-    ...
-      conversion:
-        strategy: Webhook
-        webhook:
-        conversionReviewVersions: ["v1"]
-        clientConfig:
-            service:
-            namespace: site-manager
-            name: site-manager
-            path: /convert
-            caBundle: <INSERT-BASE64-OUTPUT-HERE>
+    $ CA_BUNDLE=$(cat ca.crt | base64 - | tr -d '\n')
     ```
 
     Create CRD `sitemanagers.netcracker.com`:
 
-    ```bash
-    $ kubectl apply -f manifests/crd-sitemanager.yaml
+    ```
+    $ cat manifests/crd-sitemanager.yaml | sed "s/<base-64-encoded-ca-bundle>/${CA_BUNDLE}/" | kubectl apply -f -
     ```
 
 3. Create namespace `site-manager`:
@@ -127,3 +111,19 @@ The `site-manager` helm chart can be customized with following parameters:
 | image.tag                   | docker image tag                                                      | v1.0                            |
 | ingress.create              | enable/disable ingress creation                                       | true                            |
 | ingress.name                | define URL for `site-manager` ingress                                 | ""                              |
+| paas_platform               | define PAAS type. It can be "kubernetes" or "openshift"               | "kubernetes"                    |
+
+6. Install `site-manager` to OpenShift
+
+    ```
+    $ helm install site-manager charts/site-manager/
+                  -n site-manager \
+                  --set image.repository=ghcr.io/netcracker/site-manager \
+                  --set image.tag=0.6.6 \
+                  --set paas_platform=openshift \
+                  --set ingress.name=site-manager.apps.example.com
+    ```
+
+    where:
+      - `ingress.name` parameter is mandatory for OpenShift
+      - `paas_platform` should be set to "openshift"
