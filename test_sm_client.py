@@ -69,4 +69,3 @@ def test_io_http_json_request_ssl_fails():
     thread.join()
     os.remove("self-signed-fake.pem")
     assert exception
-    
