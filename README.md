@@ -65,29 +65,13 @@ To support ability of services be managed by `site-manager` you should prepare f
     Generate base64 string from ca.crt certificate:
 
     ```
-    cat ca.crt | base64 - | tr -d '\n'
-    ```
-
-    Open file `manifests/crd-sitemanager.yaml` end insert output of previous command to `caBundle` parameter:
-
-    ```
-    ...
-      conversion:
-        strategy: Webhook
-        webhook:
-        conversionReviewVersions: ["v1"]
-        clientConfig:
-            service:
-            namespace: site-manager
-            name: site-manager
-            path: /convert
-            caBundle: <INSERT-BASE64-OUTPUT-HERE>
+    $ CA_BUNDLE=$(cat ca.crt | base64 - | tr -d '\n')
     ```
 
     Create CRD `sitemanagers.netcracker.com`:
 
-    ```bash
-    $ kubectl apply -f manifests/crd-sitemanager.yaml
+    ```
+    $ cat manifests/crd-sitemanager.yaml | sed "s/<base-64-encoded-ca-bundle>/${CA_BUNDLE}/" | kubectl apply -f -
     ```
 
 3. Create namespace `site-manager`:
@@ -108,22 +92,39 @@ To support ability of services be managed by `site-manager` you should prepare f
     $ helm install site-manager charts/site-manager/ -n site-manager
     ```
 
-The `site-manager` helm chart can be customized with following parameters:
+    The `site-manager` helm chart can be customized with following parameters:
 
-| Parameter                   | Description                                                           | Default value                   |
-|-----------------------------|-----------------------------------------------------------------------|---------------------------------|
-| env.FRONT_HTTP_AUTH         | set authentication mode between sm-client and Site-Manager            | "Yes"                           |
-| env.BACK_HTTP_AUTH          | set authentication mode between Site-Manager and manageable services  | "Yes"                           |
-| env.SM_DEBUG                | set `debug` logging level                                             | "False"                         |
-| env.SM_GROUP                | define API group for CRD                                              | "netcracker.com"                |
-| env.SM_PLURAL               | define object of API group                                            | "sitemanagers"                  |
-| env.SM_VERSION              | define API group version for CRD                                      | "v2"                            |
-| env.SERVICE_DEFAULT_TIMEOUT | set default timeout for every microservice DR procedure               | 200                             |
-| env.HTTP_SCHEME             | define HTTP scheme for connection to microservice operator            | "http://"                       |
-| serviceAccount.create       | enable/disable Service Account creation                               | true                            |
-| serviceAccount.name         | name of Service Account for `site-manager`                            | "site-manager-sa"               |
-| image.repository            | docker image repository name                                          | ghcr.io/netcracker/site-manager |
-| image.pullPolicy            | docker image pull policy                                              | Always                          |
-| image.tag                   | docker image tag                                                      | v1.0                            |
-| ingress.create              | enable/disable ingress creation                                       | true                            |
-| ingress.name                | define URL for `site-manager` ingress                                 | ""                              |
+    | Parameter                   | Description                                                           | Default value                   |
+    |-----------------------------|-----------------------------------------------------------------------|---------------------------------|
+    | env.FRONT_HTTP_AUTH         | set authentication mode between sm-client and Site-Manager            | "Yes"                           |
+    | env.BACK_HTTP_AUTH          | set authentication mode between Site-Manager and manageable services  | "Yes"                           |
+    | env.SM_DEBUG                | set `debug` logging level                                             | "False"                         |
+    | env.SM_GROUP                | define API group for CRD                                              | "netcracker.com"                |
+    | env.SM_PLURAL               | define object of API group                                            | "sitemanagers"                  |
+    | env.SM_VERSION              | define API group version for CRD                                      | "v2"                            |
+    | env.SERVICE_DEFAULT_TIMEOUT | set default timeout for every microservice DR procedure               | 200                             |
+    | env.HTTP_SCHEME             | define HTTP scheme for connection to microservice operator            | "http://"                       |
+    | serviceAccount.create       | enable/disable Service Account creation                               | true                            |
+    | serviceAccount.name         | name of Service Account for `site-manager`                            | "site-manager-sa"               |
+    | image.repository            | docker image repository name                                          | ghcr.io/netcracker/site-manager |
+    | image.pullPolicy            | docker image pull policy                                              | Always                          |
+    | image.tag                   | docker image tag                                                      | v1.0                            |
+    | ingress.create              | enable/disable ingress creation                                       | true                            |
+    | ingress.name                | define URL for `site-manager` ingress                                 | ""                              |
+    | paas_platform               | define PAAS type. It can be "kubernetes" or "openshift"               | "kubernetes"                    |
+
+6. Install `site-manager` to OpenShift
+
+    ```
+    $ helm install site-manager charts/site-manager/
+                  -n site-manager \
+                  --set image.repository=ghcr.io/netcracker/site-manager \
+                  --set image.tag=<image tag> \
+                  --set paas_platform=openshift \
+                  --set ingress.name=site-manager.apps.example.com
+    ```
+
+    where:
+      - `ingress.name` parameter is mandatory for OpenShift
+      - `paas_platform` should be set to "openshift"
+      - `<image tag>` image tag reference
