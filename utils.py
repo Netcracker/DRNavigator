@@ -95,9 +95,18 @@ def _send_post(url, obj, headers):
                 logging.error(f"Code: {ret_code}. Message: {response['message']}")
                 response["bad_response"] = ret_code
         return response
-    except Exception as e:
+    except requests.exceptions.SSLError:
+        logging.error("SSL certificate verify failed")
+        raise # re-raise SSL exception to handle in the calling code TBD in more general manner
+        # SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
+        # SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)'))
+    except requests.exceptions.JSONDecodeError as e:
         logging.error("Wrong JSON data received: \n %s" % str(e))
-        return None
+    except requests.exceptions.RequestException as e:
+        logging.error("General request error %s",e.__doc__)
+    except:
+        logging.error("General error")
+    return None
 
 
 def send_get(url):
@@ -116,8 +125,17 @@ def send_get(url):
         try:
             resp = requests.get(url, timeout=10, headers=headers)
             return resp.json()
-        except Exception as e:
+        except requests.exceptions.SSLError:
+            logging.error("SSL certificate verify failed")
+            raise # re-raise SSL exception to handle in the calling code TBD in more general manner
+            # SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
+            # SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)'))
+        except requests.exceptions.JSONDecodeError as e:
             logging.error("Wrong JSON data received: \n %s" % str(e))
+        except requests.exceptions.RequestException as e:
+            logging.error("General request error %s",e.__doc__)
+        except:
+            logging.error("General error")
 
     return {}
 
