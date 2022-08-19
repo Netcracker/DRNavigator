@@ -934,7 +934,7 @@ if __name__ == "__main__":
 
     SM_HTTPS_SECURE = not args.insecure
 
-    if SM_HTTPS_SECURE:
+    if not SM_HTTPS_SECURE:
         # Disable warnings for -k option
         disable_warnings(InsecureRequestWarning)
 
