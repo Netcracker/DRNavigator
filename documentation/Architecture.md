@@ -763,6 +763,7 @@ positional arguments:
     active              set kubernetes cluster services to active mode
     standby             set kubernetes cluster services to standby mode
     list                list all services from Active-Standby scheme managed by site-manager with dependencies
+    order               list ordered all services from Active-Standby scheme managed by site-manager with dependencies
     status              show current status of clusters and all services
     daemon              run site-manager as a service
 
@@ -787,6 +788,7 @@ where:
   - `active site` is the action to switch site to `active` mode. This action applied to only one site.
   - `standby site`  is the action to switch site to `standby` mode. This action applied to only one site.
   - `list` is the action to list all or part of microservices of sites.
+  - `order` is the action to show services with dependencies.
   - `status` is the action to show all or part of microservices status.
 
 ## Configuration file
