@@ -23,9 +23,6 @@ from typing import Tuple, Dict
 from urllib3 import Retry, disable_warnings
 from urllib3.exceptions import InsecureRequestWarning
 
-# Disable warnings for -k option
-disable_warnings(InsecureRequestWarning)
-
 MAIN_HELP_SECTION = """
 Script to manage DR cases in kubernetes Active-Standby scheme
 
@@ -936,6 +933,10 @@ if __name__ == "__main__":
     logging.debug(f"Parsed config: {conf_parsed}")
 
     SM_HTTPS_SECURE = not args.insecure
+
+    if SM_HTTPS_SECURE:
+        # Disable warnings for -k option
+        disable_warnings(InsecureRequestWarning)
 
     FRONT_HTTP_AUTH = conf_parsed.get("sm-client", {}).get("http_auth", False)
 
