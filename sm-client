@@ -61,6 +61,8 @@ procedure_results = dict()
 
 sm_dict = {}
 
+rec_data = {}
+
 command_list = ["stop", "move", "return", "mntc", "active", "standby", "list", "order", "status", "fstatus"]
 
 conf_parsed = None
@@ -69,7 +71,6 @@ sites_name = None
 SERVICE_DEFAULT_TIMEOUT = None
 FRONT_HTTP_AUTH = None
 SM_HTTPS_SECURE = None
-
 
 def io_http_json_request(url, token="", verify=True, http_body={}, retry=3) -> Tuple[Dict, int]:
     """
@@ -849,6 +850,26 @@ def main_func(procedure, site, run_services, skip_services, force):
     skip_services = []
 
 
+def get_status(service_name, sites_name):
+    """
+    Get status for particular service
+    :param string service_name: the name of service that will be processed
+    :param string sites_name: the name of processed site
+    """
+    global sm_dict
+    global rec_data
+    try:
+        data,_ = io_http_json_request(url=sm_dict["sites"][sites_name]["url"],
+                                      token=sm_dict["sites"][sites_name]["token"],
+                                      verify=sm_dict["sites"][sites_name]["cacert"],
+                                      http_body={"procedure": "status", "run-services": service_name})
+
+        rec_data[service_name][sites_name] = data['services'][service_name]
+    except requests.exceptions.SSLError:
+        data = {} # in case site is Down except balancers, getting SSL exception
+        rec_data[service_name][sites_name] = {}
+
+
 if __name__ == "__main__":
     # Main argument parser
     parser = argparse.ArgumentParser(description=MAIN_HELP_SECTION,
@@ -1064,11 +1085,67 @@ if __name__ == "__main__":
                                                   http_body={"procedure": "status", "run-services": service_item})
                 except requests.exceptions.SSLError:
                     data_t = {} # in case site is Down except balancers, getting SSL exception
-                data=data_t
+                data = data_t
                 if data == {}:
                     status_dict[service_item][sites_item] = {'healthz': '--', 'mode': '--', 'status': '--'}
                 else:
                     status_dict[service_item][sites_item] = data["services"][service_item]
+
+            for item in sm_dict.get("corrupted_sites", []):
+                status_dict[service_item][item] = {'healthz': '--', 'mode': '--', 'status': '--'}
+        if sm_dict.get("corrupted_sites"):
+            sites_name.extend(sm_dict["corrupted_sites"])
+        logging.debug(f"status_dict: {status_dict}")
+
+        print_main_table(status_dict, services_to_run, sites_name)
+
+        print_additional_table(status_dict, services_to_run, sites_name)
+
+    # Process command 'fstatus'
+    elif args.command == "fstatus":
+
+        site_active = sites_name[0]
+        site_standby = sites_name[1:]
+
+        # Create main dict with all services in sites
+        sm_dict = create_sm_dict(sites_name, "status", site_active, site_standby, skip_services)
+
+        logging.debug(f"Compiled kubernetes CRs: {sm_dict}")
+
+        all_services = get_all_services(sm_dict)
+        services_to_run = get_services_to_run(run_services, skip_services, all_services)
+
+        status_dict = {}
+        for service_item in services_to_run:
+            rec_data[service_item] = {}
+            status_dict[service_item] = {}
+
+            for sites_item in sites_name:
+                status_dict[service_item][sites_item] = {}
+                thread = threading.Thread(target=get_status, args=(service_item, sites_item))
+                thread.name = f"Thread: {service_item}_{sites_item}"
+                thread.start()
+
+        timeout = 300
+        is_finished = 0
+        init_time = int(time.time())
+
+        while int(time.time()) < init_time + int(timeout):
+            if threading.active_count() > 1:
+                time.sleep(2)
+            else:
+                is_finished = 1
+                break
+        
+        if not is_finished:
+            logging.error("Timeout is exceeded")
+            exit(1)
+        for service_item in services_to_run:
+            for sites_item in sites_name:
+                if rec_data[service_item] == {}:
+                    status_dict[service_item][sites_item] = {'healthz': '--', 'mode': '--', 'status': '--'}
+                else:
+                    status_dict[service_item][sites_item] = rec_data[service_item][sites_item]
 
             for item in sm_dict.get("corrupted_sites", []):
                 status_dict[service_item][item] = {'healthz': '--', 'mode': '--', 'status': '--'}
