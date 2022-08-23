@@ -863,8 +863,11 @@ def get_status(service_name, sites_name):
                                       token=sm_dict["sites"][sites_name]["token"],
                                       verify=sm_dict["sites"][sites_name]["cacert"],
                                       http_body={"procedure": "status", "run-services": service_name})
-
-        rec_data[service_name][sites_name] = data['services'][service_name]
+        
+        if data:
+            rec_data[service_name][sites_name] = data['services'][service_name]
+        else:
+            rec_data[service_name] = {}
     except requests.exceptions.SSLError:
         data = {} # in case site is Down except balancers, getting SSL exception
         rec_data[service_name][sites_name] = {}
@@ -1132,7 +1135,7 @@ if __name__ == "__main__":
 
         while int(time.time()) < init_time + int(timeout):
             if threading.active_count() > 1:
-                time.sleep(2)
+                time.sleep(5)
             else:
                 is_finished = 1
                 break
