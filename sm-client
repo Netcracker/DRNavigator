@@ -58,7 +58,7 @@ procedure_results = dict()
 
 sm_dict = {}
 
-command_list = ["stop", "move", "return", "mntc", "active", "standby", "list", "order", "status", "fstatus"]
+command_list = ["stop", "move", "return", "mntc", "active", "standby", "list", "order", "status"]
 
 conf_parsed = None
 SM_TESTING_MODE = None
@@ -520,7 +520,7 @@ def check_dependencies(services_to_run, all_services, sm_dict):
 
     logging.info(f"Services: {services_to_run}. Check for nonexistent dependencies.")
     for svc_item in services_to_run:
-        depends = sm_dict["services"][svc_item]['after']
+        depends = sm_dict["services"][svc_item]["after_processed"]
         if "stateful" in depends and len(depends) == 1:
             continue
         if not all(elem in all_services for elem in depends):
@@ -538,6 +538,25 @@ def check_dependencies(services_to_run, all_services, sm_dict):
         exit(1)
 
     logging.info(f"Services: {services_to_run}. Services don\'t have nonexistent dependencies")
+
+    logging.info(f"Services: {services_to_run}. Check for cyclical dependencies.")
+    cicle_list = []
+    for svc_item in services_to_run:
+        depends = sm_dict["services"][svc_item]["after_processed"]
+        for dep_item in depends:
+            if svc_item == dep_item:
+                logging.critical(f"Service: {svc_item}. Service has cyclical dependencies to itself")
+                cicle_list.append(svc_item)
+
+            if svc_item in sm_dict["services"][dep_item]["after_processed"]:
+                logging.critical(f"Service: {svc_item}. Service has cyclical dependencies with {dep_item}")
+                cicle_list.append(svc_item)
+
+    if len(cicle_list) != 0:
+        logging.critical(f"Services: {list(set(cicle_list))} have cyclical dependencies")
+        exit(1)
+
+    logging.info(f"Services: {services_to_run}. Services don\'t have cyclical dependencies")
 
 
 def get_all_services(sm_dict):
@@ -1012,23 +1031,24 @@ if __name__ == "__main__":
         if replicator in all_services and replicator in services_to_run:
             done_services.append(replicator)
 
+        for service_name in all_services:
+            if service_name not in services_to_run:
+                ignored_services.append(service_name)
+
         counter = 0
         while not all(elem in (done_services + ignored_services + after_stateful) for elem in all_services):
             service_list = []
             counter = counter + 1
 
-            for service_name in all_services:
+            for service_name in services_to_run:
                 if service_name not in (done_services + failed_services + ignored_services):
 
                     after_services = sm_dict["services"][service_name]["after_processed"]
 
-                    if service_name not in services_to_run:
-                        ignored_services.append(service_name)
-                    else:
-                        # Run service if it is not in running, failed or done lists
-                        if all(elem in (done_services + ignored_services) for elem in after_services) or after_services == ['']:
-                            service_list.append(service_name)
-                            running_services.append(service_name)
+                    # Run service if it is not in running, failed or done lists
+                    if all(elem in (done_services + ignored_services) for elem in after_services) or after_services == ['']:
+                        service_list.append(service_name)
+                        running_services.append(service_name)
 
             done_services = done_services + running_services
             running_services = []
