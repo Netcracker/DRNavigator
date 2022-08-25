@@ -525,7 +525,7 @@ def check_dependencies(services_to_run, all_services, sm_dict):
             continue
         if not all(elem in all_services for elem in depends):
             dep_dict[svc_item] = []
-            for after_item in sm_dict["services"][svc_item]['after']:
+            for after_item in sm_dict["services"][svc_item]["after_processed"]:
                 if after_item not in all_services:
                     dep_dict[svc_item].append(after_item)
 
