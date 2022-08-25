@@ -76,6 +76,10 @@ def init_and_check_config(args) -> bool:
     """ Main entry point. Provides validations, config parsing and initialization
     @returns: True of False  """
 
+    #TODO python version check
+    #sys.version_info
+    #sys.version_info(major=3, minor=9, micro=13, releaselevel='final', serial=0)
+
     # Set verbosity for logging
     if args.verbose:
         logging_level = logging.DEBUG
