@@ -168,7 +168,7 @@ def sm_get_cluster_state(site=None) -> dict:
         sm_dict["sites"][site_name]={}
         sm_dict["sites"][site_name]["status"] = False # True - site is fully OK or io_http_json_request return code in case error
         sm_dict["sites"][site_name]["services"] = {}
-        response, ret, code = sm_service_process(site_name, "site-manager", "status")
+        response, ret, code = sm_process_service(site_name, "site-manager", "status")
         sm_dict["sites"][site_name]["return_code"] = code # HTTP or SSL
         sm_dict["sites"][site_name]["status"] = ret
 
@@ -191,9 +191,10 @@ def data_get_available_sites(sm_dict:dict) -> []:
 
 def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = None):
     """ Business Logic - implements main flow """
+
     def service_process_with_polling(site, service, mode, sm_dict,force: bool = False):
         """ To process service mode with polling"""
-        sm_service_process(site, service, mode)
+        sm_process_service(site, service, mode)
         data_sortout_service_results(sm_poll_service_required_status(site, service, mode, sm_dict), force)
     # get status for all sites in case DR procedure or specific site in case cmd
     sm_dict = sm_get_cluster_state(site if cmd in site_cmds and site else None)
@@ -211,7 +212,7 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
         for serv in service_dep_ordered:
             for site_i in data_get_available_sites(sm_dict):
                 def run_in_thread(site, serv, sm_dict):  # to run each status service in parallel
-                    response, ret, _=sm_service_process(site, serv, "status")
+                    response, ret, _=sm_process_service(site, serv, "status")
                     sm_dict['sites'][site]['services'][serv]['status']=response['services'][serv] if ret else False
                 thread=threading.Thread(target=run_in_thread, args=(site_i, serv, sm_dict))
                 thread.name=f"Thread: {serv}"
@@ -228,6 +229,10 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
               f"---------------------------------------------------------------------")
     elif cmd in site_cmds:  # per site command
         print_service_operation_summary("top", sm_dict, service_dep_ordered, cmd, site)
+
+        if cmd == "standby" and "cluster-replicator" in service_dep_ordered: #replicator WA
+            sm_process_replicator(sm_dict, [site, data_convert_sitecmd_to_dr_mode(cmd)])
+
         for serv in service_dep_ordered:
             mode = data_convert_sitecmd_to_dr_mode(cmd)
             thread=threading.Thread(target=service_process_with_polling,
@@ -237,18 +242,21 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
             thread.start()
         for thread in thread_pool:
             thread.join()
+
+        if cmd == "active" and  "cluster-replicator" in service_dep_ordered: #replicator WA
+            sm_process_replicator(sm_dict, [site, data_convert_sitecmd_to_dr_mode(cmd)])
+
         print_service_operation_summary("tail",sm_dict, service_dep_ordered, cmd, site )
     elif cmd in DR_procedures: # ("move", "stop") DR procedure, both sites
         print_service_operation_summary("top",sm_dict, service_dep_ordered, cmd, site )
-        # dirty WA start
-        replicator = None # todo[0] to test, to add usage in per site cmd  - active, standby
-        if "cluster-replicator" in service_dep_ordered:
+
+        replicator = None #replicator WA
+        if "cluster-replicator" in service_dep_ordered: # todo[0] to test, to add usage in per site cmd  - active, standby
             replicator = True
+            replicator_index = service_dep_ordered.index("cluster-replicator")
             service_dep_ordered.remove("cluster-replicator") #remove from the main logic
-            site,mode = data_get_DR_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[0]
-            sm_service_process(site, "cluster-replicator", mode)
-            data_sortout_service_results(sm_poll_service_required_status(site, "cluster-replicator", mode, sm_dict))
-        # dirty WA end
+            sm_process_replicator(sm_dict,data_get_DR_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[0])
+
         for serv in service_dep_ordered:
             for site_to_process, mode in data_get_DR_operation_sequence(sm_dict, serv, cmd, site):
                 if cmd == "stop" and mode == "standby":
@@ -262,10 +270,9 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
         for thread in thread_pool:
             thread.join()
 
-        if replicator: # dirty WA  detected
-            site,mode = data_get_DR_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[1]
-            sm_service_process(site, "cluster-replicator", mode)
-            data_sortout_service_results(sm_poll_service_required_status(site, "cluster-replicator", mode, sm_dict))
+        if replicator: #replicator WA
+            sm_process_replicator(sm_dict,data_get_DR_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[1])
+            service_dep_ordered.insert(replicator_index,"cluster-replicator")
 
         print_service_operation_summary("tail",sm_dict, service_dep_ordered, cmd, site )
     else:
@@ -278,6 +285,11 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
 
     return True
 
+def sm_process_replicator(sm_dict,site_mode:[]):
+    """ Process replicator in blocking mode"""
+    logging.debug(f"Processing replicator service on site:{site_mode[0]} to mode:{site_mode[1]}")
+    sm_process_service(site_mode[0], "cluster-replicator", site_mode[1])
+    data_sortout_service_results(sm_poll_service_required_status(site_mode[0], "cluster-replicator", site_mode[1], sm_dict))
 
 def data_sortout_service_results(result: Tuple[dict, bool], force: bool = False):
     """ Put service name in appropriate list(failed or done)
@@ -579,7 +591,7 @@ def data_convert_sitecmd_to_dr_mode(site_cmd):
         return site_cmd
 
 
-def sm_service_process(site, service, site_cmd: str, no_wait=False, force=False) -> Tuple[Dict, bool, int]:
+def sm_process_service(site, service, site_cmd: str, no_wait=False, force=False) -> Tuple[Dict, bool, int]:
     """ Processes the service with specific site cmd """
     global sm_conf
 
@@ -615,7 +627,7 @@ def sm_poll_service_required_status(site, service, mode, sm_dict) -> Tuple[Dict,
             logging.info(f"Service: {service}. Site: {site}. Polling procedure {key} to be {value} Iteration {count}")
             logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
 
-            data, ret, _ = sm_service_process(site, service, "status")
+            data, ret, _ = sm_process_service(site, service, "status")
 
             logging.debug(f"Service: {service}. Site: {site}. Received data: {data}. Return code: {ret}")
 
