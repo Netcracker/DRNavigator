@@ -21,6 +21,7 @@ import threading
 import time
 from graphlib import TopologicalSorter, CycleError
 from http import HTTPStatus
+from queue import Queue
 
 import yaml
 import requests.packages
@@ -28,7 +29,7 @@ import os
 
 from requests.adapters import HTTPAdapter
 from prettytable import PrettyTable
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from urllib3 import Retry
 from urllib3.exceptions import InsecureRequestWarning
 
@@ -187,39 +188,46 @@ def data_make_ignored_services(sm_dict:dict, service_dep_ordered: list) -> []:
                 ignored_list.append(serv)
     return list(set(ignored_list))
 
+
 def data_get_available_sites(sm_dict:dict) -> []:
     """ Return list of sites with are available"""
     return [site for site in sm_dict['sites'].keys() if sm_dict['sites'][site]['status']]
 
+
 def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = None):
     """ Business Logic - implements main flow """
-
     def service_process_with_polling(site, service, mode, sm_dict,force: bool = False):
         """ To process service mode with polling"""
-        sm_process_service(site, service, mode)
-        data_sortout_service_results(sm_poll_service_required_status(site, service, mode, sm_dict), force)
+        if service not in "cluster-replicator": #replicator WA todo
+            sm_process_service(site, service, mode)
+            data_sortout_service_results(sm_poll_service_required_status(site, service, mode, sm_dict), force)
+        thread_result_queue.put(service)
+        logging.info(f"Processing {serv} in thread")
+
     # get status for all sites in case DR procedure or specific site in case cmd
     sm_dict = sm_get_cluster_state(site if cmd in site_cmds and site else None)
 
     # assemble ordered service list to proceed, keeping in services specified in cli
-    service_dep_ordered,return_code, ts  = make_ordered_services_to_process(sm_dict, services) #TODO[0] to rework run with dep order
+    service_dep_ordered,return_code, ts = make_ordered_services_to_process(sm_dict, services) #TODO[0] to rework run with dep order
 
     #  validation to satisfy cmd and current site status
     if not validate_operation(sm_dict, (service_dep_ordered,return_code), cmd, site, services):
         exit(1)
 
     ignored_services.extend(data_make_ignored_services(sm_dict, service_dep_ordered))
-    thread_pool=[]
+    thread_pool = []
+    thread_result_queue = Queue(maxsize=10)
     if cmd in ("status"):
         for serv in service_dep_ordered:
             for site_i in data_get_available_sites(sm_dict):
                 def run_in_thread(site, serv, sm_dict):  # to run each status service in parallel
-                    response, ret, _=sm_process_service(site, serv, "status")
+                    response, ret, _ = sm_process_service(site, serv, "status")
                     sm_dict['sites'][site]['services'][serv]['status']=response['services'][serv] if ret else False
                 thread=threading.Thread(target=run_in_thread, args=(site_i, serv, sm_dict))
                 thread.name=f"Thread: {serv}"
-                thread_pool.append(thread)
                 thread.start()
+                thread_pool.append(thread)
+
         for thread in thread_pool:
             thread.join()
         print_main_table(sm_dict, service_dep_ordered, [site] if site else [_ for _ in sm_conf.keys()])
@@ -235,13 +243,17 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
         if cmd == "standby" and "cluster-replicator" in service_dep_ordered: #replicator WA
             sm_process_replicator(sm_dict, [site, data_convert_sitecmd_to_dr_mode(cmd)])
 
-        for serv in service_dep_ordered:
-            mode = data_convert_sitecmd_to_dr_mode(cmd)
-            thread=threading.Thread(target=service_process_with_polling,
-                                    args=(site, serv, mode, sm_dict,cli_args.force))
-            thread.name=f"Thread: {serv}"
-            thread_pool.append(thread)
-            thread.start()
+        while ts.is_active():
+            for serv in ts.get_ready():
+                mode=data_convert_sitecmd_to_dr_mode(cmd)
+                thread=threading.Thread(target=service_process_with_polling,
+                                        args=(site, serv, mode, sm_dict, cli_args.force))
+                thread.name=f"Thread: {serv}"
+                thread_pool.append(thread)
+                thread.start()
+            serv_done=thread_result_queue.get()
+            ts.done(serv_done)
+
         for thread in thread_pool:
             thread.join()
 
@@ -254,6 +266,7 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
 
         replicator = None #replicator WA
         if "cluster-replicator" in service_dep_ordered: # todo[0] to test, to
+            replicator = True
             replicator_index = service_dep_ordered.index("cluster-replicator")
             service_dep_ordered.remove("cluster-replicator") #remove from the main logic
             sm_process_replicator(sm_dict, data_get_dr_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[0])
@@ -268,6 +281,7 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
                 thread.name=f"Thread: {serv}"
                 thread_pool.append(thread)
                 thread.start()
+
         for thread in thread_pool:
             thread.join()
 
@@ -380,7 +394,7 @@ def data_get_dr_operation_sequence(sm_dict, serv, procedure, site) -> [[], []]: 
 
     return site_sequence
 
-def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = None ) -> Tuple[list, bool, object]:
+def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = None ) -> Tuple[list, bool, Optional[TopologicalSorter]]:
     """ Make ordered and validated services list from all sites in sm_dict
     @returns: ordered list or empty if not possible to assemble(integrity issue), True or False  in case minor issue
         TopologicalSorter object in case success
@@ -445,7 +459,7 @@ def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = 
             integrity_error = True
 
     if integrity_error:
-        return [], False, None # return error, integrity issue
+        return [], False, type(None) # return error, integrity issue
 
     # compare service lists when two sites are ready only
     equal_list = True
@@ -456,8 +470,9 @@ def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = 
 
     # check services equality on all sites
     if equal_list:
-        return list(list(service_lists.values())[0]), ret, \
-               build_after_before_graph(temp_dict['sites'][list(temp_dict['sites'].keys())[0]]['services'])
+        ts = build_after_before_graph(temp_dict['sites'][list(temp_dict['sites'].keys())[0]]['services'])
+        ts.prepare()
+        return list(list(service_lists.values())[0]), ret, ts
     else:
         logging.warning(f"The service lists are different on sites: "
                         f"{list(service_lists.values())[0]} {list(service_lists.values())[1]} ")
@@ -539,7 +554,7 @@ def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None
             resp = session.post(url, json=http_body, timeout=30, headers=headers, verify=verify)
         else:
             resp = session.get(url, timeout=5, headers=headers, verify=verify)
-
+        logging.debug(f"REST response: {resp.json()}")
         return True, resp.json() if resp.json() else {}, resp.status_code # return ANY content with HTTP code
 
     except requests.exceptions.SSLError as e:
