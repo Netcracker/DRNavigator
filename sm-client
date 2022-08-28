@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python3.9
 """
 Company:     NetCracker 
 Author:      Core PaaS Group
@@ -10,6 +10,7 @@ Description: Client util to communicate with site-manager in kubernetes clusters
     split current single source into modules
     share common code with sm ?
     make smclient delivery as single binary, using pyinstaller ???
+    json output
 """
 
 import argparse
@@ -18,6 +19,7 @@ import logging
 import ssl
 import threading
 import time
+from graphlib import TopologicalSorter, CycleError
 from http import HTTPStatus
 
 import yaml
@@ -200,7 +202,7 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
     sm_dict = sm_get_cluster_state(site if cmd in site_cmds and site else None)
 
     # assemble ordered service list to proceed, keeping in services specified in cli
-    service_dep_ordered,return_code = make_ordered_services_to_process(sm_dict, services) #TODO[0] to rework run with dep order
+    service_dep_ordered,return_code, ts  = make_ordered_services_to_process(sm_dict, services) #TODO[0] to rework run with dep order
 
     #  validation to satisfy cmd and current site status
     if not validate_operation(sm_dict, (service_dep_ordered,return_code), cmd, site, services):
@@ -251,14 +253,13 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
         print_service_operation_summary("top",sm_dict, service_dep_ordered, cmd, site )
 
         replicator = None #replicator WA
-        if "cluster-replicator" in service_dep_ordered: # todo[0] to test, to add usage in per site cmd  - active, standby
-            replicator = True
+        if "cluster-replicator" in service_dep_ordered: # todo[0] to test, to
             replicator_index = service_dep_ordered.index("cluster-replicator")
             service_dep_ordered.remove("cluster-replicator") #remove from the main logic
-            sm_process_replicator(sm_dict,data_get_DR_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[0])
+            sm_process_replicator(sm_dict, data_get_dr_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[0])
 
         for serv in service_dep_ordered:
-            for site_to_process, mode in data_get_DR_operation_sequence(sm_dict, serv, cmd, site):
+            for site_to_process, mode in data_get_dr_operation_sequence(sm_dict, serv, cmd, site):
                 if cmd == "stop" and mode == "standby":
                     cli_args.force = True
                     logging.info(f"Force key enabled for procedure 'stop' for service {serv} on passivated site")
@@ -271,7 +272,7 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
             thread.join()
 
         if replicator: #replicator WA
-            sm_process_replicator(sm_dict,data_get_DR_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[1])
+            sm_process_replicator(sm_dict, data_get_dr_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[1])
             service_dep_ordered.insert(replicator_index,"cluster-replicator")
 
         print_service_operation_summary("tail",sm_dict, service_dep_ordered, cmd, site )
@@ -285,11 +286,13 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
 
     return True
 
+
 def sm_process_replicator(sm_dict,site_mode:[]):
     """ Process replicator in blocking mode"""
     logging.debug(f"Processing replicator service on site:{site_mode[0]} to mode:{site_mode[1]}")
     sm_process_service(site_mode[0], "cluster-replicator", site_mode[1])
     data_sortout_service_results(sm_poll_service_required_status(site_mode[0], "cluster-replicator", site_mode[1], sm_dict))
+
 
 def data_sortout_service_results(result: Tuple[dict, bool], force: bool = False):
     """ Put service name in appropriate list(failed or done)
@@ -306,6 +309,7 @@ def data_sortout_service_results(result: Tuple[dict, bool], force: bool = False)
 
     if not result[1] and force:
         logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")
+
 
 def print_service_operation_summary(part, sm_dict, services_to_run: [], cmd="", site="", ):
     def get_sm_managed_services(sm_dict):
@@ -352,10 +356,10 @@ def data_get_opposite_site(sm_dict, site):
             opposite_site = s
     return opposite_site
 
-def data_get_DR_operation_sequence(sm_dict, serv, procedure, site) -> [[], []]: # move active, stop standby
+
+def data_get_dr_operation_sequence(sm_dict, serv, procedure, site) -> [[], []]: # move active, stop standby
     """ Get DR operation(cmd) site sequence in the correct order for specific service for provided DR procedure
-    Return:
-        [['site1','standby'],['site2','active']]
+    @returns: [['site1','standby'],['site2','active']]
     """
     opposite_site = data_get_opposite_site(sm_dict, site)
     site_sequence = []
@@ -376,68 +380,45 @@ def data_get_DR_operation_sequence(sm_dict, serv, procedure, site) -> [[], []]: 
 
     return site_sequence
 
-def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = None ) -> Tuple[list, bool]:
+def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = None ) -> Tuple[list, bool, object]:
     """ Make ordered and validated services list from all sites in sm_dict
-    @return: ordered list or empty if not possible to assemble(integrity issue), True or False  in case minor issue
+    @returns: ordered list or empty if not possible to assemble(integrity issue), True or False  in case minor issue
+        TopologicalSorter object in case success
     @todo[3]: cross site validation:
-        before , after params are the same and exists
     """
-    def after_before_sort(ll: list) -> []:
-        """Sort service list using AFTER and BEFORE dependency
-        @param ll:[]: services list with deps in special format, see @Note
-        @returns: list of sorted services
+    def build_after_before_graph(dep_list: dict) -> TopologicalSorter:
+        """Assemble directed graph using AFTER and BEFORE dependency
+        @param dep_list:[]: services list with deps in special format, see @Note
+        @returns: TopologicalSorter graph
         @todo: [3] multiple dependency service support
         @Note:  format of input list  [{'serv2':{'after':['serv1'],'before':['serv3']}},...]"""
 
-        sorted_list = [ list(ii.keys())[0] for ii in ll ]  # prepare a list for sorting
-        for i in ll:
-            item = list(i.keys())[0]
-            if i[item]['after'] and i[item]['after'][0] in sorted_list and \
-                    sorted_list.index(item) < sorted_list.index(i[item]['after'][0]):
-                # if after not empty and after present and i  before dep
-                sorted_list.insert(sorted_list.index(i[item]['after'][0]) + 1, #put i item AFTER dependent item
-                                   sorted_list.pop(sorted_list.index(item)))
-            if i[item]['before'] and i[item]['before'][0] in sorted_list and \
-                    sorted_list.index(item) > sorted_list.index(i[item]['before'][0]):
-                sorted_list.insert(sorted_list.index(i[item]['before'][0]),#  put i item before dependent item
-                                   sorted_list.pop(sorted_list.index(item)))
-        return sorted_list
-    def after_before_check(ll: list) -> {}:
+        ts=TopologicalSorter()
+        for item in dep_list.keys():
+            ts.add(item)
+            if dep_list[item].get('after') and dep_list[item]['after'][0] in [ii for ii in dep_list.keys()]:
+                ts.add(item, dep_list[item]['after'][0]) #if dep[AFTER,BEFORE] is present and exist in the dep_list - add it
+            if dep_list[item].get('before') and dep_list[item]['before'][0] in [ii for ii in dep_list.keys()]:
+                ts.add(dep_list[item]['before'][0], item)
+        return ts
+    def after_before_check(ll: dict) -> {}:
         """ Check AFTER and BEFORE dependency integrity
         @returns: dict of services if any with non exist deps , see format in @note
-        @note: the return dict format {service:{'before':wrong_dep}}}"""
-
+        @note: the return dict format {service:{'before':wrong_dep}}}
+        """
         wrong_dep_list={}
-        sorted_list = [ list(i.keys())[0] for i in ll ]  # prepare a list for sorting
-        for i in ll:
-            item = list(i.keys())[0]
-            if i[item]['after'] and  i[item]['after'][0] not in sorted_list: #if wrong dep - collect them
-                if not wrong_dep_list.get(item):
-                    wrong_dep_list[item]={}
-                wrong_dep_list[item]['after'] = i[item]['after']
+        for i in ll.keys():
+            if ll[i]['after'] and  ll[i]['after'][0] not in [ii for ii in ll.keys()]: #if wrong dep - collect them
+                if not wrong_dep_list.get(i):
+                    wrong_dep_list[i]={}
+                wrong_dep_list[i]['after'] = ll[i]['after']
 
-            if i[item]['before'] and i[item]['before'][0] not in sorted_list: #if wrong dep - collect them
-                if not wrong_dep_list.get(item):
-                    wrong_dep_list[item]={}
-                wrong_dep_list[item]['before'] = i[item]['before']
+            if ll[i]['before'] and ll[i]['before'][0] not in [ii for ii in ll.keys()]: #if wrong dep - collect them
+                if not wrong_dep_list.get(i):
+                    wrong_dep_list[i]={}
+                wrong_dep_list[i]['before'] = ll[i]['before']
 
         return wrong_dep_list
-    def integrity_check(sorted: list, current: list) -> bool:
-        """ Check AFTER and BEFORE dependency integrity
-        @return: True or False"""
-
-        ret = True
-        for i in current:
-            item=list(i.keys())[0]
-            if i[item]['after'] and i[item]['after'][0] in sorted and \
-                    sorted.index(item) < sorted.index(i[item]['after'][0]):
-                ret=False
-                logging.error(f"Service {item} has integrity error") if not ret else None
-            if i[item]['before'] and i[item]['before'][0] in sorted and \
-                    sorted.index(item) > sorted.index(i[item]['before'][0]):
-                ret=False
-                logging.error(f"Service {item} has integrity error") if not ret else None
-        return ret
 
     ret = True
     integrity_error = False
@@ -452,19 +433,19 @@ def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = 
     # collect sorted ordered service list
     service_lists = {}
     for site in temp_dict['sites']:
-        list_to_process = [{serv:value} for serv,value in
-                            temp_dict['sites'][site]['services'].items() ]
-        service_lists[site] = after_before_sort(list_to_process)
-        if not integrity_check(service_lists[site], list_to_process):
-            logging.error(f"Site {site} has integrity issues ")
+        try:
+            service_lists[site] = [i for i in build_after_before_graph(temp_dict['sites'][site]['services']).static_order()]
+            for service, depends in after_before_check(temp_dict['sites'][site]['services']).items():  # check deps
+                for depend in depends:
+                    logging.warning(f"Site: {site}. Service: {service} has nonexistent "
+                                    f"{depend} dependency: {depends[depend]}")
+                    ret = False
+        except CycleError as e:
+            logging.error(f"Site {site} has integrity issues: %s",e)
             integrity_error = True
-        for service, depends in after_before_check(list_to_process).items(): # check deps
-            for depend in depends:
-                logging.warning(f"Site: {site}. Service: {service} has nonexistent "
-                                f"{depend} dependency: {depends[depend]}")
-                ret = False
+
     if integrity_error:
-        return [], False # return error, integrity issue
+        return [], False, None # return error, integrity issue
 
     # compare service lists when two sites are ready only
     equal_list = True
@@ -475,13 +456,12 @@ def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = 
 
     # check services equality on all sites
     if equal_list:
-        return list(list(service_lists.values())[0]), ret
+        return list(list(service_lists.values())[0]), ret, \
+               build_after_before_graph(temp_dict['sites'][list(temp_dict['sites'].keys())[0]]['services'])
     else:
         logging.warning(f"The service lists are different on sites: "
                         f"{list(service_lists.values())[0]} {list(service_lists.values())[1]} ")
-        set_2=frozenset(list(service_lists.values())[1])
-        intersection=[x for x in list(service_lists.values())[0] if x in set_2]
-        return intersection, False # return intersection from both lists
+        return [], False, None
 
 
 def validate_operation(sm_dict:dict, service_dep_ordered: Tuple, cmd, site, services_to_run:[]=None) -> bool:
@@ -660,9 +640,9 @@ def sm_poll_service_required_status(site, service, mode, sm_dict) -> Tuple[Dict,
 
 def print_main_table(sm_dict, services_to_run, sites_name: []):
     """ Method intended to display main section of status table
-    :param dict sm_dict: the results of the procedure received from the site-manager
-    :param list services_to_run: the list of services that have been processed
-    :param list sites_name: list of cluster names
+    @param dict sm_dict: the results of the procedure received from the site-manager
+    @param list services_to_run: the list of services that have been processed
+    @param list sites_name: list of cluster names
     """
     def make_table(header, sites_name):
         """
