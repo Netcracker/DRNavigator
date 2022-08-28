@@ -1,0 +1,15 @@
+{{ if eq .Values.paas_platform "openshift" }}
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: site-manager
+spec:
+  host: {{ .Values.ingress.name }}
+  port:
+    targetPort: web
+  tls:
+    termination: passthrough
+  to:
+    kind: Service
+    name: site-manager
+{{ end }}

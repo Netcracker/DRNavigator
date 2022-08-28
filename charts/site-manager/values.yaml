@@ -35,3 +35,5 @@ image:
 ingress:
   create: true
   name: ""
+
+paas_platform: kubernetes
