@@ -398,14 +398,14 @@ def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = 
     """ Make ordered and validated services list from all sites in sm_dict
     @returns: ordered list or empty if not possible to assemble(integrity issue), True or False  in case minor issue
         TopologicalSorter object in case success
-    @todo[3]: cross site validation:
+    @todo[3]: cross site validation
     """
     def build_after_before_graph(dep_list: dict) -> TopologicalSorter:
         """Assemble directed graph using AFTER and BEFORE dependency
-        @param dep_list:[]: services list with deps in special format, see @Note
+        @param dep_list:[]: services list with deps in special format, see @note
         @returns: TopologicalSorter graph
         @todo: [3] multiple dependency service support
-        @Note:  format of input list  [{'serv2':{'after':['serv1'],'before':['serv3']}},...]"""
+        @note:  format of input list  [{'serv2':{'after':['serv1'],'before':['serv3']}},...]"""
 
         ts=TopologicalSorter()
         for item in dep_list.keys():
@@ -690,7 +690,6 @@ def print_main_table(sm_dict, services_to_run, sites_name: []):
         service_pt_row = list()
         service_pt_row.append(service_item)
         for sites_item in sites_name:
-            #TODO empty response handling
             if sm_dict['sites'][sites_item]['status'] and sm_dict['sites'][sites_item]['services'][service_item]['status']:
                 service_pt_row.append(
                     f"{sm_dict['sites'][sites_item]['services'][service_item]['status']['mode']} / "
