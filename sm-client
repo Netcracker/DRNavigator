@@ -4,13 +4,13 @@ Company:     NetCracker
 Author:      Core PaaS Group
 Version:     0.7
 Date:        2021-11-19
-Description: Client util to communicate with site-manager in kubernetes clusters
-
+Description: Client util to communicate with site-manager in kubernetes based clusters
 @todo[3]
     split current single source into modules
     share common code with sm ?
     make smclient delivery as single binary, using pyinstaller ???
     json output
+    SM specific data structures: sm_dict; service response
 """
 
 import argparse
@@ -190,7 +190,7 @@ def data_make_ignored_services(sm_dict:dict, service_dep_ordered: list) -> []:
 
 
 def data_get_available_sites(sm_dict:dict) -> []:
-    """ Return list of sites with are available"""
+    """ Return list of available sites """
     return [site for site in sm_dict['sites'].keys() if sm_dict['sites'][site]['status']]
 
 
@@ -216,7 +216,7 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
 
     ignored_services.extend(data_make_ignored_services(sm_dict, service_dep_ordered))
     thread_pool = []
-    thread_result_queue = Queue(maxsize=10)
+    thread_result_queue = Queue(maxsize=10) #todo[] to make max number of services
     if cmd in ("status"):
         for serv in service_dep_ordered:
             for site_i in data_get_available_sites(sm_dict):
@@ -265,13 +265,13 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
         print_service_operation_summary("top",sm_dict, service_dep_ordered, cmd, site )
 
         replicator = None #replicator WA
-        if "cluster-replicator" in service_dep_ordered: # todo[0] to test, to
+        if "cluster-replicator" in service_dep_ordered:
             replicator = True
             replicator_index = service_dep_ordered.index("cluster-replicator")
             service_dep_ordered.remove("cluster-replicator") #remove from the main logic
             sm_process_replicator(sm_dict, data_get_dr_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[0])
 
-        for serv in service_dep_ordered:
+        for serv in service_dep_ordered: #todo[0] to replace with ts
             for site_to_process, mode in data_get_dr_operation_sequence(sm_dict, serv, cmd, site):
                 if cmd == "stop" and mode == "standby":
                     cli_args.force = True
