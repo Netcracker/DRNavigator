@@ -250,6 +250,7 @@ def config_checks_init() -> None:
 
         print_additional_table(status_dict, services_to_run, sites_name)
 
+
 def io_http_json_request(url, token="", verify=True, http_body={}, retry=3) -> Tuple[Dict, int]:
     """
     Method to send GET/POST requests to service rep
@@ -306,6 +307,7 @@ def io_http_json_request(url, token="", verify=True, http_body={}, retry=3) -> T
         logging.error("General error")
 
     return {},False
+
 
 def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
     """
@@ -975,10 +977,17 @@ def main_func(procedure, site, run_services, skip_services, force):
         thread.join()
 
     if replicator in all_services and replicator in services_to_run and procedure in ["move", "stop", "active"]:
-        sm_dict["services"][replicator]["sequence"] = ["active"]
-        run(replicator, procedure, force, no_wait)
-        if replicator in failed_services and replicator in done_services:
-            done_services.remove(replicator)
+        if len(failed_services) == 0:
+            sm_dict["services"][replicator]["sequence"] = ["active"]
+            run(replicator, procedure, force, no_wait)
+            if replicator in failed_services and replicator in done_services:
+                done_services.remove(replicator)
+        else:
+            if replicator in done_services:
+                done_services.remove(replicator)
+            logging.error(f"Service {replicator} marked as failed due to dependencies")
+            failed_services.append(replicator)
+
         done_services = list(set(done_services))
         failed_services = list(set(failed_services))
 
@@ -1014,6 +1023,7 @@ def main_func(procedure, site, run_services, skip_services, force):
     after_stateful = []
     run_services = []
     skip_services = []
+
 
 if __name__ == "__main__":
     config_checks_init()
