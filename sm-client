@@ -65,7 +65,7 @@ failed_services = []
 sm_conf = {}  # global config.yaml and some RO config parameters
 
 SERVICE_DEFAULT_TIMEOUT = None
-thread_result_queue = None
+thread_result_queue = Queue(maxsize=-1)
 
 ReadOnly_cmd = ("status","list")
 DR_procedures = ("move", "stop") + ReadOnly_cmd  # DR procedures: switchover, failover
@@ -188,26 +188,28 @@ def data_get_available_sites(sm_dict:dict) -> []:
     return [site for site in sm_dict['sites'].keys() if sm_dict['sites'][site]['status']]
 
 
-def sm_process_service_with_polling(site, service, cmd, sm_dict,force , thread_result_queue) -> None:
-        if service not in "cluster-replicator":  # replicator WA todo replicator
-            thread_result_queue.put(service)
-            logging.debug(f"Skipping {service} in thread")
-            return
+def sm_process_service_with_polling(site, service, cmd, sm_dict,force) -> None:
+    global thread_result_queue
 
-        if cmd in site_cmds:
-            mode=data_convert_sitecmd_to_dr_mode(cmd)
-            sm_process_service(site, service, mode)
-            data_sortout_service_results(sm_poll_service_required_status(site, service, mode, sm_dict))
-        elif cmd in DR_procedures:
-            for site_to_process, mode in data_get_dr_operation_sequence(sm_dict, service, cmd, site):
-                if cmd == "stop" and mode == "standby":
-                    force=True
-                    logging.info(f"Force key enabled for procedure 'stop' for service {service} on passivated site")
-                sm_process_service(site, service, mode)
-                data_sortout_service_results(sm_poll_service_required_status(site, service, mode, sm_dict), force)
-
+    if service in "cluster-replicator":  # replicator WA todo replicator
         thread_result_queue.put(service)
-        logging.info(f"Processing {service} in thread")
+        logging.debug(f"Skipping {service} in thread")
+        return
+
+    if cmd in site_cmds:
+        mode=data_convert_sitecmd_to_dr_mode(cmd)
+        sm_process_service(site, service, mode)
+        data_sortout_service_results(sm_poll_service_required_status(site, service, mode, sm_dict))
+    elif cmd in DR_procedures:
+        for site_to_process, mode in data_get_dr_operation_sequence(sm_dict, service, cmd, site):
+            if cmd == "stop" and mode == "standby":
+                force=True
+                logging.info(f"Force key enabled for procedure 'stop' for service {service} on passivated site")
+            sm_process_service(site, service, mode)
+            data_sortout_service_results(sm_poll_service_required_status(site, service, mode, sm_dict), force)
+
+    thread_result_queue.put(service)
+    logging.info(f"Processing {service} in thread")
 
 
 def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = None):
@@ -225,8 +227,6 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
 
     ignored_services.extend(data_make_ignored_services(sm_dict, service_dep_ordered))
     thread_pool = []
-    global thread_result_queue
-    thread_result_queue = Queue(maxsize=len(service_dep_ordered))
     if cmd in ("status"):
         for serv in service_dep_ordered:
             for site_i in data_get_available_sites(sm_dict):
@@ -266,7 +266,8 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
                 thread.name=f"Thread: {serv}"
                 thread_pool.append(thread)
                 thread.start()
-            serv_done=thread_result_queue.get()
+            global thread_result_queue
+            serv_done = thread_result_queue.get()
             if serv_done in failed_services: # mark failed and skip successors of serv_done
                 for s in ts.successors(serv_done):
                     ts.done(s)
