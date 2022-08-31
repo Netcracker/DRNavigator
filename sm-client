@@ -6,8 +6,8 @@ Version:     0.7
 Date:        2021-11-19
 Description: Client util to communicate with site-manager in kubernetes based clusters
 @todo[3]
-    split current single source into modules
-    share common code with sm ?
+    split current single source into modules,classes
+    share common code with sm
     make smclient delivery as single binary, using pyinstaller ???
     json output
     SM specific data structures: sm_dict; service response
@@ -63,6 +63,7 @@ ignored_services = []
 failed_services = []
 
 sm_conf = {}  # global config.yaml and some RO config parameters
+args = None
 
 SERVICE_DEFAULT_TIMEOUT = None
 thread_result_queue = Queue(maxsize=-1)
@@ -78,7 +79,6 @@ skip_services = []
 def init_and_check_config(args) -> bool:
     """ Main entry point. Provides validations, config parsing and initialization
     @returns: True of False  """
-
     #TODO python version check
     #sys.version_info
     #sys.version_info(major=3, minor=9, micro=13, releaselevel='final', serial=0)
@@ -109,12 +109,7 @@ def init_and_check_config(args) -> bool:
 
     logging.debug(f"Parsed config: {conf_parsed}")
 
-    global SM_HTTP_SECURE
     global FRONT_HTTP_AUTH
-
-    global SM_HTTPS_SECURE
-    SM_HTTPS_SECURE = not args.insecure
-
     FRONT_HTTP_AUTH = conf_parsed.get("sm-client", {}).get("http_auth", False)
 
     global SERVICE_DEFAULT_TIMEOUT
@@ -124,13 +119,10 @@ def init_and_check_config(args) -> bool:
     # Check services for running
     if args.run_services != '':
         run_services = args.run_services.replace(',', ' ').replace('  ', ' ').split(' ')
-    else:
-        run_services = []
+
     global skip_services
     if args.skip_services != '':
         skip_services = args.skip_services.replace(',', ' ').replace('  ', ' ').split(' ')
-    else:
-        skip_services = []
 
     site_names = [i["name"] for i in conf_parsed["sites"]]
     for site in site_names:
@@ -150,7 +142,7 @@ def init_and_check_config(args) -> bool:
         sm_conf[site] = {}
         sm_conf[site]["url"] = site_url
         sm_conf[site]["token"] = site_token
-        sm_conf[site]["cacert"] = SM_HTTPS_SECURE if not SM_HTTPS_SECURE else site_cacert
+        sm_conf[site]["cacert"] = False if args.insecure else site_cacert
 
     return True
 
@@ -188,7 +180,7 @@ def data_get_available_sites(sm_dict:dict) -> []:
     return [site for site in sm_dict['sites'].keys() if sm_dict['sites'][site]['status']]
 
 
-def sm_process_service_with_polling(site, service, cmd, sm_dict,force) -> None:
+def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
     global thread_result_queue
 
     if service in "cluster-replicator":  # replicator WA todo replicator
@@ -203,8 +195,10 @@ def sm_process_service_with_polling(site, service, cmd, sm_dict,force) -> None:
     elif cmd in DR_procedures:
         for site_to_process, mode in data_get_dr_operation_sequence(sm_dict, service, cmd, site):
             if cmd == "stop" and mode == "standby":
-                force=True
+                force = True
                 logging.info(f"Force key enabled for procedure 'stop' for service {service} on passivated site")
+            else:
+                force = args.force
             sm_process_service(site, service, mode)
             data_sortout_service_results(sm_poll_service_required_status(site, service, mode, sm_dict), force)
 
@@ -262,7 +256,7 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
         while ts.is_active():
             for serv in ts.get_ready():
                 thread=threading.Thread(target=sm_process_service_with_polling,
-                                        args=(site, serv, cmd, sm_dict, cli_args.force))
+                                        args=(site, serv, cmd, sm_dict))
                 thread.name=f"Thread: {serv}"
                 thread_pool.append(thread)
                 thread.start()
@@ -763,7 +757,6 @@ def parse_command_line() -> argparse.Namespace:
 
 
 if __name__ == "__main__":
-
     args = parse_command_line()
 
     if not init_and_check_config(args):

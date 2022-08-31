@@ -15,6 +15,7 @@ import threading
 import yaml
 
 
+
 def pytest_namespace():
     return {'site_name':None}
 
@@ -23,7 +24,7 @@ def args_init():
     args=argparse.ArgumentParser
     args.verbose=True
     args.insecure=True
-    args.config="config.yaml"
+    args.config="config_test.yaml"
     args.run_services=""
     args.skip_services=""
     init_and_check_config(args)
@@ -65,6 +66,24 @@ def test_process_service__rw_ok(caplog):
            code == HTTPStatus.OK, \
         "Returned: non empty dict, valid JSON, JSON contains valid response"
 
+
+
+def test_sm_process_service(mocker,caplog):
+    args_init()
+    test_resp = {'services': {'test1': {'healthz': 'up', 'mode': 'active', 'status': 'done'}}}
+    caplog.set_level(logging.DEBUG)
+    fake_resp=mocker.Mock()
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    fake_resp.status_code=HTTPStatus.OK
+ 
+
+    mocker.patch("smclient.requests.Session.post", return_value=fake_resp)
+
+    json_body_s, ret, code = sm_process_service("k8s-1","test2", "active")
+
+    assert json_body_s['services'] == {'test1': {'healthz': 'up', 'mode': 'active', 'status': 'done'}} and \
+        ret == True and \
+        code == HTTPStatus.OK
 
 def test_make_ignored_services():
     sm_dict={"sites":
