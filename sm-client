@@ -199,8 +199,8 @@ def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
                 logging.info(f"Force key enabled for procedure 'stop' for service {service} on passivated site")
             else:
                 force = args.force
-            sm_process_service(site, service, mode)
-            data_sortout_service_results(sm_poll_service_required_status(site, service, mode, sm_dict), force)
+            sm_process_service(site_to_process, service, mode)
+            data_sortout_service_results(sm_poll_service_required_status(site_to_process, service, mode, sm_dict), force)
 
     thread_result_queue.put(service)
     logging.info(f"Processing {service} in thread")
@@ -253,7 +253,7 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
                 logging.error(f"cluster-replicator failed, skipping rest of services, exiting")
                 exit(1)
 
-        while ts.is_active():
+        while ts and ts.is_active():
             for serv in ts.get_ready():
                 thread=threading.Thread(target=sm_process_service_with_polling,
                                         args=(site, serv, cmd, sm_dict))
@@ -474,9 +474,9 @@ def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = 
         ts.prepare()
         return list(list(service_lists.values())[0]), ret, ts
     else:
-        logging.warning(f"The service lists are different on sites: "
+        logging.warning(f"The service lists are different on sites: " 
                         f"{list(service_lists.values())[0]} {list(service_lists.values())[1]} ")
-        return [], False, None
+        return [], False, None #todo[1] might be diff list on both, how to show status/list/move ?
 
 
 def validate_operation(sm_dict:dict, service_dep_ordered: Tuple, cmd, site, services_to_run:[]=None) -> bool:
@@ -504,6 +504,9 @@ def validate_operation(sm_dict:dict, service_dep_ordered: Tuple, cmd, site, serv
     else:
         ret = check_site_ssl_available(site)
 
+    if not ret:
+        return False
+
     # warn about absent --run-service
     for s in services_to_run if services_to_run else []:
         for site_i in [data_get_opposite_site(sm_dict, site) if cmd in "stop" else site] \
@@ -516,7 +519,7 @@ def validate_operation(sm_dict:dict, service_dep_ordered: Tuple, cmd, site, serv
         logging.critical("Not able to perform 'move' operation because of dependency issues")
         return False
 
-    return ret
+    return True
 
 
 def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None, retry=3) -> Tuple[bool, Dict, int]:
