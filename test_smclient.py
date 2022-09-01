@@ -20,11 +20,11 @@ def pytest_namespace():
     return {'site_name':None}
 
 
-def args_init():
+def args_init(config=None):
     args=argparse.ArgumentParser
     args.verbose=True
     args.insecure=True
-    args.config="config_test.yaml"
+    args.config= config if config else "config_test.yaml"
     args.run_services=""
     args.skip_services=""
     init_and_check_config(args)
@@ -37,7 +37,7 @@ def test_process_service__status_ok(caplog):
     """ SUCCESS basic general success case without SSL verification
     """
     caplog.set_level(logging.DEBUG)
-    args_init()
+    args_init("config.yaml")
     with open("config.yaml", 'r') as stream:
         try:
             parsed_yaml=yaml.safe_load(stream)
@@ -57,7 +57,7 @@ def test_process_service__status_ok(caplog):
 def test_process_service__rw_ok(caplog):
     """ SUCCESS basic general success case without SSL verification
     """
-    args_init()
+    args_init("config.yaml")
     json_body_s, ret, code=sm_process_service(pytest.site_name if hasattr(pytest, "site_name") else "k8s-1",
                                            "cluster-replicator", "status")
     assert ret == True and \
