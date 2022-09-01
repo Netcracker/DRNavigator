@@ -75,11 +75,10 @@ def test_sm_process_service(mocker,caplog):
     fake_resp=mocker.Mock()
     fake_resp.json=mocker.Mock(return_value=test_resp)
     fake_resp.status_code=HTTPStatus.OK
- 
 
     mocker.patch("smclient.requests.Session.post", return_value=fake_resp)
 
-    json_body_s, ret, code = sm_process_service("k8s-1","test2", "active")
+    json_body_s, ret, code = sm_process_service("k8s-1","test1", "active")
 
     assert json_body_s['services'] == {'test1': {'healthz': 'up', 'mode': 'active', 'status': 'done'}} and \
         ret == True and \

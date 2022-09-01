@@ -349,7 +349,7 @@ def print_service_operation_summary(part, sm_dict, services_to_run: [], cmd="", 
     elif part in "tail":
         logging.info("---------------------------------------------------------------------")
         logging.info("Summary:")
-        logging.info(f"services that successfully done: {done_services}")
+        logging.info(f"services that successfully done: {list(dict.fromkeys(done_services))}")
         logging.info(f"services that failed:            {failed_services}")
         logging.info(f"services that ignored:           {ignored_services}")
         logging.info("---------------------------------------------------------------------")
@@ -506,8 +506,8 @@ def validate_operation(sm_dict:dict, service_dep_ordered: Tuple, cmd, site, serv
 
     # warn about absent --run-service
     for s in services_to_run if services_to_run else []:
-        for site_i in [data_get_opposite_site(sm_dict, site) if cmd in "stop" else site
-                if site else sm_dict["sites"].keys()]:
+        for site_i in [data_get_opposite_site(sm_dict, site) if cmd in "stop" else site] \
+                if site else sm_dict["sites"].keys():
             if s not in sm_dict["sites"][site_i]["services"].keys():
                 logging.warning(f"Service {s} does not exist in {site_i} kubernetes cluster")
 
