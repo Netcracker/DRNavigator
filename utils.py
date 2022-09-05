@@ -43,6 +43,8 @@ DEPLOYMENT_ADDITIONAL_DELAY = 30
 
 SM_AUTH_TOKEN = ""
 
+SM_VERIFY_CA = os.environ.get("SM_VERIFY_CA", True)
+
 
 def send_post(url, mode, no_wait):
     """
@@ -83,7 +85,7 @@ def send_post(url, mode, no_wait):
 
 def _send_post(url, obj, headers):
     try:
-        resp = requests.post(url, timeout=20, data=obj, headers=headers)
+        resp = requests.post(url, timeout=20, data=obj, headers=headers, verify=SM_VERIFY_CA)
         logging.debug(f"REST response: {resp} and return code: {resp.status_code}")
         response = resp.json()
         ret_code = resp.status_code
@@ -123,7 +125,7 @@ def send_get(url):
 
     for _ in range(5):
         try:
-            resp = requests.get(url, timeout=10, headers=headers)
+            resp = requests.get(url, timeout=10, headers=headers, verify=SM_VERIFY_CA)
             return resp.json()
         except requests.exceptions.SSLError:
             logging.error("SSL certificate verify failed")
@@ -482,3 +484,4 @@ def get_token(api_watch=False):
                         logging.fatal("Serviceaccount sm-auth-sa was deleted. Exit")
                         os._exit(1)
             time.sleep(15)
+
