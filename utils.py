@@ -35,7 +35,7 @@ SM_WEB_PORT = os.environ.get("SM_WEB_PORT", 8443)
 FRONT_HTTP_AUTH = os.environ.get("FRONT_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
 BACK_HTTP_AUTH = os.environ.get("BACK_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
 
-SM_DEBUG = os.environ.get("SM_DEBUG", False)
+SM_DEBUG = os.environ.get("SM_DEBUG", False) in (1, True, "Yes", "yes", "True", "true")
 
 SM_KUBECONFIG_FILE = os.environ.get("SM_KUBECONFIG_FILE", "")
 
@@ -44,6 +44,8 @@ DEPLOYMENT_ADDITIONAL_DELAY = 30
 SM_AUTH_TOKEN = ""
 
 SM_VERIFY_CA = os.environ.get("SM_VERIFY_CA", True)
+if SM_VERIFY_CA in ("Yes", "yes", "No", "no", "True", "true", "False", "false"):
+    SM_VERIFY_CA = SM_VERIFY_CA in ("Yes", "yes", "True", "true")
 
 def send_post(url, mode, no_wait):
     """
@@ -53,7 +55,7 @@ def send_post(url, mode, no_wait):
     :param string mode: is the role of cluster part
     :param bool no_wait: special flag for microservice to show type of replication between of parts of database cluster
     """
-
+    print(f"Value = %s, Type = %s", SM_VERIFY_CA, type(SM_VERIFY_CA))
     obj = json.dumps({"mode": mode, "no-wait": no_wait})
     headers = {
         'Content-type': 'application/json',
@@ -105,8 +107,8 @@ def _send_post(url, obj, headers):
         logging.error("Wrong JSON data received: \n %s" % str(e))
     except requests.exceptions.RequestException as e:
         logging.error("General request error %s",e.__doc__)
-    except:
-        logging.error("General error")
+    except Exception as e:
+        logging.error("General error\n %s" % str(e))
     return None
 
 
@@ -135,8 +137,8 @@ def send_get(url):
             logging.error("Wrong JSON data received: \n %s" % str(e))
         except requests.exceptions.RequestException as e:
             logging.error("General request error %s",e.__doc__)
-        except:
-            logging.error("General error")
+        except Exception as e:
+            logging.error("General error\n %s" % str(e))
 
     return {}
 
