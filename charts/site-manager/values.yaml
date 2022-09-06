@@ -23,6 +23,9 @@ env:
   # set HTTP scheme for microservices
   HTTP_SCHEME: "http://"
 
+  # TLS verification in operators (True, False or path to CA file)
+  SM_VERIFY_CA: "True"
+
 serviceAccount:
   create: true
   name: site-manager-sa

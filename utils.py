@@ -45,7 +45,6 @@ SM_AUTH_TOKEN = ""
 
 SM_VERIFY_CA = os.environ.get("SM_VERIFY_CA", True)
 
-
 def send_post(url, mode, no_wait):
     """
     Method to send POST requests to services
@@ -484,4 +483,3 @@ def get_token(api_watch=False):
                         logging.fatal("Serviceaccount sm-auth-sa was deleted. Exit")
                         os._exit(1)
             time.sleep(15)
-

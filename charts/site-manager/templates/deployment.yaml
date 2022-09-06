@@ -49,6 +49,8 @@ spec:
             value: "{{ .Values.env.SERVICE_DEFAULT_TIMEOUT }}"
           - name: HTTP_SCHEME
             value: "{{ .Values.env.HTTP_SCHEME }}"
+          - name: SM_VERIFY_CA
+            value: "{{ .Values.env.SM_VERIFY_CA }}"
         ports:
           - containerPort: 8443
             protocol: TCP
