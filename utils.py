@@ -55,7 +55,6 @@ def send_post(url, mode, no_wait):
     :param string mode: is the role of cluster part
     :param bool no_wait: special flag for microservice to show type of replication between of parts of database cluster
     """
-    print(f"Value = %s, Type = %s", SM_VERIFY_CA, type(SM_VERIFY_CA))
     obj = json.dumps({"mode": mode, "no-wait": no_wait})
     headers = {
         'Content-type': 'application/json',

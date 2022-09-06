@@ -18,7 +18,12 @@ spec:
   ipAddresses:
 {{ ( include "site-manager.certIpAddresses" . | indent 4) }}
   issuerRef:
-    name: {{ .Values.tls.generateCerts.issuerName }}
-    kind: {{ .Values.tls.generateCerts.issuerType }}
+    {{- if .Values.tls.generateCerts.clusterIssuerName }}
+    name: {{ .Values.tls.generateCerts.clusterIssuerName }}
+    kind: ClusterIssuer
+    {{- else }}
+    name: site-manager-tls-issuer
+    kind: Issuer
+    {{- end }}
     group: cert-manager.io
 {{- end }}

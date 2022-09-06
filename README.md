@@ -21,8 +21,7 @@ To support ability of services be managed by `site-manager` you should prepare f
     $ kubectl create namespace site-manager
     ```
 
-2. If you integrate with cert-manager, create issuer or cluster issuer, which will issue your certificate (for details see offitial [cert-manager documentation](https://cert-manager.io/docs/)).  
-   In other case generate self-signed certificates for `site-manager` service:
+2. Generate self-signed certificates for `site-manager` service if you don't integrate with cert-manager
 
     2.1. Create configuration file for generation SSL certificate:
 
@@ -69,7 +68,24 @@ To support ability of services be managed by `site-manager` you should prepare f
 
 3. Create CRD `sitemanagers.netcracker.com`
 
-    Generate base64 string from ca.crt certificate (your own, or whitch is used in issuer):
+    3.1. In case of integration with cert-manager you should add following annotation in crd, that helps update caBundle in it's webhook:
+
+    ```
+    apiVersion: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        metadata:
+            name: sitemanagers.netcracker.com
+            annotations:
+                cert-manager.io/inject-ca-from: <NAMESPACE>/site-manager-tls-certificate
+    ```
+
+     Create CRD `sitemanagers.netcracker.com` without caBundle field:
+
+    ```
+    $ cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
+    ```
+    
+    3.2. In other case generate base64 string from ca.crt certificate:
 
     ```
     $ CA_BUNDLE=$(cat ca.crt | base64 - | tr -d '\n')
@@ -87,7 +103,7 @@ To support ability of services be managed by `site-manager` you should prepare f
     $ kubectl -n site-manager create secret tls sm-certs --cert site-manager-tls.crt --key site-manager-tls.key
     ```
 
-    In case of cert-manager integration it will create automatically during helm chart installation
+    In case of cert-manager integration it will be created automatically during helm chart installation
 
 5. Install `site-manager` helm chart:
 
@@ -117,11 +133,10 @@ To support ability of services be managed by `site-manager` you should prepare f
     | ingress.name                | define URL for `site-manager` ingress                                 | ""                              |
     | paas_platform               | define PAAS type. It can be "kubernetes" or "openshift"               | "kubernetes"                    |
     | tls.generateCerts.enabled   | enable/disable certificates generation via cert-manager               | true                            |
-    | tls.generateCerts.issuerName | define name of used issuer                                           | ""                              |
-    | tls.generateCerts.issuerType | define type of used issuer: Issuer or ClusterIssuer                  | ClusterIssuer                   |
-    | tls.generateCerts.duration   | define duration (days) of created certificate via cert-manager       | 365                             |
-    | tls.generateCerts.subjectAlternativeName.additionalDnsNames    | additional trusted dns names in certificate | []                     |
-    | tls.generateCerts.subjectAlternativeName.additionalIpAddresses | additional trusted ips names in certificate | []                     |
+    | tls.generateCerts.clusterIssuerName | define name cluster issuer, if you wand to use it (if empty, will be created self-signed issuer )  | ""                              |
+    | tls.generateCerts.duration          | define duration (days) of created certificate via cert-manager                                     | 365                             |
+    | tls.generateCerts.subjectAlternativeName.additionalDnsNames    | additional trusted dns names in certificate                             | []                              |
+    | tls.generateCerts.subjectAlternativeName.additionalIpAddresses | additional trusted ips names in certificate                              | []                             |
 
 6. Install `site-manager` to OpenShift
 

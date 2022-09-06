@@ -42,8 +42,7 @@ ingress:
 tls:
   generateCerts:
     enabled: true
-    issuerName: ""
-    issuerType: "ClusterIssuer"
+    clusterIssuerName: ""
     duration: 365
     subjectAlternativeName:
       additionalDnsNames: []
