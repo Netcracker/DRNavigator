@@ -39,4 +39,14 @@ ingress:
   create: true
   name: ""
 
+tls:
+  generateCerts:
+    enabled: true
+    issuerName: ""
+    issuerType: "ClusterIssuer"
+    duration: 365
+    subjectAlternativeName:
+      additionalDnsNames: []
+      additionalIpAddresses: []
+
 paas_platform: kubernetes
