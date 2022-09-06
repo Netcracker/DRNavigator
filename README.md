@@ -132,7 +132,7 @@ To support ability of services be managed by `site-manager` you should prepare f
     | ingress.create              | enable/disable ingress creation                                       | true                            |
     | ingress.name                | define URL for `site-manager` ingress                                 | ""                              |
     | paas_platform               | define PAAS type. It can be "kubernetes" or "openshift"               | "kubernetes"                    |
-    | tls.generateCerts.enabled   | enable/disable certificates generation via cert-manager               | true                            |
+    | tls.generateCerts.enabled   | enable/disable certificates generation via cert-manager               | false                           |
     | tls.generateCerts.clusterIssuerName | define name cluster issuer, if you wand to use it (if empty, will be created self-signed issuer )  | ""                              |
     | tls.generateCerts.duration          | define duration (days) of created certificate via cert-manager                                     | 365                             |
     | tls.generateCerts.subjectAlternativeName.additionalDnsNames    | additional trusted dns names in certificate                             | []                              |

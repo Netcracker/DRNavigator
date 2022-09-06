@@ -41,7 +41,7 @@ ingress:
 
 tls:
   generateCerts:
-    enabled: true
+    enabled: false
     clusterIssuerName: ""
     duration: 365
     subjectAlternativeName:
