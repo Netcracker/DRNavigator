@@ -43,9 +43,9 @@ DEPLOYMENT_ADDITIONAL_DELAY = 30
 
 SM_AUTH_TOKEN = ""
 
-SM_VERIFY_CA = os.environ.get("SM_VERIFY_CA", True)
-if SM_VERIFY_CA in ("Yes", "yes", "No", "no", "True", "true", "False", "false"):
-    SM_VERIFY_CA = SM_VERIFY_CA in ("Yes", "yes", "True", "true")
+CA_CERT = os.environ.get("CA_CERT", True)
+if CA_CERT in ("Yes", "yes", "No", "no", "True", "true", "False", "false"):
+    CA_CERT = CA_CERT in ("Yes", "yes", "True", "true")
 
 def send_post(url, mode, no_wait):
     """
@@ -85,7 +85,7 @@ def send_post(url, mode, no_wait):
 
 def _send_post(url, obj, headers):
     try:
-        resp = requests.post(url, timeout=20, data=obj, headers=headers, verify=SM_VERIFY_CA)
+        resp = requests.post(url, timeout=20, data=obj, headers=headers, verify=CA_CERT)
         logging.debug(f"REST response: {resp} and return code: {resp.status_code}")
         response = resp.json()
         ret_code = resp.status_code
@@ -125,7 +125,7 @@ def send_get(url):
 
     for _ in range(5):
         try:
-            resp = requests.get(url, timeout=10, headers=headers, verify=SM_VERIFY_CA)
+            resp = requests.get(url, timeout=10, headers=headers, verify=CA_CERT)
             return resp.json()
         except requests.exceptions.SSLError:
             logging.error("SSL certificate verify failed")

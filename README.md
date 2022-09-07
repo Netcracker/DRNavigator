@@ -123,7 +123,7 @@ To support ability of services be managed by `site-manager` you should prepare f
     | env.SM_VERSION              | define API group version for CRD                                      | "v2"                            |
     | env.SERVICE_DEFAULT_TIMEOUT | set default timeout for every microservice DR procedure               | 200                             |
     | env.HTTP_SCHEME             | define HTTP scheme for connection to microservice operator            | "http://"                       |
-    | env.SM_VERIFY_CA            | TLS verification in operators (True, False or path to trusted CA file)| "True"                          |
+    | env.CA_CERT                 | TLS verification in operators (True, False or path to trusted CA file)| "True"                          |
     | serviceAccount.create       | enable/disable Service Account creation                               | true                            |
     | serviceAccount.name         | name of Service Account for `site-manager`                            | "site-manager-sa"               |
     | image.repository            | docker image repository name                                          | ghcr.io/netcracker/site-manager |
