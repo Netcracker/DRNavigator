@@ -24,7 +24,7 @@ env:
   HTTP_SCHEME: "http://"
 
   # TLS verification in operators (True, False or path to CA file)
-  CA_CERT: "True"
+  SM_CACERT: "True"
 
 serviceAccount:
   create: true
