@@ -2,8 +2,6 @@
 """
 pytest based unit test
 python3  -m pytest -o log_cli=true -s -v test_smclient.py <-k  test_name*>
-TODO
- - use mock instead of http call
 """
 import json
 import pytest
@@ -12,8 +10,6 @@ from http import HTTPStatus
 import http.server
 import ssl
 import threading
-import yaml
-
 
 
 def pytest_namespace():
@@ -24,53 +20,16 @@ def args_init(config=None):
     args=argparse.ArgumentParser
     args.verbose=True
     args.insecure=True
-    args.config= config if config else "config_test.yaml"
+    args.config=config if config else "config_test.yaml"
     args.run_services=""
     args.skip_services=""
     init_and_check_config(args)
     return args
 
 
-@pytest.mark.skipif(not os.path.exists("config.yaml"),
-                    reason="Need to populate config.yaml https://github.com/Netcracker/DRNavigator/blob/main/documentation/Architecture.md#configuration-file")
-def test_process_service__status_ok(caplog):
-    """ SUCCESS basic general success case without SSL verification
-    """
-    caplog.set_level(logging.DEBUG)
-    args_init("config.yaml")
-    with open("config.yaml", 'r') as stream:
-        try:
-            parsed_yaml=yaml.safe_load(stream)
-        except yaml.YAMLError as exc:
-            print(exc)
-    site=[i["name"] for i in parsed_yaml["sites"]][0]
-    print(f"Using {site}")
-    pytest.site_name=site
-    json_body_s, ret, code=sm_process_service(site, "site-manager", "status")
-    assert ret == True \
-           and type(json_body_s) is dict \
-           and json.loads('"' + str(json_body_s) + '"') \
-           and json_body_s["services"], "Returned: dict, valid JSON, JSON contains valid response"
-
-
-@pytest.mark.depends(on=['test_process_service__status_ok'])
-def test_process_service__rw_ok(caplog):
-    """ SUCCESS basic general success case without SSL verification
-    """
-    args_init("config.yaml")
-    json_body_s, ret, code=sm_process_service(pytest.site_name if hasattr(pytest, "site_name") else "k8s-1",
-                                           "cluster-replicator", "status")
-    assert ret == True and \
-           type(json_body_s) is dict and \
-           json.loads('"' + str(json_body_s) + '"') and \
-           code == HTTPStatus.OK, \
-        "Returned: non empty dict, valid JSON, JSON contains valid response"
-
-
-
-def test_sm_process_service(mocker,caplog):
+def test_sm_process_service(mocker, caplog):
     args_init()
-    test_resp = {'services': {'test1': {'healthz': 'up', 'mode': 'active', 'status': 'done'}}}
+    test_resp={'services':{'test1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
     caplog.set_level(logging.DEBUG)
     fake_resp=mocker.Mock()
     fake_resp.json=mocker.Mock(return_value=test_resp)
@@ -78,11 +37,12 @@ def test_sm_process_service(mocker,caplog):
 
     mocker.patch("smclient.requests.Session.post", return_value=fake_resp)
 
-    json_body_s, ret, code = sm_process_service("k8s-1","test1", "active")
+    json_body_s, ret, code=sm_process_service("k8s-1", "test1", "active")
 
-    assert json_body_s['services'] == {'test1': {'healthz': 'up', 'mode': 'active', 'status': 'done'}} and \
-        ret == True and \
-        code == HTTPStatus.OK
+    assert json_body_s['services'] == {'test1':{'healthz':'up', 'mode':'active', 'status':'done'}} and \
+           ret is True and \
+           code is HTTPStatus.OK
+
 
 def test_make_ignored_services():
     sm_dict={"sites":
@@ -91,7 +51,7 @@ def test_make_ignored_services():
             "serv2":{"sequence":["standby", "active"]},
             "serv3":{"sequence":["standby", "active"]},
             "serv4":{"sequence":["standby", "active"]}}},
-        "site2":{"services":{
+            "site2":{"services":{
                 "serv1":{"sequence":["standby", "active"]},
                 "serv2":{"sequence":["standby", "active"]},
                 "serv3":{"sequence":["standby", "active"]}}}}}
@@ -185,17 +145,17 @@ def test_make_ordered_services_to_process():
             "e":{"after":[], "before":["a"]},
             "f":{"after":[], "before":["c"]},
         }, "status":True}}}
-    sorted_list, code, _ = make_ordered_services_to_process(sm_dict)
-    sorted_list2, code2, _ = make_ordered_services_to_process(sm_dict_one_site)
-    sorted_list3, code3, _ = make_ordered_services_to_process(sm_dict_absent_deps)
-    sorted_list4, code4, _ = make_ordered_services_to_process(sm_dict_wrong_deps)
-    #sorted_list5, code5, _ = make_ordered_services_to_process(sm_dict_diff_lists_intersect)
+    sorted_list, code, _=make_ordered_services_to_process(sm_dict)
+    sorted_list2, code2, _=make_ordered_services_to_process(sm_dict_one_site)
+    sorted_list3, code3, _=make_ordered_services_to_process(sm_dict_absent_deps)
+    sorted_list4, code4, _=make_ordered_services_to_process(sm_dict_wrong_deps)
+    sorted_list5, code5, _=make_ordered_services_to_process(sm_dict_diff_lists_intersect)
 
-    assert sorted_list == ['b','e','f','a','c','d'] and code == True and \
-           sorted_list2 == ['b','e','c','a','d'] and code2 == True and \
-           sorted_list3 == ['b', 'a', 'c'] and code3 == False and \
-           sorted_list4 == [] and code4 == False
-           #sorted_list5 == ["d", "c"] and code5 == False
+    assert sorted_list == ['b', 'e', 'f', 'a', 'c', 'd'] and code is True and \
+           sorted_list2 == ['b', 'e', 'c', 'a', 'd'] and code2 is True and \
+           sorted_list3 == ['b', 'a', 'c'] and code3 is False and \
+           sorted_list4 == [] and code4 is False and \
+           set(sorted_list5) == {'a', 'b', 'c', 'd', 'e', 'f'} and code5 is False
 
 
 def test_io_http_json_request_ok():
@@ -253,13 +213,9 @@ def test_io_http_json_request_ssl_fails():
                                               retry=0)  # thread handles only one request
     thread.join()
     os.remove("self-signed-fake.pem")
-    assert ret == False and \
-           code == ssl.SSLErrorNumber.SSL_ERROR_SSL.__int__() and \
+    assert ret is False and \
+           code is ssl.SSLErrorNumber.SSL_ERROR_SSL.__int__() and \
            not bool(body), "empty body with specific SSL error"
-
-
-def test_poll_service_required_status():
-    assert False
 
 
 def test_validate_operation(caplog):
@@ -267,6 +223,7 @@ def test_validate_operation(caplog):
 
     sm_dict={"sites":{"k8s-1":{"status":True, "return_code":None}}}
     ret=validate_operation(sm_dict, ([], True), "active", "k8s-1")
+    assert ret is True
 
     sm_dict_site_not_available_bySSL={"sites":{"k8s-1":{"status":False, "return_code":1}}}
     ret2=validate_operation(sm_dict_site_not_available_bySSL, ([], True), "active", "k8s-1")
@@ -292,21 +249,21 @@ def test_validate_operation(caplog):
         "sites":{"k8s-1":{"status":True, "return_code":None}, "k8s-2":{"status":True, "return_code":None}}}
     ret6=validate_operation(sm_dict_move_fail, ([], False), "move", "k8s-2")
 
-    assert ret == True and ret2 == False and ret3 == False and ret4 == True and \
-           ret5 == False and ret6 == False
-
-
-def test_main():
-    assert False
+    assert ret2 is False and ret3 is False and ret4 is True and \
+           ret5 is False and ret6 is False
 
 
 def test_get_available_sites():
     sm_dict={"sites":{"k8s-1":{"status":True}, "k8s-2":{"status":True}}}
-    list1 = data_get_available_sites(sm_dict)
+    list1=data_get_available_sites(sm_dict)
 
     sm_dict2={"sites":{"k8s-1":{"status":True}, "k8s-2":{"status":False}}}
-    list2 = data_get_available_sites(sm_dict2)
+    list2=data_get_available_sites(sm_dict2)
 
     sm_dict3={"sites":{"k8s-1":{"status":False}, "k8s-2":{"status":False}}}
-    list3 = data_get_available_sites(sm_dict3)
-    assert list1 == ["k8s-1","k8s-2"] and list2 == ["k8s-1"] and list3 == []
+    list3=data_get_available_sites(sm_dict3)
+    assert list1 == ["k8s-1", "k8s-2"] and list2 == ["k8s-1"] and list3 == []
+
+
+def test_data_sortout_service_results():
+    assert True

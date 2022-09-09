@@ -167,6 +167,7 @@ To check current infra service health status `site-manager` checks URL from `hea
     `sm-client` is running as service in Docker container and can receive REST queries with commands. All procedures occur in runtime. `sm-client` does not exit after all DR procedures finished and continues to listen for new REST queries. `sm-client` can be started on DVM or on Operation portal VM. To achieve HA the `sm-client` can be started on few nodes but only one should launch DR procedures at a time.
 
 3. Run `sm-client` as a service in docker container inside kubernetes cluster
+3. Run `sm-client` as a service in docker container inside kubernetes cluster
 
     ![](/documentation/images/site-manager-SM-new-arch-3.png)
 
@@ -787,7 +788,7 @@ where:
   - `active site` is the action to switch site to `active` mode. This action applied to only one site.
   - `standby site`  is the action to switch site to `standby` mode. This action applied to only one site.
   - `list` is the action to list all or part of microservices of sites.
-  - `status` is the action to show all or part of microservices status.
+  - `status` is the action to show all or part of microservices status and print them in the ordered by dependency list.
 
 ## Configuration file
 
