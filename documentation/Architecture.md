@@ -395,7 +395,7 @@ Output:
 This part describes what requests a Site-manager can respond to on both kubernetes clusters.
 
 - [Site-manager GET](#get-dict-with-all-services-and-settings)
-- [Site-manager POST `{"procedure": "status"}`](#check-infra-service-mode-and-status-of-dr-procedure)
+- [Site-manager POST `{"procedure": "status"}`](#check-infra-services-mode-and-status-of-dr-procedure)
 - [Site-manager POST `{"procedure": "list"}`](#show-list-of-infra-services)
 - [Site-manager POST `{"procedure": "active|standby|disable"}`](#start-dr-procedure-active-standby-or-disable)
 - [Possible errors](#possible-errors)
@@ -494,7 +494,7 @@ Output:
 }
 ```
 
-### Check infra service mode and status of DR procedure:
+### Check infra services mode and status of DR procedure:
 
 **URL**: `site-manager.example.com/sitemanager`
 
@@ -788,7 +788,7 @@ where:
   - `active site` is the action to switch site to `active` mode. This action applied to only one site.
   - `standby site`  is the action to switch site to `standby` mode. This action applied to only one site.
   - `list` is the action to list all or part of microservices of sites.
-  - `status` is the action to show all or part of microservices status and print them in the ordered by dependency list.
+  - `status` is the action to show all or part of microservices status and print them in the list ordered by dependencies.
 
 ## Configuration file
 
