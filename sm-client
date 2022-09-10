@@ -270,6 +270,7 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
                 for s in ts.successors(serv_done):
                     ts.done(s)
                     failed_services.append(s)
+                    logging.warning(f"Service {s} marked as failed due to dependencies")
             ts.done(serv_done)
         for thread in thread_pool:
             thread.join()
@@ -277,6 +278,7 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
         if "cluster-replicator" in service_dep_ordered: #replicator WA @todo replicator
             if len(failed_services) != 0:  #skip replicator in case failed infra and fail it
                 data_sortout_service_results(({'services': {"cluster-replicator":{}}},False))
+                logging.warning(f"Service cluster-replicator marked as failed due to dependencies")
             else:
                 if cmd == "active":
                     sm_process_replicator(sm_dict, [site, data_convert_sitecmd_to_dr_mode(cmd)])
@@ -452,7 +454,7 @@ def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = 
         for serv in temp_dict['sites'][site]['services'].copy().keys():
             if services_to_process and serv not in services_to_process:
                 temp_dict['sites'][site]['services'].pop(serv,None)
-            if ignored_services and serv in ignored_services: #remove skipped/ignored
+            if ignored_services and serv in ignored_services: # remove skipped/ignored
                 temp_dict['sites'][site]['services'].pop(serv, None)
 
     # collect sorted ordered service list
