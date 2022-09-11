@@ -112,6 +112,9 @@ def test_make_ordered_services_to_process():
             "f":{"after":[], "before":["c"]},
             #            "g":{"after":[], "before":["b"]},
         }}}}
+    sorted_list, code, _ = make_ordered_services_to_process(sm_dict)
+    assert sorted_list == ['b', 'e', 'f', 'a', 'c', 'd'] and code is True
+
     sm_dict_one_site={"sites":{
         "siteN":{"services":{
             "a":{"after":[], "before":[]},
@@ -120,18 +123,27 @@ def test_make_ordered_services_to_process():
             "d":{"after":["c"], "before":[]},
             "e":{"after":[], "before":["a"]},
         }}}}
+    sorted_list2, code2, _ = make_ordered_services_to_process(sm_dict_one_site)
+    assert sorted_list2 == ['b', 'e', 'c', 'a', 'd'] and code2
+
     sm_dict_absent_deps={"sites":{
         "site_with_absent_deps":{"services":{
             "a":{"after":[], "before":[]},
             "b":{"after":["z"], "before":["a"]},
             "c":{"after":["a"], "before":["f"]},
         }}}}
+    sorted_list3, code3, _ = make_ordered_services_to_process(sm_dict_absent_deps)
+    assert sorted_list3 == ['b', 'a', 'c'] and code3 is False
+
     sm_dict_wrong_deps={"sites":{
         "site_with_wrong_deps":{"services":{
             "a":{"after":[], "before":[]},
             "b":{"after":["a"], "before":["a"]},
             "c":{"after":["a"], "before":["b"]},
         }}}}
+    sorted_list4, code4, _ = make_ordered_services_to_process(sm_dict_wrong_deps)
+    assert sorted_list4 == [] and code4 is False
+
     sm_dict_diff_lists_intersect={"sites":{
         "site1":{"services":{
             "a":{"after":[], "before":[]},
@@ -145,17 +157,8 @@ def test_make_ordered_services_to_process():
             "e":{"after":[], "before":["a"]},
             "f":{"after":[], "before":["c"]},
         }, "status":True}}}
-    sorted_list, code, _=make_ordered_services_to_process(sm_dict)
-    sorted_list2, code2, _=make_ordered_services_to_process(sm_dict_one_site)
-    sorted_list3, code3, _=make_ordered_services_to_process(sm_dict_absent_deps)
-    sorted_list4, code4, _=make_ordered_services_to_process(sm_dict_wrong_deps)
-    sorted_list5, code5, _=make_ordered_services_to_process(sm_dict_diff_lists_intersect)
-
-    assert sorted_list == ['b', 'e', 'f', 'a', 'c', 'd'] and code is True and \
-           sorted_list2 == ['b', 'e', 'c', 'a', 'd'] and code2 is True and \
-           sorted_list3 == ['b', 'a', 'c'] and code3 is False and \
-           sorted_list4 == [] and code4 is False and \
-           set(sorted_list5) == {'a', 'b', 'c', 'd', 'e', 'f'} and code5 is False
+    sorted_list5, code5, _ = make_ordered_services_to_process(sm_dict_diff_lists_intersect)
+    assert set(sorted_list5) == {'a', 'b', 'c', 'd', 'e', 'f'} and code5 is False
 
 
 def test_io_http_json_request_ok():

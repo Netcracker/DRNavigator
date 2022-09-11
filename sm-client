@@ -201,14 +201,14 @@ def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
                 force = args.force
 
             if sm_dict['sites'][site_to_process]['status']: # to process only available sites
-                sm_process_service(site_to_process, service, mode)
+                sm_process_service(site_to_process, service, mode) # todo skip next site in case previous site failed ?
                 data_sortout_service_results(sm_poll_service_required_status(site_to_process, service, mode, sm_dict), force)
 
     thread_result_queue.put(service)
     logging.info(f"Processing {service} in thread")
 
 
-def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = None):
+def main(services:[] = None, cmd="", site=""):
     """ Business Logic - implements main flow """
 
     # get status for all sites in case DR procedure or specific site in case cmd
@@ -217,7 +217,7 @@ def main(services:[] = None, cmd="", site="", cli_args: argparse.Namespace = Non
     # assemble ordered service list to proceed, keeping in services specified in cli
     service_dep_ordered,return_code, ts = make_ordered_services_to_process(sm_dict, services)
 
-    #  validation to satisfy cmd and current site status
+    # validation to satisfy cmd and current site status
     if not validate_operation(sm_dict, (service_dep_ordered,return_code), cmd, site, services):
         exit(1)
 
@@ -326,7 +326,7 @@ def data_sortout_service_results(result: Tuple[dict, bool], force: bool = False)
         if service not in failed_services:
             done_services.append(service)
     else:
-        failed_services.append(service)
+        failed_services.append(service) if service not in failed_services else None
         done_services.remove(service) if service in done_services else None
 
     if not result[1] and force:
@@ -335,7 +335,8 @@ def data_sortout_service_results(result: Tuple[dict, bool], force: bool = False)
     logging.debug(f"failed_services: {failed_services}")
     logging.debug(f"done_services: {done_services}")
 
-def print_service_operation_summary(part, sm_dict, services_to_run: [], cmd="", site="", ):
+
+def print_service_operation_summary(part, sm_dict, services_to_run: [], cmd="", site=""):
     def get_sm_managed_services(sm_dict):
         final_set = set()
         for site in sm_dict["sites"].values():
@@ -349,6 +350,7 @@ def print_service_operation_summary(part, sm_dict, services_to_run: [], cmd="", 
             return data_get_opposite_site(sm_dict, site)
         else:
             return None
+
     if part in "top":
         logging.info("---------------------------------------------------------------------")
         logging.info(f"Procedure:     {cmd}")
@@ -459,7 +461,7 @@ def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = 
 
     # collect sorted ordered service list
     service_lists = {}
-    for site in temp_dict['sites']:
+    for site in temp_dict['sites']:  # todo data_get_available_sites(temp_dict['sites']) ?
         try:
             service_lists[site] = [i for i in build_after_before_graph(temp_dict['sites'][site]['services']).static_order()]
             for service, depends in after_before_check(temp_dict['sites'][site]['services']).items():  # check deps
@@ -475,10 +477,9 @@ def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = 
         return [], False, type(None) # return error, integrity issue
 
     # compare service lists when two sites are ready only
-    equal_list = True
+    equal_list = True #todo to rework
     for i in range(len(service_lists.keys()) - 1):
-        if set(list(service_lists.values())[i]) != set(list(service_lists.values())[i+1]) and \
-                all([sm_dict['sites'][site]['status'] for site in sm_dict['sites'].keys()]):
+        if set(list(service_lists.values())[i]) != set(list(service_lists.values())[i+1]):
             equal_list = False
 
     # check services equality on all sites
@@ -785,6 +786,6 @@ if __name__ == "__main__":
     ignored_services.extend(skip_services)
 
     if not main([i for i in run_services if i not in skip_services], args.command,
-                args.site if hasattr(args, 'site') else False, args):
+                args.site if hasattr(args, 'site') else False):
         exit(1)
 
