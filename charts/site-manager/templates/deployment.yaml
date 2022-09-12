@@ -27,6 +27,7 @@ spec:
           - '--worker-class=gevent'
           - "--certfile=/certs/tls.crt"
           - "--keyfile=/certs/tls.key"
+          - "-w {{ .Values.workerCount}}"
           - "site-manager:app"
         env:
           - name: FRONT_HTTP_AUTH

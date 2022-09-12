@@ -23,6 +23,8 @@ env:
   # set HTTP scheme for microservices
   HTTP_SCHEME: "http://"
 
+workerCount: 2
+
 serviceAccount:
   create: true
   name: site-manager-sa
