@@ -257,7 +257,7 @@ def test_validate_operation(caplog):
     with caplog.at_level(logging.WARNING):
         caplog.clear()
         validate_operation(sm_dict_run_services, "stop", "k8s-2", ["fake1", "serv1"])
-        assert "Service fake1 does not exist in k8s-1 kubernetes cluster" in caplog.text
+        assert "Service 'fake1' does not exist on 'k8s-1' site" in caplog.text
 
 
 
