@@ -23,31 +23,6 @@ def get_status(service, *args, **kwargs):
     return output
 
 
-def is_healthy(service, procedure, options, status, force):
-    """
-    Method for checking the status of a service during the execution of a procedure
-
-    :param string service: the name of service that will be processed
-    :param string procedure: the procedure that will be processed to services
-    :param dict options: service's CR
-    :param dict status: the dictionary containing the state of the service
-    :param bool force: flag to ignore healthz of service.
-    """
-
-    if (procedure == "active" and status["healthz"].lower() != "up") or \
-            (procedure == "standby" and status["healthz"].lower() not in options[
-                "allowedStandbyStateList"]):
-
-        logging.critical(
-            f"Service: {service}. Current health status is {status['healthz'].lower()}. Service failed")
-        if not force:
-            return False
-        logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")
-    else:
-        logging.info(f"Service: {service}. Current health status is {status['healthz'].lower()}")
-    return True
-
-
 def get_module_specific_cr(item):
     """
     Method preparing dictionary based on the service's CR
