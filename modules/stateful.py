@@ -23,6 +23,25 @@ def get_status(service, *args, **kwargs):
     return output
 
 
+def run_service(service, options, procedure, no_wait):
+    """
+    Method to process one service on both kubernetes clusters
+    :param string service: the name of service that will be processed
+    :param dict options: the dictionary with parameters related to one service
+    :param string procedure: the procedure that will be processed to services
+    :param bool no_wait: special flag for microservice to show type of replication between of parts of database cluster
+    """
+    mode = procedure
+
+    logging.info(f"Service: {service}. Set mode {mode}. serviceEndpoint = {options['parameters']['serviceEndpoint']}. No-wait {no_wait}")
+    resp = utils.send_post(url=options['parameters']["serviceEndpoint"], mode=mode, no_wait=no_wait)
+    if resp.get("bad_response") or resp.get("fatal"):
+        # TODO pushing back to sm-client bad response from service.
+        return "fatal"
+
+    return "success"
+
+
 def get_module_specific_cr(item):
     """
     Method preparing dictionary based on the service's CR

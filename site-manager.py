@@ -328,10 +328,8 @@ def sitemanager_post():
     failed_services = []
     for service in services_to_run:
             module = import_module(sm_dict["services"][service]["module"])
-            resp = utils.send_post(url=sm_dict["services"][service]['parameters']["serviceEndpoint"],
-                            mode=data["procedure"],
-                           no_wait=no_wait)
-            if resp.get("bad_response") or resp.get("fatal"):
+            result = module.run_service(service, sm_dict["services"][service], data["procedure"], no_wait)
+            if result == "fatal":
                 failed_services.append(service)
 
     if failed_services:
