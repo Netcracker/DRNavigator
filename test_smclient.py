@@ -71,14 +71,14 @@ def test_get_sequence():
         {"site1":{"services":{
             "serv1":{"sequence":["standby", "active"]},
             "serv2":{"sequence":["standby", "active"]}, }},
-            "site2":{"services":{
+         "site2":{"services":{
                 "serv1":{"sequence":["standby", "active"]},
                 "serv2":{"sequence":["standby", "active"]}}}}}
 
     sm_dict2={"sites":
         {"site1":{"services":{
             "serv1":{"sequence":["active", "standby"]}}},
-            "site2":{"services":{
+         "site2":{"services":{
                 "serv1":{"sequence":["active", "active"]}}}}}
 
     seq_1=data_get_dr_operation_sequence(sm_dict, 'serv1', 'move', 'site2')  # switchover to site2
@@ -90,6 +90,15 @@ def test_get_sequence():
            seq_2 == [['site1', 'standby'], ['site2', 'active']] and \
            seq_3 == [['site2', 'standby'], ['site1', 'active']] and \
            seq2_1 == [['site2', 'active'], ['site1', 'standby']]
+
+    sm_dict_missing_service={"sites":
+        {"site1":{"services":{
+            "serv1":{"sequence":["standby", "active"]},}},
+        "site2":{"services":{
+                "serv1":{"sequence":["standby", "active"]},
+                "serv2":{"sequence":["standby", "active"]}}}}}
+    assert True #todo
+    #[['site1', 'standby'], ['site2', 'active']] ==       data_get_dr_operation_sequence(sm_dict_missing_service, 'serv2', 'move', 'site1')
 
 
 def test_make_ordered_services_to_process():
@@ -112,7 +121,7 @@ def test_make_ordered_services_to_process():
             "f":{"after":[], "before":["c"]},
             #            "g":{"after":[], "before":["b"]},
         }}}}
-    sorted_list, code, _ = make_ordered_services_to_process(sm_dict)
+    sorted_list, code, _ = make_ordered_services_to_process(sm_dict,"site2")
     assert sorted_list == ['b', 'e', 'f', 'a', 'c', 'd'] and code is True
 
     sm_dict_one_site={"sites":{
@@ -123,7 +132,7 @@ def test_make_ordered_services_to_process():
             "d":{"after":["c"], "before":[]},
             "e":{"after":[], "before":["a"]},
         }}}}
-    sorted_list2, code2, _ = make_ordered_services_to_process(sm_dict_one_site)
+    sorted_list2, code2, _ = make_ordered_services_to_process(sm_dict_one_site,"siteN")
     assert sorted_list2 == ['b', 'e', 'c', 'a', 'd'] and code2
 
     sm_dict_absent_deps={"sites":{
@@ -132,7 +141,7 @@ def test_make_ordered_services_to_process():
             "b":{"after":["z"], "before":["a"]},
             "c":{"after":["a"], "before":["f"]},
         }}}}
-    sorted_list3, code3, _ = make_ordered_services_to_process(sm_dict_absent_deps)
+    sorted_list3, code3, _ = make_ordered_services_to_process(sm_dict_absent_deps,"site_with_absent_deps")
     assert sorted_list3 == ['b', 'a', 'c'] and code3 is False
 
     sm_dict_wrong_deps={"sites":{
@@ -141,24 +150,8 @@ def test_make_ordered_services_to_process():
             "b":{"after":["a"], "before":["a"]},
             "c":{"after":["a"], "before":["b"]},
         }}}}
-    sorted_list4, code4, _ = make_ordered_services_to_process(sm_dict_wrong_deps)
+    sorted_list4, code4, _ = make_ordered_services_to_process(sm_dict_wrong_deps,"site_with_wrong_deps")
     assert sorted_list4 == [] and code4 is False
-
-    sm_dict_diff_lists_intersect={"sites":{
-        "site1":{"services":{
-            "a":{"after":[], "before":[]},
-            "b":{"after":[], "before":["a"]},
-            "c":{"after":["d"], "before":[]},
-            "d":{"after":[], "before":["c"]},
-        }, "status":True},
-        "site2":{"services":{
-            "c":{"after":["d"], "before":[]},
-            "d":{"after":[], "before":["c"]},
-            "e":{"after":[], "before":["a"]},
-            "f":{"after":[], "before":["c"]},
-        }, "status":True}}}
-    sorted_list5, code5, _ = make_ordered_services_to_process(sm_dict_diff_lists_intersect)
-    assert set(sorted_list5) == {'a', 'b', 'c', 'd', 'e', 'f'} and code5 is False
 
 
 def test_io_http_json_request_ok():
@@ -207,7 +200,6 @@ def test_io_http_json_request_ssl_fails():
     """
     os.system("openssl req -new -x509 -keyout self-signed-fake.pem -out self-signed-fake.pem "
               "-days 365 -nodes -subj \"/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com\" &>/dev/null")
-    exception=None
     httpd=http.server.HTTPServer(('localhost', 4443), http.server.SimpleHTTPRequestHandler)
     httpd.socket=ssl.wrap_socket(httpd.socket, certfile='self-signed-fake.pem', server_side=True)
     thread=threading.Thread(target=httpd.handle_request)
@@ -224,36 +216,49 @@ def test_io_http_json_request_ssl_fails():
 def test_validate_operation(caplog):
     args_init()
 
-    sm_dict={"sites":{"k8s-1":{"status":True, "return_code":None}}}
-    ret=validate_operation(sm_dict, ([], True), "active", "k8s-1")
-    assert ret is True
+    sm_dict={"sites":
+                 {"k8s-1":
+                      {"status":True, "return_code":None,"service_dep_ordered":[],"deps_issue":False,"ts":TopologicalSorter2}}}
+    assert validate_operation(sm_dict, "active", "k8s-1")
 
-    sm_dict_site_not_available_bySSL={"sites":{"k8s-1":{"status":False, "return_code":1}}}
-    ret2=validate_operation(sm_dict_site_not_available_bySSL, ([], True), "active", "k8s-1")
+    sm_dict_site_not_available={"sites":{"k8s-1":{"status":False, "return_code":None,"service_dep_ordered":[],"deps_issue":False,"ts":TopologicalSorter2}}}
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict_site_not_available, "active", "k8s-1")
 
-    sm_dict_site_not_available={"sites":{"k8s-2":{"status":False, "return_code":None}}}
-    ret3=validate_operation(sm_dict_site_not_available, ([], True), "active", "k8s-2")
+    args_init()
+    sm_dict_status={"sites":
+                        {"k8s-1":
+                             {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                              "ts":TopologicalSorter2},
+                         "k8s-2":
+                             {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                               "ts":TopologicalSorter2}}}
+    assert validate_operation(sm_dict_status, "status", None)
 
-    sm_dict_status={"sites":{"k8s-1":{"status":True, "return_code":None}, "k8s-2":{"status":False, "return_code":None}}}
-    ret4=validate_operation(sm_dict_status, ([], True), "status", None)
+    sm_dict_move_fail={"sites":
+                        {"k8s-1":
+                             {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                              "ts":TopologicalSorter2},
+                         "k8s-2":
+                             {"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                              "ts":TopologicalSorter2}}}
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict_move_fail, "move", "k8s-2")
 
-    sm_dict_move_fail={
-        "sites":{"k8s-1":{"status":True, "return_code":None}, "k8s-2":{"status":False, "return_code":None}}}
-    ret5=validate_operation(sm_dict_move_fail, ([], True), "move", "k8s-2")
-
-    sm_dict_run_services={
-        "sites":{"k8s-1":{"status":True, "services":{"serv1":{}}}, "k8s-2":{"status":False, "services":{"serv1":{}}}}}
+    sm_dict_run_services={"sites":
+                           {"k8s-1":
+                                {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                                 "ts":TopologicalSorter2,
+                                 "services":{"serv1":{}}},
+                            "k8s-2":
+                                {"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                                 "ts":TopologicalSorter2,
+                                 "services":{"serv1":{}}}}}
     with caplog.at_level(logging.WARNING):
         caplog.clear()
-        validate_operation(sm_dict_run_services, ([], False), "stop", "k8s-2", ["fake1", "serv1"])
+        validate_operation(sm_dict_run_services, "stop", "k8s-2", ["fake1", "serv1"])
         assert "Service fake1 does not exist in k8s-1 kubernetes cluster" in caplog.text
 
-    sm_dict_move_fail={
-        "sites":{"k8s-1":{"status":True, "return_code":None}, "k8s-2":{"status":True, "return_code":None}}}
-    ret6=validate_operation(sm_dict_move_fail, ([], False), "move", "k8s-2")
-
-    assert ret2 is False and ret3 is False and ret4 is True and \
-           ret5 is False and ret6 is False
 
 
 def test_get_available_sites():
