@@ -236,10 +236,6 @@ def main(services:[] = None, cmd="", site=""):
     except NotValid:
         exit(1)
 
-    #print(json.dumps(sm_dict, indent=4,skipkeys=True,default=lambda o: '<not serializable>'))
-    print(service_dep_ordered)
-    #print([i for i in ts.static_order()])
-    #exit(0)
     ignored_services.extend(data_make_ignored_services(sm_dict, service_dep_ordered))
     thread_pool = []
     if cmd in "status":
@@ -342,7 +338,7 @@ def data_sortout_service_results(result: Tuple[dict, bool]):
     service = list(result[0]['services'].keys())[0] if result[0].get('services') else result[0]['wrong-services'][0]
     if result[1] : #return Ok - done_service
         if service not in failed_services:
-            done_services.append(service)
+            done_services.append(service) if service not in done_services else None
     else:
         failed_services.append(service) if service not in failed_services else None
         done_services.remove(service) if service in done_services else None
@@ -514,7 +510,7 @@ def validate_operation(sm_dict: dict, cmd, site=None, services_to_run=None) -> T
         ret = True
         for s in services:
             if s not in sm_dict['sites'][site]["services"].keys():
-                logging.warning(f"Service {s} does not exist in {site} kubernetes cluster")
+                logging.warning(f"Service '{s}' does not exist on '{site}' site")
                 ret = False
         return ret
 
