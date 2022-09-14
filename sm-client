@@ -15,7 +15,6 @@ Description: Client util to communicate with site-manager in kubernetes based cl
 
 import argparse
 import copy
-import json
 import logging
 import ssl
 import threading
@@ -348,11 +347,6 @@ def data_sortout_service_results(result: Tuple[dict, bool]):
 
 
 def print_service_operation_summary(part, sm_dict, services_to_run: [], cmd="", site=""):
-    def get_sm_managed_services(sm_dict):
-        final_set = set()
-        for site in sm_dict["sites"].values():
-            final_set=final_set.union(set(list(site['services'].keys())))
-        return list(final_set)
 
     def get_active_site(sm_dict, cmd, site):
         if cmd in ["active", "move"]:
@@ -367,7 +361,7 @@ def print_service_operation_summary(part, sm_dict, services_to_run: [], cmd="", 
         logging.info(f"Procedure:     {cmd}")
         logging.info(f"Active sites:  {get_active_site(sm_dict, cmd, site)}")
         logging.info(f"Standby sites: {data_get_opposite_site(sm_dict, get_active_site(sm_dict, cmd, site))}")
-        logging.info(f"Kubernetes services managed by site-manager: {get_sm_managed_services(sm_dict)}")
+        logging.info(f"Kubernetes services managed by site-manager: {data_get_services_list_for_ok_site(sm_dict)}")
         logging.info(f"Kubernetes services that will be processed:  {services_to_run}")
         logging.info("---------------------------------------------------------------------")
     elif part in "tail":
@@ -380,10 +374,10 @@ def print_service_operation_summary(part, sm_dict, services_to_run: [], cmd="", 
 
 
 def data_get_services_list_for_ok_site(sm_dict) ->[]:
-    for site in sm_dict['sites'].keys():
-        if sm_dict["sites"][site]["status"]:
-            return [ serv for serv in sm_dict["sites"][site]["services"].keys()]
-    return []
+    final_set=set()
+    for site in sm_dict["sites"].values():
+        final_set=final_set.union(set(list(site['services'].keys())))
+    return list(final_set)
 
 
 def data_get_opposite_site(sm_dict, site):
