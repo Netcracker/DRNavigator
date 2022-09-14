@@ -84,6 +84,12 @@ To support ability of services be managed by `site-manager` you should prepare f
     ```
     $ cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
     ```
+
+    If you've already had site-manager crd in your cloud and want to migrate to cert-manager integration, it's enough to annotate it:
+
+    ```
+    $ kubectl annotate crds sitemanagers.netcracker.com cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
+    ```
     
     3.2. In other case generate base64 string from ca.crt certificate:
 
