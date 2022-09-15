@@ -8,8 +8,9 @@ Description: Client util to communicate with site-manager in kubernetes based cl
 @todo[3]
     split current single source into modules,classes
     share common code with sm
+    logging into file
     make smclient delivery as single binary, using pyinstaller ???
-    json output
+    cli json output
     SM specific data structures (dataclasses ?): sm_dict; service response
 """
 
@@ -214,6 +215,19 @@ class NotValid(Exception):
     pass
 
 
+def print_service_order(ts):
+    """ Show service list ordered by dependency in debug mode"""
+    stage=0
+    logging.debug(f"Service order by dependency:")
+    while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
+        stage += 1
+        logging.debug(f"------ Stage {stage} -------")
+        for serv in ts.get_ready():
+            logging.debug(f"{serv}")
+            ts.done(serv)
+    logging.debug("Done. ----------------")
+
+
 def main(services:[] = None, cmd="", site=""):
     """ Business Logic - implements main flow """
 
@@ -251,6 +265,7 @@ def main(services:[] = None, cmd="", site=""):
                 thread_pool.append(thread)
         for thread in thread_pool:
             thread.join()
+        print_service_order(ts)
         print_main_table(sm_dict, service_dep_ordered, [site] if site else [_ for _ in sm_conf.keys()])
     elif cmd in "list":
         print(f"---------------------------------------------------------------------\n" +
