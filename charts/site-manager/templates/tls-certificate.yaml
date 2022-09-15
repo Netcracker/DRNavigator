@@ -1,0 +1,29 @@
+{{- if .Values.tls.generateCerts.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: site-manager-tls-certificate
+  namespace: {{ .Release.Namespace }}
+spec:
+  secretName: sm-certs
+  duration: {{ default 365 .Values.tls.generateCerts.duration | mul 24 }}h
+  commonName: site-manager-ca
+  isCA: true
+  privateKey:
+    algorithm: RSA
+    encoding: PKCS1
+    size: 2048
+  dnsNames:
+{{ ( include "site-manager.certDnsNames" . | indent 4) }}
+  ipAddresses:
+{{ ( include "site-manager.certIpAddresses" . | indent 4) }}
+  issuerRef:
+    {{- if .Values.tls.generateCerts.clusterIssuerName }}
+    name: {{ .Values.tls.generateCerts.clusterIssuerName }}
+    kind: ClusterIssuer
+    {{- else }}
+    name: site-manager-tls-issuer
+    kind: Issuer
+    {{- end }}
+    group: cert-manager.io
+{{- end }}
