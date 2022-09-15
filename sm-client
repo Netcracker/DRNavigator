@@ -189,6 +189,7 @@ def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
         logging.debug(f"Skipping {service} in thread")
         return
 
+    logging.info(f"Processing {service} in thread start...")
     if cmd in site_cmds:
         mode=data_convert_sitecmd_to_dr_mode(cmd)
         sm_process_service(site, service, mode)
@@ -203,11 +204,13 @@ def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
                 force = args.force
 
             if sm_dict['sites'][site_to_process]['status']: # to process only available sites
+
                 sm_process_service(site_to_process, service, mode) # todo skip next site in case previous site failed ??
                 data_sortout_service_results(sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force))
 
     thread_result_queue.put(service)
-    logging.info(f"Processing {service} in thread")
+    logging.info(f"Processing {service} in thread finished")
+
 
 
 class NotValid(Exception):
@@ -240,17 +243,20 @@ def main(services:[] = None, cmd="", site=""):
         sm_dict['sites'][site_i]['service_dep_ordered'] = service_dep_ordered
         sm_dict['sites'][site_i]['ts'] = ts
         sm_dict['sites'][site_i]['deps_issue'] = not return_code
+        logging.debug(f"Site:{site_i} list:{sm_dict['sites'][site_i]['service_dep_ordered']} status:{sm_dict['sites'][site_i]['deps_issue']}")
 
     # validation to satisfy cmd and current site status
     service_dep_ordered = None
     ts = None
     try:
         service_dep_ordered, ts = validate_operation(sm_dict, cmd, site, services)
+        logging.debug(service_dep_ordered)
     except NotValid:
         exit(1)
 
     ignored_services.extend(data_make_ignored_services(sm_dict, service_dep_ordered))
     thread_pool = []
+    # main flow by command
     if cmd in "status":
         for serv in service_dep_ordered:
             for site_i in data_get_available_sites(sm_dict):
@@ -291,7 +297,7 @@ def main(services:[] = None, cmd="", site=""):
             for serv in ts.get_ready():
                 if serv in failed_services: # is there is a failed by dep
                     thread_result_queue.put(serv)
-                    logging.warning(f"Service {s} marked as failed due to dependencies")
+                    logging.warning(f"Service {serv} marked as failed due to dependencies")
                     break
                 thread=threading.Thread(target=sm_process_service_with_polling,
                                         args=(site, serv, cmd, sm_dict))
@@ -301,8 +307,10 @@ def main(services:[] = None, cmd="", site=""):
             serv_done = thread_result_queue.get()
             if serv_done in failed_services: # mark failed and skip successors of serv_done
                 for s in ts.successors(serv_done):
-                    failed_services.extend(s)
+                    failed_services.append(s)
             ts.done(serv_done)
+            logging.info(f"failed_services: {failed_services}")
+            logging.info(f"done_services: {done_services}")
         for thread in thread_pool:
             thread.join()
 
@@ -508,6 +516,7 @@ def validate_operation(sm_dict: dict, cmd, site=None, services_to_run=None) -> T
     """ Validate command compliance to current site state
     @param sm_dict: populated sm_dict
     @returns: Allowed or not to proceed operation <cmd> on <site>
+    @todo warn/fail in case deps are different
     """
     def check_site_ssl_available(checked_site: str):
         if not sm_dict['sites'][checked_site]['status']:
