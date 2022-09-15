@@ -287,19 +287,21 @@ def main(services:[] = None, cmd="", site=""):
                 exit(1)
 
         while ts and ts.is_active():   # process all services one by one  in  sorted by dependency
+            global thread_result_queue
             for serv in ts.get_ready():
+                if serv in failed_services: # is there is a failed by dep
+                    thread_result_queue.put(serv)
+                    logging.warning(f"Service {s} marked as failed due to dependencies")
+                    break
                 thread=threading.Thread(target=sm_process_service_with_polling,
                                         args=(site, serv, cmd, sm_dict))
                 thread.name=f"Thread: {serv}"
                 thread_pool.append(thread)
                 thread.start()
-            global thread_result_queue
             serv_done = thread_result_queue.get()
             if serv_done in failed_services: # mark failed and skip successors of serv_done
                 for s in ts.successors(serv_done):
-                    ts.done(s)
-                    failed_services.append(s)
-                    logging.warning(f"Service {s} marked as failed due to dependencies")
+                    failed_services.extend(s)
             ts.done(serv_done)
         for thread in thread_pool:
             thread.join()
