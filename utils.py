@@ -35,7 +35,7 @@ SM_WEB_PORT = os.environ.get("SM_WEB_PORT", 8443)
 FRONT_HTTP_AUTH = os.environ.get("FRONT_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
 BACK_HTTP_AUTH = os.environ.get("BACK_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
 
-SM_DEBUG = os.environ.get("SM_DEBUG", False)
+SM_DEBUG = os.environ.get("SM_DEBUG", False) in (1, True, "Yes", "yes", "True", "true")
 
 SM_KUBECONFIG_FILE = os.environ.get("SM_KUBECONFIG_FILE", "")
 
@@ -43,6 +43,9 @@ DEPLOYMENT_ADDITIONAL_DELAY = 30
 
 SM_AUTH_TOKEN = ""
 
+SM_CACERT = os.environ.get("SM_CACERT", True)
+if SM_CACERT in ("Yes", "yes", "No", "no", "True", "true", "False", "false"):
+    SM_CACERT = SM_CACERT in ("Yes", "yes", "True", "true")
 
 def send_post(url, mode, no_wait):
     """
@@ -52,7 +55,6 @@ def send_post(url, mode, no_wait):
     :param string mode: is the role of cluster part
     :param bool no_wait: special flag for microservice to show type of replication between of parts of database cluster
     """
-
     obj = json.dumps({"mode": mode, "no-wait": no_wait})
     headers = {
         'Content-type': 'application/json',
@@ -83,7 +85,7 @@ def send_post(url, mode, no_wait):
 
 def _send_post(url, obj, headers):
     try:
-        resp = requests.post(url, timeout=20, data=obj, headers=headers)
+        resp = requests.post(url, timeout=20, data=obj, headers=headers, verify=SM_CACERT)
         logging.debug(f"REST response: {resp} and return code: {resp.status_code}")
         response = resp.json()
         ret_code = resp.status_code
@@ -95,9 +97,18 @@ def _send_post(url, obj, headers):
                 logging.error(f"Code: {ret_code}. Message: {response['message']}")
                 response["bad_response"] = ret_code
         return response
-    except Exception as e:
+    except requests.exceptions.SSLError:
+        logging.error("SSL certificate verify failed")
+        raise # re-raise SSL exception to handle in the calling code TBD in more general manner
+        # SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
+        # SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)'))
+    except requests.exceptions.JSONDecodeError as e:
         logging.error("Wrong JSON data received: \n %s" % str(e))
-        return None
+    except requests.exceptions.RequestException as e:
+        logging.error("General request error %s",e.__doc__)
+    except Exception as e:
+        logging.error("General error\n %s" % str(e))
+    return None
 
 
 def send_get(url):
@@ -114,10 +125,19 @@ def send_get(url):
 
     for _ in range(5):
         try:
-            resp = requests.get(url, timeout=10, headers=headers)
+            resp = requests.get(url, timeout=10, headers=headers, verify=SM_CACERT)
             return resp.json()
-        except Exception as e:
+        except requests.exceptions.SSLError:
+            logging.error("SSL certificate verify failed")
+            raise # re-raise SSL exception to handle in the calling code TBD in more general manner
+            # SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
+            # SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)'))
+        except requests.exceptions.JSONDecodeError as e:
             logging.error("Wrong JSON data received: \n %s" % str(e))
+        except requests.exceptions.RequestException as e:
+            logging.error("General request error %s",e.__doc__)
+        except Exception as e:
+            logging.error("General error\n %s" % str(e))
 
     return {}
 

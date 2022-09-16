@@ -50,6 +50,8 @@ spec:
             value: "{{ .Values.env.SERVICE_DEFAULT_TIMEOUT }}"
           - name: HTTP_SCHEME
             value: "{{ .Values.env.HTTP_SCHEME }}"
+          - name: SM_CACERT
+            value: "{{ .Values.env.SM_CACERT }}"
         ports:
           - containerPort: 8443
             protocol: TCP

@@ -23,6 +23,9 @@ env:
   # set HTTP scheme for microservices
   HTTP_SCHEME: "http://"
 
+  # TLS verification in operators (True, False or path to CA file)
+  SM_CACERT: "True"
+
 workerCount: 2
 
 serviceAccount:
@@ -37,5 +40,14 @@ image:
 ingress:
   create: true
   name: ""
+
+tls:
+  generateCerts:
+    enabled: false
+    clusterIssuerName: ""
+    duration: 365
+    subjectAlternativeName:
+      additionalDnsNames: []
+      additionalIpAddresses: []
 
 paas_platform: kubernetes
