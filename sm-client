@@ -193,7 +193,7 @@ def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
     if cmd in site_cmds:
         mode=data_convert_sitecmd_to_dr_mode(cmd)
         sm_process_service(site, service, mode)
-        data_sortout_service_results(sm_poll_service_required_status(site, service, mode, sm_dict))
+        data_sortout_service_results(sm_poll_service_required_status(site, service, mode, sm_dict),service)
     elif cmd in dr_procedures:
         # todo to handle False(no service on this site)
         for site_to_process, mode in data_get_dr_operation_sequence(sm_dict, service, cmd, site):
@@ -206,7 +206,8 @@ def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
             if sm_dict['sites'][site_to_process]['status']: # to process only available sites
 
                 sm_process_service(site_to_process, service, mode) # todo skip next site in case previous site failed ??
-                data_sortout_service_results(sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force))
+                serv_response,ret = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force)
+                data_sortout_service_results((serv_response,ret),service)
 
     thread_result_queue.put(service)
     logging.info(f"Processing {service} in thread finished")
@@ -283,7 +284,7 @@ def main(services:[] = None, cmd="", site=""):
         print_service_operation_summary("top", sm_dict, service_dep_ordered, cmd, site)
 
         if "cluster-replicator" in service_dep_ordered:  # replicator WA @todo replicator
-            if cmd == "standby":
+            if cmd in ["standby","mntc"]:
                 sm_process_replicator(sm_dict, [site, data_convert_sitecmd_to_dr_mode(cmd)])
             elif cmd in dr_procedures:
                 sm_process_replicator(sm_dict, data_get_dr_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[0])
@@ -315,8 +316,8 @@ def main(services:[] = None, cmd="", site=""):
             thread.join()
 
         if "cluster-replicator" in service_dep_ordered: #replicator WA @todo replicator
-            if len(failed_services) != 0:  #skip replicator in case failed infra and fail it
-                data_sortout_service_results(({'services': {"cluster-replicator":{}}},False))
+            if len(failed_services) != 0 and  cmd not in "mntc":  #skip replicator in case failed infra and fail it
+                data_sortout_service_results(({},False),"cluster-replicator")
                 logging.warning(f"Service cluster-replicator marked as failed due to dependencies")
             else:
                 if cmd == "active":
@@ -350,16 +351,20 @@ def sm_process_replicator(sm_dict,site_mode: []):   #@todo replicator
     logging.debug(f"Processing replicator service on site:{site_mode[0]} to mode:{site_mode[1]}")
     if sm_dict['sites'][site_mode[0]]['status']:
         sm_process_service(site_mode[0], "cluster-replicator", site_mode[1])
-        data_sortout_service_results(sm_poll_service_required_status(site_mode[0], "cluster-replicator", site_mode[1], sm_dict))
+        data_sortout_service_results(
+            sm_poll_service_required_status(site_mode[0], "cluster-replicator", site_mode[1], sm_dict),
+            "cluster-replicator")
 
 
-def data_sortout_service_results(result: Tuple[dict, bool]):
+def data_sortout_service_results(result: Tuple[dict, bool], serv):
     """ Put service name in appropriate list(failed or done)
     @param result: Tuple[json response dict, return code]
+    @todo need to handle case when response contain no service name, to not stuck in reading from queue
     """
-    if not result[0]: # do not process in case empty response, nothing to sortout
-        return
+    if not result[0]: # do not process in case empty response, nothing to sortout @todo
+    #    return
     service = list(result[0]['services'].keys())[0] if result[0].get('services') else result[0]['wrong-services'][0]
+    #@todo to handle case when NO responce from SM/service. failed_services have to be updated
     if result[1] : #return Ok - done_service
         if service not in failed_services:
             done_services.append(service) if service not in done_services else None
@@ -741,7 +746,7 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
         data, ret = service_status_polling(site,service,{"healthz": \
                                                               sm_dict["sites"][site]["services"][service]["allowedStandbyStateList"]})
     else:
-        data, ret = service_status_polling(site,service,{"healthz": ["down"]})
+        data, ret = service_status_polling(site,service,{"healthz": ["up"]})
 
     if data["services"][service].get("mode","--") == "--" or \
             data["services"][service].get("status","--") == "--":
