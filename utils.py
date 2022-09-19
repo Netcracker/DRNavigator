@@ -109,7 +109,7 @@ def _send_post(url, obj, headers):
         logging.error("General request error %s",e.__doc__)
     except Exception as e:
         logging.error("General error\n %s" % str(e))
-        return None
+    return None
 
 
 def send_get(url):
