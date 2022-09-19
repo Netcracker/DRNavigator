@@ -373,7 +373,8 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
 
         if (sm_dict['sites'][site]['mode'] == "active" and data["services"][service]["healthz"] == "up") or \
                 (sm_dict['sites'][site]['mode'] == "standby" and
-                 data["services"][service]["healthz"] in sm_dict["services"][service]["allowedStandbyStateList"]):
+                 data["services"][service]["healthz"] in sm_dict["services"][service]["allowedStandbyStateList"]) or \
+                    sm_dict['sites'][site]['mode'] == "disable":
             break
 
         if data["services"][service]["healthz"] in ("degraded", "down"):

@@ -130,6 +130,7 @@ To support ability of services be managed by `site-manager` you should prepare f
     | env.SERVICE_DEFAULT_TIMEOUT | set default timeout for every microservice DR procedure               | 200                             |
     | env.HTTP_SCHEME             | define HTTP scheme for connection to microservice operator            | "http://"                       |
     | env.SM_CACERT               | TLS verification in operators (True, False or path to trusted CA file)| "True"                          |
+    | workerCount                 | count of parallel workers, that handle requests                       | 2                               |
     | serviceAccount.create       | enable/disable Service Account creation                               | true                            |
     | serviceAccount.name         | name of Service Account for `site-manager`                            | "site-manager-sa"               |
     | image.repository            | docker image repository name                                          | ghcr.io/netcracker/site-manager |

@@ -26,6 +26,8 @@ env:
   # TLS verification in operators (True, False or path to CA file)
   SM_CACERT: "True"
 
+workerCount: 2
+
 serviceAccount:
   create: true
   name: site-manager-sa
