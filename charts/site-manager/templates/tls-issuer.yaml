@@ -1,0 +1,9 @@
+{{- if and .Values.tls.generateCerts.enabled (not .Values.tls.generateCerts.clusterIssuerName) }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: site-manager-tls-issuer
+  namespace: {{ .Release.Namespace }}
+spec:
+  selfSigned: {}
+{{- end }}

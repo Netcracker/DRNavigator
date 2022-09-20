@@ -15,9 +15,15 @@ DRNavigator is the project to manage applications in two or more kubernetes clus
 
 To support ability of services be managed by `site-manager` you should prepare following steps:
 
-1. Generate self-signed certificates for `site-manager` service
+1. Create namespace `site-manager`:
 
-    Create configuration file for generation SSL certificate:
+    ```bash
+    $ kubectl create namespace site-manager
+    ```
+
+2. Generate self-signed certificates for `site-manager` service if you don't integrate with cert-manager
+
+    2.1. Create configuration file for generation SSL certificate:
 
     ```bash
     $ cat <<EOF > server.conf 
@@ -41,28 +47,51 @@ To support ability of services be managed by `site-manager` you should prepare f
     EOF
     ```
 
-    Create CA certificate:
+    2.2. Create CA certificate:
 
     ```bash
     $ openssl req -days 730 -nodes -new -x509 -keyout ca.key -out ca.crt -subj "/CN=SM service"
     ```
 
-    Create KEY for `site-manager` service:
+    2.3. Create KEY for `site-manager` service:
 
     ```bash
     $ openssl genrsa -out site-manager-tls.key 2048
     ```
 
-    Create CRT file for `site-manager`:
+    2.4. Create CRT file for `site-manager`:
 
     ```bash
     $ openssl req -new -key site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config server.conf | \
       openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
     ```
 
-2. Create CRD `sitemanagers.netcracker.com`
+3. Create CRD `sitemanagers.netcracker.com`
 
-    Generate base64 string from ca.crt certificate:
+    3.1. In case of integration with cert-manager you should add following annotation in crd, that helps update caBundle in it's webhook:
+
+    ```
+    apiVersion: apiextensions.k8s.io/v1
+        kind: CustomResourceDefinition
+        metadata:
+            name: sitemanagers.netcracker.com
+            annotations:
+                cert-manager.io/inject-ca-from: <NAMESPACE>/site-manager-tls-certificate
+    ```
+
+     Create CRD `sitemanagers.netcracker.com` without caBundle field:
+
+    ```
+    $ cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
+    ```
+
+    If you've already had site-manager crd in your cloud and want to migrate to cert-manager integration, it's enough to annotate it:
+
+    ```
+    $ kubectl annotate crds sitemanagers.netcracker.com cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
+    ```
+    
+    3.2. In other case generate base64 string from ca.crt certificate:
 
     ```
     $ CA_BUNDLE=$(cat ca.crt | base64 - | tr -d '\n')
@@ -74,17 +103,13 @@ To support ability of services be managed by `site-manager` you should prepare f
     $ cat manifests/crd-sitemanager.yaml | sed "s/<base-64-encoded-ca-bundle>/${CA_BUNDLE}/" | kubectl apply -f -
     ```
 
-3. Create namespace `site-manager`:
-
-    ```bash
-    $ kubectl create namespace site-manager
-    ```
-
-4. Create secret with SSL certificates for `site-manager`
+4. Create secret with SSL certificates for `site-manager` if you don't integrate with cert-manager
 
     ```
     $ kubectl -n site-manager create secret tls sm-certs --cert site-manager-tls.crt --key site-manager-tls.key
     ```
+
+    In case of cert-manager integration it will be created automatically during helm chart installation
 
 5. Install `site-manager` helm chart:
 
@@ -104,6 +129,8 @@ To support ability of services be managed by `site-manager` you should prepare f
     | env.SM_VERSION              | define API group version for CRD                                      | "v2"                            |
     | env.SERVICE_DEFAULT_TIMEOUT | set default timeout for every microservice DR procedure               | 200                             |
     | env.HTTP_SCHEME             | define HTTP scheme for connection to microservice operator            | "http://"                       |
+    | env.SM_CACERT               | TLS verification in operators (True, False or path to trusted CA file)| "True"                          |
+    | workerCount                 | count of parallel workers, that handle requests                       | 2                               |
     | serviceAccount.create       | enable/disable Service Account creation                               | true                            |
     | serviceAccount.name         | name of Service Account for `site-manager`                            | "site-manager-sa"               |
     | image.repository            | docker image repository name                                          | ghcr.io/netcracker/site-manager |
@@ -112,6 +139,11 @@ To support ability of services be managed by `site-manager` you should prepare f
     | ingress.create              | enable/disable ingress creation                                       | true                            |
     | ingress.name                | define URL for `site-manager` ingress                                 | ""                              |
     | paas_platform               | define PAAS type. It can be "kubernetes" or "openshift"               | "kubernetes"                    |
+    | tls.generateCerts.enabled   | enable/disable certificates generation via cert-manager               | false                           |
+    | tls.generateCerts.clusterIssuerName | define name cluster issuer, if you wand to use it (if empty, will be created self-signed issuer )  | ""                              |
+    | tls.generateCerts.duration          | define duration (days) of created certificate via cert-manager                                     | 365                             |
+    | tls.generateCerts.subjectAlternativeName.additionalDnsNames    | additional trusted dns names in certificate                             | []                              |
+    | tls.generateCerts.subjectAlternativeName.additionalIpAddresses | additional trusted ips names in certificate                              | []                             |
 
 6. Install `site-manager` to OpenShift
 
