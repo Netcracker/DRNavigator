@@ -45,64 +45,29 @@ def test_sm_process_service(mocker, caplog):
 
 
 def test_make_ignored_services():
-    sm_dict={"sites":
+    sm_dict=SMClusterState(
         {"site1":{"services":{
             "serv1":{"sequence":["standby", "active"]},
             "serv2":{"sequence":["standby", "active"]},
             "serv3":{"sequence":["standby", "active"]},
             "serv4":{"sequence":["standby", "active"]}}},
-            "site2":{"services":{
-                "serv1":{"sequence":["standby", "active"]},
-                "serv2":{"sequence":["standby", "active"]},
-                "serv3":{"sequence":["standby", "active"]}}}}}
+        "site2":{"services":{
+            "serv1":{"sequence":["standby", "active"]},
+            "serv2":{"sequence":["standby", "active"]},
+            "serv3":{"sequence":["standby", "active"]}}}})
 
     ignore1=data_make_ignored_services(sm_dict, ['serv1', 'serv3'])
+    assert set(ignore1) == {'serv2', 'serv4'}
+
     ignore2=data_make_ignored_services(sm_dict, ['serv1', 'serv2', 'serv3'])
+    assert ignore2 == ['serv4']
+
     ignore3=data_make_ignored_services(sm_dict, [])
-    assert set(ignore1) == {'serv2', 'serv4'} and \
-           ignore2 == ['serv4'] and \
-           set(ignore3) == {'serv1', 'serv2', 'serv3', 'serv4'}
-
-
-def test_get_sequence():
-    """ DR commands sequence calculation check
-    """
-    sm_dict={"sites":
-        {"site1":{"services":{
-            "serv1":{"sequence":["standby", "active"]},
-            "serv2":{"sequence":["standby", "active"]}, }},
-         "site2":{"services":{
-                "serv1":{"sequence":["standby", "active"]},
-                "serv2":{"sequence":["standby", "active"]}}}}}
-
-    sm_dict2={"sites":
-        {"site1":{"services":{
-            "serv1":{"sequence":["active", "standby"]}}},
-         "site2":{"services":{
-                "serv1":{"sequence":["active", "active"]}}}}}
-
-    seq_1=data_get_dr_operation_sequence(sm_dict, 'serv1', 'move', 'site2')  # switchover to site2
-    seq_2=data_get_dr_operation_sequence(sm_dict, 'serv1', 'stop', 'site1')  # failover to site2
-    seq_3=data_get_dr_operation_sequence(sm_dict, 'serv1', 'stop', 'site2')  # failover to site1
-
-    seq2_1=data_get_dr_operation_sequence(sm_dict2, 'serv1', 'move', 'site2')  # switchover to site2
-    assert seq_1 == [['site1', 'standby'], ['site2', 'active']] and \
-           seq_2 == [['site1', 'standby'], ['site2', 'active']] and \
-           seq_3 == [['site2', 'standby'], ['site1', 'active']] and \
-           seq2_1 == [['site2', 'active'], ['site1', 'standby']]
-
-    sm_dict_missing_service={"sites":
-        {"site1":{"services":{
-            "serv1":{"sequence":["standby", "active"]},}},
-        "site2":{"services":{
-                "serv1":{"sequence":["standby", "active"]},
-                "serv2":{"sequence":["standby", "active"]}}}}}
-    assert True #todo
-    #[['site1', 'standby'], ['site2', 'active']] ==       data_get_dr_operation_sequence(sm_dict_missing_service, 'serv2', 'move', 'site1')
+    assert set(ignore3) == {'serv1', 'serv2', 'serv3', 'serv4'}
 
 
 def test_make_ordered_services_to_process():
-    sm_dict={"sites":{
+    sm_dict=SMClusterState({
         "site1":{"services":{
             "a":{"after":[], "before":[]},
             "b":{"after":[], "before":["a"]},
@@ -120,37 +85,37 @@ def test_make_ordered_services_to_process():
             "e":{"after":[], "before":["a"]},
             "f":{"after":[], "before":["c"]},
             #            "g":{"after":[], "before":["b"]},
-        }}}}
-    sorted_list, code, _ = make_ordered_services_to_process(sm_dict,"site2")
+        }}})
+    sorted_list, code, _ = make_ordered_services_to_process(sm_dict, "site2")
     assert sorted_list == ['b', 'e', 'f', 'a', 'c', 'd'] and code is True
 
-    sm_dict_one_site={"sites":{
+    sm_dict_one_site=SMClusterState({
         "siteN":{"services":{
             "a":{"after":[], "before":[]},
             "b":{"after":[], "before":["a"]},
             "c":{"after":["b"], "before":[]},
             "d":{"after":["c"], "before":[]},
             "e":{"after":[], "before":["a"]},
-        }}}}
-    sorted_list2, code2, _ = make_ordered_services_to_process(sm_dict_one_site,"siteN")
+        }}})
+    sorted_list2, code2, _ = make_ordered_services_to_process(sm_dict_one_site, "siteN")
     assert sorted_list2 == ['b', 'e', 'c', 'a', 'd'] and code2
 
-    sm_dict_absent_deps={"sites":{
+    sm_dict_absent_deps=SMClusterState({
         "site_with_absent_deps":{"services":{
             "a":{"after":[], "before":[]},
             "b":{"after":["z"], "before":["a"]},
             "c":{"after":["a"], "before":["f"]},
-        }}}}
-    sorted_list3, code3, _ = make_ordered_services_to_process(sm_dict_absent_deps,"site_with_absent_deps")
+        }}})
+    sorted_list3, code3, _ = make_ordered_services_to_process(sm_dict_absent_deps, "site_with_absent_deps")
     assert sorted_list3 == ['b', 'a', 'c'] and code3 is False
 
-    sm_dict_wrong_deps={"sites":{
+    sm_dict_wrong_deps=SMClusterState({
         "site_with_wrong_deps":{"services":{
             "a":{"after":[], "before":[]},
             "b":{"after":["a"], "before":["a"]},
             "c":{"after":["a"], "before":["b"]},
-        }}}}
-    sorted_list4, code4, _ = make_ordered_services_to_process(sm_dict_wrong_deps,"site_with_wrong_deps")
+        }}})
+    sorted_list4, code4, _ = make_ordered_services_to_process(sm_dict_wrong_deps, "site_with_wrong_deps")
     assert sorted_list4 == [] and code4 is False
 
 
@@ -216,62 +181,131 @@ def test_io_http_json_request_ssl_fails():
 def test_validate_operation(caplog):
     args_init()
 
-    sm_dict={"sites":
-                 {"k8s-1":
-                      {"status":True, "return_code":None,"service_dep_ordered":[],"deps_issue":False,"ts":TopologicalSorter2}}}
+    sm_dict = SMClusterState("k8s-1")
+    sm_dict["k8s-1"] = {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                       "ts":TopologicalSorter2}
+
     assert validate_operation(sm_dict, "active", "k8s-1")
 
-    sm_dict_site_not_available={"sites":{"k8s-1":{"status":False, "return_code":None,"service_dep_ordered":[],"deps_issue":False,"ts":TopologicalSorter2}}}
+    sm_dict_site_not_available=SMClusterState("k8s-1")
+    sm_dict_site_not_available["k8s-1"] = {"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                 "ts":TopologicalSorter2}
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict_site_not_available, "active", "k8s-1")
 
     args_init()
-    sm_dict_status={"sites":
-                        {"k8s-1":
-                             {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                              "ts":TopologicalSorter2},
-                         "k8s-2":
-                             {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                               "ts":TopologicalSorter2}}}
+    sm_dict_status=SMClusterState()
+    sm_dict_status["k8s-1"] = {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                              "ts":TopologicalSorter2}
+    sm_dict_status["k8s-2"] = {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                              "ts":TopologicalSorter2}
     assert validate_operation(sm_dict_status, "status", None)
 
-    sm_dict_move_fail={"sites":
-                        {"k8s-1":
-                             {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                              "ts":TopologicalSorter2},
-                         "k8s-2":
-                             {"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                              "ts":TopologicalSorter2}}}
+
+    sm_dict_move_fail=SMClusterState()
+    sm_dict_move_fail["k8s-1"] = {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                                 "ts":TopologicalSorter2}
+
+    sm_dict_move_fail["k8s-2"] = {"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                                 "ts":TopologicalSorter2}
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict_move_fail, "move", "k8s-2")
 
-    sm_dict_run_services={"sites":
-                           {"k8s-1":
-                                {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                 "ts":TopologicalSorter2,
-                                 "services":{"serv1":{}}},
-                            "k8s-2":
-                                {"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                 "ts":TopologicalSorter2,
-                                 "services":{"serv1":{}}}}}
+    sm_dict_run_services=SMClusterState()
+
+    sm_dict_run_services["k8s-1"] = {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                                    "ts":TopologicalSorter2,
+                                    "services":{"serv1":{}}}
+
+    sm_dict_run_services["k8s-2"] = {"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                                    "ts":TopologicalSorter2,
+                                    "services":{"serv1":{}}}
     with caplog.at_level(logging.WARNING):
         caplog.clear()
         validate_operation(sm_dict_run_services, "stop", "k8s-2", ["fake1", "serv1"])
         assert "Service 'fake1' does not exist on 'k8s-1' site" in caplog.text
 
 
+def test_get_available_sites(caplog):
+    args_init()
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {"status":True}
+    sm_dict["k8s-2"] = {"status":True}
+    list1=sm_dict.get_available_sites()
+    assert list1 == ["k8s-1", "k8s-2"]
 
-def test_get_available_sites():
-    sm_dict={"sites":{"k8s-1":{"status":True}, "k8s-2":{"status":True}}}
-    list1=data_get_available_sites(sm_dict)
+    sm_dict["k8s-2"] = {"status":False}
+    list2=sm_dict.get_available_sites()
+    assert list2 == ["k8s-1"]
 
-    sm_dict2={"sites":{"k8s-1":{"status":True}, "k8s-2":{"status":False}}}
-    list2=data_get_available_sites(sm_dict2)
+    sm_dict["k8s-1"] = {"status":False}
+    list3=sm_dict.get_available_sites()
+    assert list3 == []
 
-    sm_dict3={"sites":{"k8s-1":{"status":False}, "k8s-2":{"status":False}}}
-    list3=data_get_available_sites(sm_dict3)
-    assert list1 == ["k8s-1", "k8s-2"] and list2 == ["k8s-1"] and list3 == []
+
+def test_SMClusterState_init():
+    args_init()
+
+    assert SMClusterState()
+
+    assert SMClusterState("k8s-1")
+
+    with pytest.raises(ValueError) as e:
+        SMClusterState("not valid site")
+    assert str(e.value) in "Unknown site name"
+
+    assert "services" and "dep_issue" in SMClusterState("k8s-2")["k8s-2"]
+
+    assert "services" and "dep_issue"  in SMClusterState({"k8s-3":{"services":{"serv1":{}},
+                                                               "status":False},
+                                                          "k8s-1":{}})["k8s-3"]
+
+    args_init("config_test_wrong.yaml")
+    with pytest.raises(ValueError) as e:
+        SMClusterState()
+    assert str(e.value) in "Only two sites in clusters are supported"
+
 
 
 def test_data_sortout_service_results():
     assert True
+
+
+def test_get_dr_operation_sequence():
+    """ DR commands sequence calculation check
+      """
+    args_init()
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {"services":{
+            "serv1":{"sequence":["standby", "active"]},
+            "serv2":{"sequence":["standby", "active"]}}}
+
+    sm_dict["k8s-2"] = {"services":{
+            "serv1":{"sequence":["standby", "active"]},
+            "serv2":{"sequence":["standby", "active"]}}}
+
+    # switchover to site2
+    assert [['k8s-1', 'standby'], ['k8s-2', 'active']] == sm_dict.get_dr_operation_sequence('serv1', 'move', 'k8s-2')
+    # failover to site2
+    assert [['k8s-1', 'standby'], ['k8s-2', 'active']] == sm_dict.get_dr_operation_sequence('serv1', 'stop', 'k8s-1')
+    # failover to site1
+    assert [['k8s-2', 'standby'], ['k8s-1', 'active']] == sm_dict.get_dr_operation_sequence('serv1', 'stop', 'k8s-2')
+
+    sm_dict2 = SMClusterState()
+    sm_dict2["k8s-1"] = {"services":{
+            "serv1":{"sequence":["active", "standby"]}}}
+    sm_dict2["k8s-2"] = {"services":{
+            "serv1":{"sequence":["active", "active"]}}}
+
+    # switchover to site2
+    assert [['k8s-2', 'active'], ['k8s-1', 'standby']] == sm_dict2.get_dr_operation_sequence('serv1', 'move', 'k8s-2')
+
+    sm_dict_missing_service={"sites":
+        {"site1":{"services":{
+            "serv1":{"sequence":["standby", "active"]}, }},
+            "site2":{"services":{
+                "serv1":{"sequence":["standby", "active"]},
+                "serv2":{"sequence":["standby", "active"]}}}}}
+    assert True  # todo
+    # [['site1', 'standby'], ['site2', 'active']] ==       data_get_dr_operation_sequence(sm_dict_missing_service, 'serv2', 'move', 'site1')
+
