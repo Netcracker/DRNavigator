@@ -4,6 +4,8 @@ pytest based unit test
 python3  -m pytest -o log_cli=true -s -v test_smclient.py <-k  test_name*>
 """
 import json
+import logging
+
 import pytest
 from smclient import *
 from http import HTTPStatus
@@ -51,10 +53,10 @@ def test_make_ignored_services():
             "serv2":{"sequence":["standby", "active"]},
             "serv3":{"sequence":["standby", "active"]},
             "serv4":{"sequence":["standby", "active"]}}},
-        "site2":{"services":{
-            "serv1":{"sequence":["standby", "active"]},
-            "serv2":{"sequence":["standby", "active"]},
-            "serv3":{"sequence":["standby", "active"]}}}})
+            "site2":{"services":{
+                "serv1":{"sequence":["standby", "active"]},
+                "serv2":{"sequence":["standby", "active"]},
+                "serv3":{"sequence":["standby", "active"]}}}})
 
     ignore1=data_make_ignored_services(sm_dict, ['serv1', 'serv3'])
     assert set(ignore1) == {'serv2', 'serv4'}
@@ -86,7 +88,7 @@ def test_make_ordered_services_to_process():
             "f":{"after":[], "before":["c"]},
             #            "g":{"after":[], "before":["b"]},
         }}})
-    sorted_list, code, _ = make_ordered_services_to_process(sm_dict, "site2")
+    sorted_list, code, _=make_ordered_services_to_process(sm_dict, "site2")
     assert sorted_list == ['b', 'e', 'f', 'a', 'c', 'd'] and code is True
 
     sm_dict_one_site=SMClusterState({
@@ -97,7 +99,7 @@ def test_make_ordered_services_to_process():
             "d":{"after":["c"], "before":[]},
             "e":{"after":[], "before":["a"]},
         }}})
-    sorted_list2, code2, _ = make_ordered_services_to_process(sm_dict_one_site, "siteN")
+    sorted_list2, code2, _=make_ordered_services_to_process(sm_dict_one_site, "siteN")
     assert sorted_list2 == ['b', 'e', 'c', 'a', 'd'] and code2
 
     sm_dict_absent_deps=SMClusterState({
@@ -106,7 +108,7 @@ def test_make_ordered_services_to_process():
             "b":{"after":["z"], "before":["a"]},
             "c":{"after":["a"], "before":["f"]},
         }}})
-    sorted_list3, code3, _ = make_ordered_services_to_process(sm_dict_absent_deps, "site_with_absent_deps")
+    sorted_list3, code3, _=make_ordered_services_to_process(sm_dict_absent_deps, "site_with_absent_deps")
     assert sorted_list3 == ['b', 'a', 'c'] and code3 is False
 
     sm_dict_wrong_deps=SMClusterState({
@@ -115,7 +117,7 @@ def test_make_ordered_services_to_process():
             "b":{"after":["a"], "before":["a"]},
             "c":{"after":["a"], "before":["b"]},
         }}})
-    sorted_list4, code4, _ = make_ordered_services_to_process(sm_dict_wrong_deps, "site_with_wrong_deps")
+    sorted_list4, code4, _=make_ordered_services_to_process(sm_dict_wrong_deps, "site_with_wrong_deps")
     assert sorted_list4 == [] and code4 is False
 
 
@@ -181,45 +183,45 @@ def test_io_http_json_request_ssl_fails():
 def test_validate_operation(caplog):
     args_init()
 
-    sm_dict = SMClusterState("k8s-1")
-    sm_dict["k8s-1"] = {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                       "ts":TopologicalSorter2}
+    sm_dict=SMClusterState("k8s-1")
+    sm_dict["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                      "ts":TopologicalSorter2}
 
     assert validate_operation(sm_dict, "active", "k8s-1")
 
     sm_dict_site_not_available=SMClusterState("k8s-1")
-    sm_dict_site_not_available["k8s-1"] = {"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                 "ts":TopologicalSorter2}
+    sm_dict_site_not_available["k8s-1"]={"status":False, "return_code":None, "service_dep_ordered":[],
+                                         "deps_issue":False,
+                                         "ts":TopologicalSorter2}
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict_site_not_available, "active", "k8s-1")
 
     args_init()
     sm_dict_status=SMClusterState()
-    sm_dict_status["k8s-1"] = {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                              "ts":TopologicalSorter2}
-    sm_dict_status["k8s-2"] = {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                              "ts":TopologicalSorter2}
+    sm_dict_status["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                             "ts":TopologicalSorter2}
+    sm_dict_status["k8s-2"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                             "ts":TopologicalSorter2}
     assert validate_operation(sm_dict_status, "status", None)
 
-
     sm_dict_move_fail=SMClusterState()
-    sm_dict_move_fail["k8s-1"] = {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                 "ts":TopologicalSorter2}
+    sm_dict_move_fail["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                                "ts":TopologicalSorter2}
 
-    sm_dict_move_fail["k8s-2"] = {"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                 "ts":TopologicalSorter2}
+    sm_dict_move_fail["k8s-2"]={"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                                "ts":TopologicalSorter2}
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict_move_fail, "move", "k8s-2")
 
     sm_dict_run_services=SMClusterState()
 
-    sm_dict_run_services["k8s-1"] = {"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                    "ts":TopologicalSorter2,
-                                    "services":{"serv1":{}}}
+    sm_dict_run_services["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                                   "ts":TopologicalSorter2,
+                                   "services":{"serv1":{}}}
 
-    sm_dict_run_services["k8s-2"] = {"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                    "ts":TopologicalSorter2,
-                                    "services":{"serv1":{}}}
+    sm_dict_run_services["k8s-2"]={"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+                                   "ts":TopologicalSorter2,
+                                   "services":{"serv1":{}}}
     with caplog.at_level(logging.WARNING):
         caplog.clear()
         validate_operation(sm_dict_run_services, "stop", "k8s-2", ["fake1", "serv1"])
@@ -228,17 +230,17 @@ def test_validate_operation(caplog):
 
 def test_get_available_sites(caplog):
     args_init()
-    sm_dict = SMClusterState()
-    sm_dict["k8s-1"] = {"status":True}
-    sm_dict["k8s-2"] = {"status":True}
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={"status":True}
+    sm_dict["k8s-2"]={"status":True}
     list1=sm_dict.get_available_sites()
     assert list1 == ["k8s-1", "k8s-2"]
 
-    sm_dict["k8s-2"] = {"status":False}
+    sm_dict["k8s-2"]={"status":False}
     list2=sm_dict.get_available_sites()
     assert list2 == ["k8s-1"]
 
-    sm_dict["k8s-1"] = {"status":False}
+    sm_dict["k8s-1"]={"status":False}
     list3=sm_dict.get_available_sites()
     assert list3 == []
 
@@ -256,15 +258,87 @@ def test_SMClusterState_init():
 
     assert "services" and "dep_issue" in SMClusterState("k8s-2")["k8s-2"]
 
-    assert "services" and "dep_issue"  in SMClusterState({"k8s-3":{"services":{"serv1":{}},
-                                                               "status":False},
-                                                          "k8s-1":{}})["k8s-3"]
+    assert "services" and "dep_issue" in SMClusterState({"k8s-3":{"services":{"serv1":{}},
+                                                                  "status":False},
+                                                         "k8s-1":{}})["k8s-3"]
 
     args_init("config_test_wrong.yaml")
     with pytest.raises(ValueError) as e:
         SMClusterState()
     assert str(e.value) in "Only two sites in clusters are supported"
 
+
+def test_ServiceDRStatus_init():
+
+    stat = ServiceDRStatus({'services': {'test':{'healthz':'up', 'mode':'disable', 'status':'done'}}})
+    assert stat.status in "done" and stat.healthz in 'up' and stat.mode in 'disable'
+
+    assert not ServiceDRStatus({'services': {'test':{'healthz':'up'}}}).healthz in "degraded"
+
+    assert ServiceDRStatus({'services': {'test':{'mode':'disable'}}})['mode'] in "disable"
+
+    assert ServiceDRStatus({'services': {'test':{}}})['mode'] in "unknown"
+
+    assert ServiceDRStatus({'services':{'test':{}}}).service in "test"
+
+    assert not ServiceDRStatus({'services':{'test':{}}}).is_ok() and \
+           ServiceDRStatus({'services':{'test':{'healthz':'up'}}}).is_ok()
+
+    with pytest.raises(Exception):
+        assert ServiceDRStatus()
+        assert ServiceDRStatus({'services':{}})
+
+
+thread_result_queue = Queue(maxsize=-1)
+
+
+def test_runservise_engine(caplog):
+    def process_node(node):
+        node = ServiceDRStatus({'services':{node:{}}})
+        if node.service in test_failed_services:
+            node.healthz = 'down'
+        else:
+            node.healthz = 'up'
+        thread_result_queue.put(node)
+        print(node.is_ok())
+
+    caplog.set_level(logging.INFO)
+    thread_pool=[]
+    ts = TopologicalSorter2()
+    ts.add("aa")
+    ts.add("bb1", "bb")
+    ts.add("cc") ; ts.add("cc1","cc")
+    test_failed_services=['bb']
+    ts.prepare()
+    """ ------------ """
+    failed_successors=[]
+    global thread_result_queue
+
+    while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
+        for serv in ts.get_ready():
+            if serv in failed_successors:
+                logging.info(f"Service {serv} marked as failed due to dependencies")
+                thread_result_queue.put(ServiceDRStatus({'services':{serv:{}}}))
+                break
+            thread=threading.Thread(target=process_node,
+                                    args=(serv,))
+            thread.name=f"Thread: {serv}"
+            thread_pool.append(thread)
+            thread.start()
+        service_response = thread_result_queue.get()
+
+        if not service_response.is_ok() :  # mark failed and skip successors of serv_done
+            for s in ts.successors(service_response.service):
+                logging.debug(f"Found successor {s} for failed {service_response.service} ")
+                failed_successors.append(s)
+        ts.done(service_response.service)
+        service_response.sortout_service_results(done_services,failed_services)
+    for thread in thread_pool:
+        thread.join()
+
+    logging.info(f"failed_services: {failed_services}")
+    logging.info(f"done_services: {done_services}")
+    assert done_services == ['aa', 'cc', 'cc1'] and failed_services == ['bb','bb1']
 
 
 def test_data_sortout_service_results():
@@ -275,14 +349,14 @@ def test_get_dr_operation_sequence():
     """ DR commands sequence calculation check
       """
     args_init()
-    sm_dict = SMClusterState()
-    sm_dict["k8s-1"] = {"services":{
-            "serv1":{"sequence":["standby", "active"]},
-            "serv2":{"sequence":["standby", "active"]}}}
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={"services":{
+        "serv1":{"sequence":["standby", "active"]},
+        "serv2":{"sequence":["standby", "active"]}}}
 
-    sm_dict["k8s-2"] = {"services":{
-            "serv1":{"sequence":["standby", "active"]},
-            "serv2":{"sequence":["standby", "active"]}}}
+    sm_dict["k8s-2"]={"services":{
+        "serv1":{"sequence":["standby", "active"]},
+        "serv2":{"sequence":["standby", "active"]}}}
 
     # switchover to site2
     assert [['k8s-1', 'standby'], ['k8s-2', 'active']] == sm_dict.get_dr_operation_sequence('serv1', 'move', 'k8s-2')
@@ -291,11 +365,11 @@ def test_get_dr_operation_sequence():
     # failover to site1
     assert [['k8s-2', 'standby'], ['k8s-1', 'active']] == sm_dict.get_dr_operation_sequence('serv1', 'stop', 'k8s-2')
 
-    sm_dict2 = SMClusterState()
-    sm_dict2["k8s-1"] = {"services":{
-            "serv1":{"sequence":["active", "standby"]}}}
-    sm_dict2["k8s-2"] = {"services":{
-            "serv1":{"sequence":["active", "active"]}}}
+    sm_dict2=SMClusterState()
+    sm_dict2["k8s-1"]={"services":{
+        "serv1":{"sequence":["active", "standby"]}}}
+    sm_dict2["k8s-2"]={"services":{
+        "serv1":{"sequence":["active", "active"]}}}
 
     # switchover to site2
     assert [['k8s-2', 'active'], ['k8s-1', 'standby']] == sm_dict2.get_dr_operation_sequence('serv1', 'move', 'k8s-2')
@@ -308,4 +382,6 @@ def test_get_dr_operation_sequence():
                 "serv2":{"sequence":["standby", "active"]}}}}}
     assert True  # todo
     # [['site1', 'standby'], ['site2', 'active']] ==       data_get_dr_operation_sequence(sm_dict_missing_service, 'serv2', 'move', 'site1')
+
+
 
