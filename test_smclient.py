@@ -288,6 +288,10 @@ def test_ServiceDRStatus_init():
         assert ServiceDRStatus()
         assert ServiceDRStatus({'services':{}})
 
+    stat = ServiceDRStatus({'message': 'You defined service that does not exist in cluster',
+                            'wrong-services': ['absent-service']})
+    assert stat.service in 'absent-service' and stat.message and not stat.is_ok()
+
 
 thread_result_queue = Queue(maxsize=-1)
 

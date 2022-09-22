@@ -162,9 +162,11 @@ class ServiceDRStatus:
     def __init__(self, data: dict = None ):
          if data and data.get("services") and isinstance(data['services'],dict):
              self.service = list(data['services'].keys())[0]
+         elif data and data.get("wrong-services") and isinstance(data['wrong-services'],list):
+             self.service = data['wrong-services'][0]
          else:
              raise ValueError("Missing service name")
-         serv = data['services'][self.service]
+         serv= data['services'][self.service] if data.get('services') else data
          self.mode = serv['mode'] if serv.get("mode") in ["active", "standby", "disable"] else "unknown"
          self.nowait = serv["nowait"] if serv.get("nowait") else False
          self.healthz = serv["healthz"] if serv.get("healthz") in ["up", "down", "degraded"] else "--"
@@ -342,7 +344,7 @@ def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
                 sm_process_service(site_to_process, service, mode) # todo skip next site in case previous site failed ??
                 service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict)
 
-            thread_result_queue.put(service_response)
+        thread_result_queue.put(service_response)
 
     logging.info(f"Processing {service} in thread finished")
 
@@ -786,7 +788,6 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
         @param state:  expected dict state from site-manager service status command. {"status": ["up"]}
         @param error_state: optional error state which should be processed immediately. {"status": ["failed"]}
         """
-        data = {}
         key = list(state.keys())[0]
         value = list(state.values())[0]
         value_error = list(state.values())[0] if error_state else []
@@ -800,6 +801,7 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
             logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
 
             data, ret, _ = sm_process_service(site, service, "status")
+            data  = {'services':{service:{}}} if not data else data
 
             logging.debug(f"Service: {service}. Site: {site}. Received data: {data}. Return code: {ret}")
             if ret and data["services"][service][key] in value:
