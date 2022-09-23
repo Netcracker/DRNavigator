@@ -115,9 +115,6 @@ def config_checks_init() -> None:
     parser_8 = subparsers.add_parser('status', help='show current status of clusters and all services')
     parser_8.set_defaults(command='status')
 
-    parser_9 = subparsers.add_parser('daemon', help='run site-manager as a service')
-    parser_9.set_defaults(command='daemon')
-
     args = parser.parse_args()
 
     # Set verbosity for logging
@@ -231,7 +228,7 @@ def config_checks_init() -> None:
                     data_t,_ = io_http_json_request(url=sm_dict["sites"][sites_item]["url"],
                                                   token=sm_dict["sites"][sites_item]["token"],
                                                   verify=sm_dict["sites"][sites_item]["cacert"],
-                                                  http_body={"procedure": "status", "run-services": service_item})
+                                                  http_body={"procedure": "status", "run-service": service_item})
                 except requests.exceptions.SSLError:
                     data_t = {} # in case site is Down except balancers, getting SSL exception
                 data=data_t
@@ -320,6 +317,7 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
     unknown_state = {"mode": "unknown", "status": "unknown", "healthz": "--"}
     data = dict()
     init_time = int(time.time())
+    message = ""
 
     count = 0
     while int(time.time()) < init_time + int(timeout):
@@ -331,8 +329,12 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
         data,_ = io_http_json_request(sm_dict["sites"][site]["url"],
                          sm_dict["sites"][site]["token"],
                          sm_dict["sites"][site]["cacert"],
-                         {"procedure": "status", "run-services": service, "polling": True})
+                         {"procedure": "status", "run-service": service, "polling": True})
 
+        if data["services"][service].get("message", "") not in [message, ""]:
+            message = data["services"][service].get("message", "")
+            logging.info(f"Service: {service}. Site: {site}. Message from service was catched: {message}")
+        
         logging.debug(f"Service: {service}. Site: {site}. Received data: {data}")
         if "status" not in data.get("services", {}).get(service, {}) or \
            "mode" not in data.get("services", {}).get(service, {}):
@@ -364,8 +366,11 @@ def polling(service, site, timeout=SERVICE_DEFAULT_TIMEOUT):
         data,_ = io_http_json_request(sm_dict["sites"][site]["url"],
                          sm_dict["sites"][site]["token"],
                          sm_dict["sites"][site]["cacert"],
-                         {"procedure": "status", "run-services": service, "polling": True})
+                         {"procedure": "status", "run-service": service, "polling": True})
 
+        if data["services"][service].get("message", "") not in [message, ""]:
+            message = data["services"][service].get("message", "")
+            logging.info(f"Service: {service}. Site: {site}. Message from service was catched: {message}")
         logging.debug(f"Service: {service}. Site: {site}. Received status: {data['services'][service]['healthz']}")
         if "healthz" not in data.get("services", {}).get(service, {}):
             time.sleep(5)
@@ -419,7 +424,7 @@ def run(service, procedure, force, no_wait=True):
         resp,_ = io_http_json_request(sm_dict["sites"][site]["url"],
                          sm_dict["sites"][site]["token"],
                          sm_dict["sites"][site]["cacert"],
-                         {"procedure": "status", "run-services": service},)
+                         {"procedure": "status", "run-service": service},)
         service_status = resp["services"][service]
 
         if "mode" not in resp.get("services", {}).get(service, {}) or \
@@ -484,7 +489,7 @@ def run(service, procedure, force, no_wait=True):
 
             logging.info(f"Service: {service}. Site: {site}. Set mode {sm_dict['sites'][site]['mode']}")
 
-            obj = {"procedure": sm_dict['sites'][site]['mode'], "run-services": service, "no-wait": no_wait, "force": force}
+            obj = {"procedure": sm_dict['sites'][site]['mode'], "run-service": service, "no-wait": no_wait, "force": force}
             resp,_ = io_http_json_request(url=sm_dict['sites'][site]['url'],
                                           token=sm_dict["sites"][site]["token"],
                                           verify=sm_dict["sites"][site]["cacert"],
@@ -792,14 +797,14 @@ def print_main_table(status_dict, services_to_run, sites_name):
     :param list sites_name: list of cluster names
     """
 
-    pt = make_table("mode | DR status | healthz", sites_name)
+    pt = make_table("mode | DR status | healthz | message", sites_name)
     for service_item in services_to_run:
         service_pt_row = list()
         service_pt_row.append(service_item)
 
         for sites_item in sites_name:
             service_pt_row.append(
-                f"{status_dict[service_item][sites_item]['mode']} / {status_dict[service_item][sites_item]['status']} / {status_dict[service_item][sites_item]['healthz']}")
+                f"{status_dict[service_item][sites_item]['mode']} / {status_dict[service_item][sites_item]['status']} / {status_dict[service_item][sites_item]['healthz']} / {status_dict[service_item][sites_item].get('message', '--')}")
         pt.add_row(service_pt_row)
 
     pt.sortby = "Service"

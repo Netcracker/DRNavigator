@@ -148,7 +148,7 @@ where:
 
 ## Infra service endpoints
 
-To start DR procedures `site-manager` should send REST request to operator. There are two parameters to define URL for operator: `serviceEndpoint` and `ingressEndpoint`. `serviceEndpoint` should be used for communication inside kubernetes cluster and define name of kubernetes service. `ingressEndpoint` should be used then operator has kubernetes ingress and can receive REST requests outside of kubernetes cluster.
+To start DR procedures `site-manager` should send REST request to operator. You should use `serviceEndpoint` to define URL for operator.  
 
 To check current infra service health status `site-manager` checks URL from `healthzEndpoint`. 
 
@@ -292,9 +292,9 @@ roleRef:
 
 **Code**: 200
 
-**Answer**: `{"mode": "active|standby|disable", "status": "running|done|failed"}`
+**Answer**: `{"mode": "active|standby|disable", "status": "running|done|failed", "message": "some string"}`
 
-Where `mode` is the role of cluster part, `status` is the current state of DR procedure.
+Where `mode` is the role of cluster part, `status` is the current state of DR procedure, `message` is optional field to describe process details.
 
 `mode` options:
 
@@ -320,7 +320,7 @@ $ curl --silent \
 Output:
 
 ```json
-{"mode":"active","status": "running"}
+{"mode":"active","status": "running", "message": "Activation process"}
 ```
 
 ### Set new mode for infra service:
@@ -414,30 +414,40 @@ This part describes what requests a Site-manager can respond to on both kubernet
   "services": {
     "kafka": {
       "after": [], 
+      "allowedStandbyStateList": [
+        "up"
+      ],
       "before": [], 
-      "healthzEndpoint": "http://kafka-disaster-recovery.kafka-service.svc.cluster.local:8068/healthz", 
+      "module": "stateful",
       "namespace": "kafka-service", 
+      "parameters": {
+        "healthzEndpoint": "http://kafka-disaster-recovery.kafka-service.svc.cluster.local:8068/healthz", 
+        "serviceEndpoint": "http://kafka-disaster-recovery.kafka-service.svc.cluster.local:8068/sitemanager"
+      },
       "sequence": [
         "active", 
         "standby"
-      ], 
-      "serviceEndpoint": "http://kafka-disaster-recovery.kafka-service.svc.cluster.local:8068/sitemanager", 
-      "standbyState": "up", 
+      ],  
       "timeout": 360
     },
     "spark-operator-gcp-site-manager": {
       "after": [
         "paas"
       ], 
-      "before": [], 
-      "healthzEndpoint": "http://spark-site-manager.spark-operator-gcp.svc.cluster.local:8080/health", 
+      "allowedStandbyStateList": [
+        "up"
+      ],
+      "before": [],
+      "module": "stateful", 
       "namespace": "spark-operator-gcp", 
+      "parameters": {
+        "healthzEndpoint": "http://spark-site-manager.spark-operator-gcp.svc.cluster.local:8080/health", 
+        "serviceEndpoint": "http://spark-site-manager.spark-operator-gcp.svc.cluster.local:8080/sitemanager"
+      },
       "sequence": [
         "standby", 
         "active"
-      ], 
-      "serviceEndpoint": "http://spark-site-manager.spark-operator-gcp.svc.cluster.local:8080/sitemanager", 
-      "standbyState": "up", 
+      ],  
       "timeout": 120
     }
   }
@@ -463,30 +473,40 @@ Output:
   "services": {
     "kafka": {
       "after": [], 
+      "allowedStandbyStateList": [
+        "up"
+      ],
       "before": [], 
-      "healthzEndpoint": "http://kafka-disaster-recovery.kafka-service.svc.cluster.local:8068/healthz", 
+      "module": "stateful",
       "namespace": "kafka-service", 
+      "parameters": {
+        "healthzEndpoint": "http://kafka-disaster-recovery.kafka-service.svc.cluster.local:8068/healthz", 
+        "serviceEndpoint": "http://kafka-disaster-recovery.kafka-service.svc.cluster.local:8068/sitemanager"
+      },
       "sequence": [
         "active", 
         "standby"
-      ], 
-      "serviceEndpoint": "http://kafka-disaster-recovery.kafka-service.svc.cluster.local:8068/sitemanager", 
-      "standbyState": "up", 
+      ],  
       "timeout": 360
     },
     "spark-operator-gcp-site-manager": {
       "after": [
         "paas"
       ], 
-      "before": [], 
-      "healthzEndpoint": "http://spark-site-manager.spark-operator-gcp.svc.cluster.local:8080/health", 
+      "allowedStandbyStateList": [
+        "up"
+      ],
+      "before": [],
+      "module": "stateful", 
       "namespace": "spark-operator-gcp", 
+      "parameters": {
+        "healthzEndpoint": "http://spark-site-manager.spark-operator-gcp.svc.cluster.local:8080/health", 
+        "serviceEndpoint": "http://spark-site-manager.spark-operator-gcp.svc.cluster.local:8080/sitemanager"
+      },
       "sequence": [
         "standby", 
         "active"
-      ], 
-      "serviceEndpoint": "http://spark-site-manager.spark-operator-gcp.svc.cluster.local:8080/sitemanager", 
-      "standbyState": "up", 
+      ],  
       "timeout": 120
     }
   }
@@ -501,20 +521,18 @@ Output:
 
 **Code**: 200
 
-**Data Params**: `{"procedure": "status"}`
+**Data Params**: `{"procedure": "status", "run-service": "service-name"}`
 
-**Answer**: `[{"name": "service-name-1", "mode": "active|standby|disable", "status": "running|done|failed"}, {"name": "service-name-2", "mode": "active|standby|disable", "status": "running|done|failed"}]`
+**Answer**: `"service": {[{"healthz": "up|down|degraded", "name": "service-name-1", "message": "some-message", "mode": "active|standby|disable", "status": "running|done|failed"}]}`
 
 This command shows current status of DR procedures and results of health checks.
 
-**Note**: response may contain section `additional`, which will contain specific information for the module in dictionary format. 
-
-Example of `/GET` request with `curl` command shows output for services `paas` and `paas-1`:
+Example of `/GET` request with `curl` command shows output for service `paas`:
 
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"status", "run-services": ["paas","paas-1"]}' \
+       -d '{"procedure":"status", "run-service": "paas"}' \
        http://site-manager.example.com/sitemanager
 
 ```
@@ -523,19 +541,14 @@ Output:
 
 ```json
 {
-  "running-procedure": "", 
-  "services": {
+  "services": [
     "paas": {
       "healthz": "--", 
-      "mode": "active", 
-      "status": "done"
-    }, 
-    "paas-1": {
-      "healthz": "up", 
+      "message": "",
       "mode": "active", 
       "status": "done"
     }
-  }
+  ]
 }
 ```
 
@@ -549,7 +562,7 @@ Output:
 
 **Data Params**: `{"procedure": "list"}`
 
-**Answer**: `{"all_services": ["service-1", "service-2"], "running-services": ["service-1", "service-2"]}`
+**Answer**: `{"all_services": ["service-1", "service-2"]}`
 
 Example:
 
@@ -574,16 +587,6 @@ Output:
     "streaming-platform", 
     "paas-1", 
     "spark-operator-gcp-site-manager"
-  ], 
-  "running-services": [
-    "postgres", 
-    "postgres-service-site-manager", 
-    "paas", 
-    "kafka", 
-    "mongo", 
-    "streaming-platform", 
-    "paas-1", 
-    "spark-operator-gcp-site-manager"
   ]
 }
 ```
@@ -596,22 +599,19 @@ Output:
 
 **Code**: 200
 
-**Data Params**: `{"procedure": "active|standby|disable"}`
+**Data Params**: `{"procedure": "active|standby|disable", "run-service": "paas"}`
 
-**Answer**: `{"message": "Procedure active is started", "procedure": "active", "services": ["paas","paas-1"]}`
+**Answer**: `{"message": "Procedure active is started", "procedure": "active", "service": "paas"}`
 
-This command performs the specified procedure for the selected services.
-    
-Active|standby|disable are the atomic operations and sm-client don't need to check both clusters. The decision should be taken by operator.
+This command performs the specified procedure for the selected service.
 
-**Note**: response may contain section `additional`, which will contain specific information for the module in dictionary format. 
 
 Example:
 
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"active", "run-services": "paas,paas-1"}' \
+       -d '{"procedure":"active", "run-service": "paas"}' \
        http://site-manager.example.com/sitemanager
 
 ```
@@ -622,21 +622,37 @@ Output:
 {
   "message": "Procedure active is started", 
   "procedure": "active", 
-  "services": [
-    "paas", 
-    "paas-1"
-  ]
+  "service": "paas"
 }
 ```
 
 ### Possible errors:
 
-1. Wrong procedure:
+1. Wrong json:
 
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"wrong", "run-services": "paas,paas-1"}' \
+       -d '{"procedure":"status", "run-service": }' \
+       http://site-manager.example.com/sitemanager
+```
+
+Output:
+
+```json
+{
+  "message": "No valid JSON data was received"
+}
+```
+
+HTTP Code: 400
+
+2. Wrong procedure:
+
+```
+$ curl -XPOST \
+       --header "Content-Type: application/json" \
+       -d '{"procedure":"wrong", "run-service": "paas"}' \
        http://site-manager.example.com/sitemanager
 ```
 
@@ -650,12 +666,12 @@ Output:
 
 HTTP Code: 400
 
-2. Try to start procedure with incorrect services:
+3. Don't define run-service or define it as non string type:
 
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"active", "run-services": "paas,paas-12"}' \
+       -d '{"procedure":"active"}' \
        http://site-manager.example.com/sitemanager
 ```
 
@@ -663,10 +679,27 @@ Output:
 
 ```json
 {
-  "message": "You defined service that does not exist in cluster", 
-  "wrong-services": [
-    "paas-12"
-  ]
+  "message": "run-service value should be defined and have String type"
+}
+```
+
+HTTP Code: 400
+
+4.  Try to start procedure with incorrect service:
+
+```
+$ curl -XPOST \
+       --header "Content-Type: application/json" \
+       -d '{"procedure":"active", "run-service": "wrong-service"}' \
+       http://site-manager.example.com/sitemanager
+```
+
+Output:
+
+```json
+{
+    "message": "You defined service that does not exist in cluster",
+    "wrong-service": "wrong-service"
 }
 
 ```
@@ -682,30 +715,6 @@ curl   --silent \
        --request GET \
        https://site-manager.example.com/metrics
 ```
-
-# DR procedures flow
-
-## Switchover
-
-Example for service with `sequence` parameter as ["standby", "active"]:
-
-![](/documentation/images/site-manager_diagram_with_PG.png)
-
-Postgres is the service with defined sequence. It means that we need to send new mode to the standby cluster and only in case of procedure successful finished we can send new mode to active site.
-
-Example for service without `sequence` parameter:
-
-![](/documentation/images/site-manager_diagram_with_Mongo.png)
-
-For this example we consider Mongo as an example of service without sequence. For this case we send new mode to both clusters and wait for status `done` also for both clusters.
-
-## Failover
-
-Example for two services. The first service with defined `sequence` and the second without sequence:
-
-![](/documentation/images/site-manager_diagram_failover.png)
-
-Working with services looks like in switchover procedure. We have only one assumption - standby kubernetes cluster may be unavailable. In this case we should not wait for correct status. We can omit statuses of all infra services of standby kubernetes cluster.
 
 # CLI tool sm-client
 
@@ -854,13 +863,16 @@ Check status of services:
 
 ```
 $ ./sm-client status
-+---------------------------------+---------------------+-----------------------+
-| Service                         |        k8s-1        |         k8s-2         |
-+---------------------------------+---------------------+-----------------------+
-| postgres-service-site-manager   | standby / done / up |   active / done / up  |
-| kafka                           | standby / done / up |   active / done / up  |
-| paas                            | standby / done / up |   active / done / up  |
-+---------------------------------+---------------------+-----------------------+
+
++---------------------------------+----------------------------------------+----------------------------------------+
+| Service                         |        k8s-1                           |         k8s-2                          |
++---------------------------------+----------------------------------------+----------------------------------------+
+|                                 | mode | DR status | healthz | message   | mode | DR status | healthz | message   |
+|   --------------------------    |       --------------------------       |       --------------------------       |
+| postgres-service-site-manager   | standby / done / up / "--"             |  active / done / up / "--"             |
+| kafka                           | standby / done / up / "some kafka msg" |  active / done / up / "some kafka msg" |
+| paas                            | standby / done / up / "some paas msg"  |  active / done / up / "some paas msg"  |
++---------------------------------+----------------------------------------+----------------------------------------+
 ```
 
 Show list of services in kubernetes clusters with CR sitemanager:
@@ -874,53 +886,26 @@ kubernetes services that will be processed: ['postgres', 'sm-test', 'mongo', 'pa
 ---------------------------------------------------------------------
 ```
 
-## Daemon mode
+# DR procedures flow
 
-To start `sm-client` in daemon mode you should run:
+## Switchover
 
-```
-$ ./sm-client daemon
+Example for service with `sequence` parameter as ["standby", "active"]:
 
- * Serving Flask app "sm-client" (lazy loading)
- * Environment: production
-   WARNING: This is a development server. Do not use it in a production deployment.
-   Use a production WSGI server instead.
- * Debug mode: off
+![](/documentation/images/site-manager_diagram_with_PG.png)
 
-2021-04-23 17:31:40,328 [INFO] _internal.py:  * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
-```
+Postgres is the service with defined sequence. It means that we need to send new mode to the standby cluster and only in case of procedure successful finished we can send new mode to active site.
 
-In daemon mode `sm-client` starts to listen TCP port 8080 and can receive HTTP REST requests. All output will be in logging yet.
+Example for service without `sequence` parameter:
 
-To send REST API requests to `sm-client` you should comply with the following contract:
+![](/documentation/images/site-manager_diagram_with_Mongo.png)
 
-**URL**: `site-manager.example.com/sitemanager`
+For this example we consider Mongo as an example of service without sequence. For this case we send new mode to both clusters and wait for status `done` also for both clusters.
 
-**Method**: `/POST`
+## Failover
 
-**Code**: 200
+Example for two services. The first service with defined `sequence` and the second without sequence:
 
-**Data Params**: `{"procedure": "active|standby|disable", "site": NAME_OF_SITE_FROM_CONFIG, "run-services": LIST_OF_SERVICES, "skip-services": LIST_OF_SERVICES, "force": "True|False"}`
+![](/documentation/images/site-manager_diagram_failover.png)
 
-**Answer**: `{"message": "Procedure active is started", "procedure": "active", "services": ["SERVICE-1","SERVICE-2"]}`
-
-where:
- - `procedure` is the command to execute by `sm-client`. It can be `move`, `stop`, `return`, `mntc`, `active`, `standby`, `list` or `status`. Mandatory parameter
- - `site` is the name of site. Should be the same as one of sites from `config.yml`. Mandatory parameter
- - `run-services` parameter in JSON object defines comma separated list of services for processing. Optional parameter.
- - `skip-services` parameter in JSON object defines comma separated list of services to be skipped for processing. Optional parameter.
- - `force` parameter defines ability to ignore `healthz` status different to `up`. Supported following values: "True", "true", 1. Optional parameter.
-
-**Note:** `run-services` and `skip-services` cannot be used in the same command.
-
-Example:
-
-```
-$ curl --silent \
-       --request POST \
-       --header "Content-Type: application/json" \
-       --data '{"procedure": "standby", "site": "k8s-2", "run-services": "paas,postgres", "force": "true"}' \
-       http://site-manager.example.com/sitemanager
-```
-
-In case if any of procedures is processing all new procedures will be rejected. New procedure will be applied only in waiting mode of `sm-client`.
+Working with services looks like in switchover procedure. We have only one assumption - standby kubernetes cluster may be unavailable. In this case we should not wait for correct status. We can omit statuses of all infra services of standby kubernetes cluster.
