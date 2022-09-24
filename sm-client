@@ -79,18 +79,7 @@ run_services = []
 skip_services = []
 
 
-class SMConf: # global config.yaml and some RO config parameters and args, cmd manipulation
-    def __init__(self):
-        self.conf = {} #global config.yaml
-
-    def __getitem__(self, key):
-        return self.conf[key]
-
-    def __setitem__(self, key, item):
-        self.conf[key] = item
-
-    def keys(self):
-        return self.conf.keys()
+class SMConf(dict): # global config.yaml and some RO config parameters and args, cmd manipulation
 
     def get_active_site(self, cmd, site):
         if cmd in ["active", "move"]:
@@ -101,7 +90,7 @@ class SMConf: # global config.yaml and some RO config parameters and args, cmd m
             return None
 
     def get_opposite_site(self,site):
-        if site not in self.conf.keys():
+        if site not in self.keys():
             return None
         opposite_site=None
 
