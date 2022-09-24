@@ -58,13 +58,13 @@ def test_make_ignored_services():
                 "serv2":{"sequence":["standby", "active"]},
                 "serv3":{"sequence":["standby", "active"]}}}})
 
-    ignore1=data_make_ignored_services(sm_dict, ['serv1', 'serv3'])
+    ignore1=sm_dict.make_ignored_services(['serv1', 'serv3'])
     assert set(ignore1) == {'serv2', 'serv4'}
 
-    ignore2=data_make_ignored_services(sm_dict, ['serv1', 'serv2', 'serv3'])
+    ignore2=sm_dict.make_ignored_services(['serv1', 'serv2', 'serv3'])
     assert ignore2 == ['serv4']
 
-    ignore3=data_make_ignored_services(sm_dict, [])
+    ignore3=sm_dict.make_ignored_services([])
     assert set(ignore3) == {'serv1', 'serv2', 'serv3', 'serv4'}
 
 
@@ -262,10 +262,20 @@ def test_SMClusterState_init():
                                                                   "status":False},
                                                          "k8s-1":{}})["k8s-3"]
 
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"]={"services":{
+        "serv1":{"module":'stateful'},
+        "serv2":{"module":'stateful'},
+        "serv3":{"module":'notstateful'}}}
+    assert sm_dict.get_module_services('k8s-1','stateful') == ['serv1','serv2'] and \
+            sm_dict.get_module_services('k8s-1','notstateful') == ['serv3']
+
     args_init("config_test_wrong.yaml")
     with pytest.raises(ValueError) as e:
         SMClusterState()
     assert str(e.value) in "Only two sites in clusters are supported"
+
+
 
 
 def test_ServiceDRStatus_init():
@@ -293,9 +303,6 @@ def test_ServiceDRStatus_init():
     assert stat.service in 'absent-service' and stat.message and not stat.is_ok()
 
 
-thread_result_queue = Queue(maxsize=-1)
-
-
 def test_runservise_engine(caplog):
     def process_node(node):
         node = ServiceDRStatus({'services':{node:{}}})
@@ -304,7 +311,6 @@ def test_runservise_engine(caplog):
         else:
             node.healthz = 'up'
         thread_result_queue.put(node)
-        print(node.is_ok())
 
     caplog.set_level(logging.INFO)
     thread_pool=[]
@@ -345,10 +351,6 @@ def test_runservise_engine(caplog):
     assert done_services == ['aa', 'cc', 'cc1'] and failed_services == ['bb','bb1']
 
 
-def test_data_sortout_service_results():
-    assert True
-
-
 def test_get_dr_operation_sequence():
     """ DR commands sequence calculation check
       """
@@ -386,6 +388,7 @@ def test_get_dr_operation_sequence():
                 "serv2":{"sequence":["standby", "active"]}}}}}
     assert True  # todo
     # [['site1', 'standby'], ['site2', 'active']] ==       data_get_dr_operation_sequence(sm_dict_missing_service, 'serv2', 'move', 'site1')
+
 
 
 
