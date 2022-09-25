@@ -121,18 +121,14 @@ def test_make_ordered_services_to_process():
     assert sorted_list4 == [] and code4 is False
 
 
-def test_io_http_json_request_ok():
-    """ SUCCESS basic general success case with SSL verification
-    """
+def test_io_http_json_request():
+    """ SUCCESS basic general success case with SSL verification """
     ret, json_body, http_code=io_make_http_json_request("https://api.github.com", verify=True)
     assert http_code == HTTPStatus.OK and \
            type(json_body) is dict and \
            json.loads('"' + str(json_body) + '"'), "Returned: 200 OK, dict, JSON"
 
-
-def test_io_http_json_request_ok_warning():
-    """ SUCCESS basic general success case without SSL verification
-    """
+    """ SUCCESS basic general success case without SSL verification """
     os.environ.setdefault('DEBUG', 'True')  # set DEBUG which is used to print warning
     with pytest.warns(Warning, match=r"Unverified HTTPS request is being made") as record:
         ret, json_body, http_code=io_make_http_json_request("https://api.github.com", verify=False)
@@ -142,29 +138,21 @@ def test_io_http_json_request_ok_warning():
            len(record) > 1, "Returned: 200 OK, dict, JSON, SSL warning "
 
 
-def test_io_http_json_request_200_not_json():
-    """ FAIL in case not JSON returned with 200 OK
-    """
+    """ FAIL in case not JSON returned with 200 OK """
     ret, json_body, http_code=io_make_http_json_request("https://www.github.com", verify=True)
 
     assert http_code == False and \
            type(json_body) is dict and \
            bool(dict), "Returned: False and empy dict"
 
-
-def test_io_http_json_request_404():
-    """ FAIL in case 404
-    """
+    """ FAIL in case 404 """
     ret, json_body, http_code=io_make_http_json_request("https://api.github.com/page_does_not_exist", verify=True)
     assert http_code == HTTPStatus.NOT_FOUND and \
            type(json_body) is dict and \
            json.loads('"' + str(json_body) + '"') and \
            bool(dict), "Returned: 404 OK and nont empty JSON dict"
 
-
-def test_io_http_json_request_ssl_fails():
-    """ FAIL in case SSL verification fails
-    """
+    """ FAIL in case SSL verification fails """
     os.system("openssl req -new -x509 -keyout self-signed-fake.pem -out self-signed-fake.pem "
               "-days 365 -nodes -subj \"/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com\" &>/dev/null")
     httpd=http.server.HTTPServer(('localhost', 4443), http.server.SimpleHTTPRequestHandler)

@@ -63,7 +63,7 @@ ignored_services = []
 failed_services = []
 
 args = None
-module_flow = [{'stateful':''}]  # custom DR sequence per module
+module_flow = [{'stateful': ''}]  # custom DR sequence per module
 default_module = 'stateful'
 
 thread_pool=[]
@@ -160,7 +160,7 @@ def init_and_check_config(args) -> bool:
         skip_services = args.skip_services.replace(',', ' ').replace('  ', ' ').split(' ')
 
     global module_flow
-    custom_flow = conf_parsed.get("flow", {})
+    module_flow = conf_parsed.get("flow", {})
 
     site_names = [i["name"] for i in conf_parsed["sites"]]
     global sm_conf
@@ -358,18 +358,27 @@ class NotValid(Exception):
     pass
 
 
-def print_service_order(ts):
+class TopologicalSorter2(TopologicalSorter):
+    """ added method to get successors of specific node """
+    def successors(self, node):
+        for i in self._node2info.values():
+            if i.node == node:
+                return i.successors
+        return None
+
+
+def print_service_order(ts: TopologicalSorter2, sm_dict: SMClusterState):
     """ Show service list ordered by dependency in debug mode"""
     stage=0
     logging.debug(f"Service order by dependency:")
     while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
         stage += 1
         logging.debug(f"------ Stage {stage} -------")
-        if len(module_flow) > 1: # print custom module service name
-            logging.debug(f"{list(module_flow[0].keys())[0]}")
         for serv in ts.get_ready():
             logging.debug(f"{serv}")
             ts.done(serv)
+        if len(module_flow) > 1:  # print custom module service name
+            logging.debug(f"{sm_dict.get_module_services(sm_dict.get_available_sites()[0],list(module_flow[0].keys())[0])[0]}")
     logging.debug("Done. ----------------")
 
 
@@ -392,7 +401,10 @@ def main(services:[] = None, cmd="", site=""):
     try:
         service_dep_ordered, ts = validate_operation(sm_dict, cmd, site, services)
         if len(module_flow) > 1: # add custom module service
-            service_dep_ordered.append(list(module_flow[0].keys())[0])
+            services_name = sm_dict.get_module_services(sm_dict.get_available_sites()[0],
+                                                                   list(module_flow[0].keys())[0])[0]
+            if services_name not in ignored_services and services_name not in service_dep_ordered:
+                service_dep_ordered.append(services_name)
         logging.debug(service_dep_ordered)
     except NotValid:
         exit(1)
@@ -415,7 +427,7 @@ def main(services:[] = None, cmd="", site=""):
                 thread_pool.append(thread)
         for thread in thread_pool:
             thread.join()
-        print_service_order(ts)
+        print_service_order(ts,sm_dict)
         print_main_table(sm_dict, service_dep_ordered, [site] if site else [_ for _ in sm_conf.keys()])
     elif cmd in "list":
         print(f"---------------------------------------------------------------------\n" +
@@ -428,15 +440,20 @@ def main(services:[] = None, cmd="", site=""):
 
         def run_module(module, state):
             """@todo need more flexible module support """
-            logging.info(f"Processing {module} module on site:{site} to mode:{state}")
+            logging.info(f"Processing {module} module to mode:{state}")
 
             if len(sm_dict.get_module_services(site, module)) == 1:
                 if cmd in dr_procedures:
-                    site_to_run=site if site in 'move' else sm_conf.get_active_site(state, site)
+                    if state in 'active':
+                        site_to_run = sm_conf.get_opposite_site(site)
+                    else:
+                        site_to_run = site
+                    site_to_run = sm_conf.get_opposite_site(site_to_run) if cmd in 'move' else site_to_run
                 else:
-                    site_to_run=site
+                    site_to_run = site
 
-                service_to_run=sm_dict.get_module_services(site, module)[0]
+                service_to_run=sm_dict.get_module_services(site_to_run, module)[0]
+                logging.debug(f"on site {site_to_run}. Services {service_to_run}  ")
                 sm_process_service(site_to_run, service_to_run, state)
                 response=sm_poll_service_required_status(site_to_run, service_to_run, state, sm_dict)
                 response.sortout_service_results(done_services, failed_services)
@@ -465,19 +482,26 @@ def main(services:[] = None, cmd="", site=""):
                     logging.info(f"done_services: {done_services}")
                 for thread in thread_pool:
                     thread.join()
-
+        status = True
         for elem in module_flow:
             for module, state in elem.items():
-                if cmd in ['standby','mntc'] and state in 'active':
+                if not status:
+                    for i in sm_dict.get_module_services(sm_dict.get_available_sites()[0], module):
+                        if i not in failed_services:
+                            failed_services.append(i)
+                        if i in done_services:
+                            done_services.remove(i)
                     break
-                if cmd in 'active' and state in 'standby':
+                if cmd in ['standby','mntc'] and (state and state in 'active'):
+                    break
+                if cmd in 'active' and (state and state in 'standby'):
                     continue
                 run_module(module, state)
                 if failed_services and cmd not in 'mntc':
                     logging.debug(f"Module {module} failed. Failed services {failed_services}")
                     logging.error(f"Module {module} failed, skipping rest of services, exiting")
-                    exit(1)
-
+                    status = False
+                    break
         print_service_operation_summary("tail",sm_dict, service_dep_ordered, cmd, site )
     else:
         logging.error(f"Unknown combination of {cmd} {site} options")
@@ -490,13 +514,6 @@ def main(services:[] = None, cmd="", site=""):
     return True
 
 
-class TopologicalSorter2(TopologicalSorter):
-    """ added method to get successors of specific node """
-    def successors(self, node):
-        for i in self._node2info.values():
-            if i.node == node:
-                return i.successors
-        return None
 
 
 def print_service_operation_summary(part, sm_dict: SMClusterState, services_to_run: [], cmd="", site=""):
