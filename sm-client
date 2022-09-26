@@ -6,11 +6,11 @@ Version:     0.7
 Date:        2021-11-19
 Description: Client util to communicate with site-manager in kubernetes based clusters
 @todo[3]
-    split current single source into modules,classes
-    share common code with sm
+    split current single source into modules,classes ; share common code with sm
+    logging into file
     make smclient delivery as single binary, using pyinstaller ???
-    json output
-    SM specific data structures (dataclasses ?): sm_dict; service response
+    cli json output
+    SM specific data structures (dataclasses ?): sm_dict; service response: 50%
 """
 
 import argparse
@@ -62,8 +62,11 @@ done_services = []
 ignored_services = []
 failed_services = []
 
-sm_conf = {}  # global config.yaml and some RO config parameters
 args = None
+module_flow = [{'stateful': ''}]  # custom DR sequence per module
+default_module = 'stateful'
+
+thread_pool=[]
 
 SERVICE_DEFAULT_TIMEOUT = None
 thread_result_queue = Queue(maxsize=-1)
@@ -76,12 +79,44 @@ run_services = []
 skip_services = []
 
 
+class SMConf(dict): # global config.yaml and some RO config parameters and args, cmd manipulation
+
+    def get_active_site(self, cmd, site):
+        if cmd in ["active", "move"]:
+            return site
+        elif cmd in ["stop", "standby", 'mntc']:
+            return self.get_opposite_site(site)
+        else:
+            return None
+
+    def get_opposite_site(self,site):
+        if site not in self.keys():
+            return None
+        opposite_site=None
+
+        for s in sm_conf.keys():
+            if s != site:
+                opposite_site=s
+        return opposite_site
+
+    def convert_sitecmd_to_dr_mode(self,site_cmd):
+        """ Converts <site_cmd>  into DR mode ["active","standby","disable"]
+        """
+        if site_cmd == "mntc":
+            return "disable"
+        elif site_cmd == "return":
+            return "standby"
+        else:  # "active","standby" are modes.
+            return site_cmd
+
+
+sm_conf = SMConf()
+
+
 def init_and_check_config(args) -> bool:
     """ Main entry point. Provides validations, config parsing and initialization
     @returns: True of False  """
-    #TODO python version check
-    #sys.version_info
-    #sys.version_info(major=3, minor=9, micro=13, releaselevel='final', serial=0)
+    #@todo python version check; version print
 
     # Set verbosity for logging
     if args.verbose:
@@ -124,7 +159,12 @@ def init_and_check_config(args) -> bool:
     if args.skip_services != '':
         skip_services = args.skip_services.replace(',', ' ').replace('  ', ' ').split(' ')
 
+    global module_flow
+    module_flow = conf_parsed.get("flow", {})
+
     site_names = [i["name"] for i in conf_parsed["sites"]]
+    global sm_conf
+    sm_conf = SMConf()
     for site in site_names:
         try:
             site_url = [ i["site-manager"] for i in conf_parsed["sites"] if i ["name"] == site ][0]
@@ -138,153 +178,330 @@ def init_and_check_config(args) -> bool:
         if site_cacert != True and not os.path.isfile(site_cacert):
             logging.fatal(f"You should define correct path to CA certificate for site {site}")
             return False
-        global sm_conf
         sm_conf[site] = {}
         sm_conf[site]["url"] = site_url
         sm_conf[site]["token"] = site_token
         sm_conf[site]["cacert"] = False if args.insecure else site_cacert
-
     return True
 
 
-def sm_get_cluster_state(site=None) -> dict:
-    """ Get cluster status or per specific site and init sm_dict
+class ServiceDRStatus:
+    def __getitem__(self, key):
+        return self.__getattribute__(key)
+
+    def __init__(self, data: dict = None ): # {'services':{service_name:{}}}
+         if data and data.get("services") and isinstance(data['services'],dict):
+             self.service = list(data['services'].keys())[0]
+         elif data and data.get("wrong-services") and isinstance(data['wrong-services'],list):
+             self.service = data['wrong-services'][0]
+         else:
+             raise ValueError("Missing service name")
+         serv= data['services'][self.service] if data.get('services') else data
+         self.mode = serv['mode'] if serv.get("mode") in ["active", "standby", "disable"] else "unknown"
+         self.nowait = serv["nowait"] if serv.get("nowait") else False
+         self.healthz = serv["healthz"] if serv.get("healthz") in ["up", "down", "degraded"] else "--"
+         self.status = serv["status"] if serv.get("status") in ["running","done","failed"] else "unknown"
+         self.message = serv["message"] if serv.get("message") else ""
+         # https://github.com/Netcracker/DRNavigator/blob/b4161fb15271485974abf5862e7272abc386fbc8/modules/stateful.py#L16
+
+    def is_ok(self):
+        """ @todo wrong-services ?"""
+        if self.healthz in ['down','degraded','--'] or self.status in ['degraded']:
+            return False
+        return True
+
+    def sortout_service_results(self,done_services,failed_services ):
+        """ Put service name in appropriate list(failed or done) """
+        if self.is_ok():  # return Ok - done_service
+            if self.service not in failed_services:
+                done_services.append(self.service) if self.service not in done_services else None
+        else:
+            failed_services.append(self.service) if self.service not in failed_services else None
+            done_services.remove(self.service) if self.service in done_services else None
+
+
+class SMClusterState:
+    def __init__(self,site=None):
+        def init_default(sitename):
+            if len(self.sm.keys()) == 2:
+                raise ValueError("Only two sites in clusters are supported")
+            self.sm[sitename]={}
+            self.sm[sitename]["services"]={}
+            self.sm[sitename]["return_code"]=None
+            self.sm[sitename]["status"]=False
+            self.sm[sitename]["service_dep_ordered"]=None
+            self.sm[sitename]["ts"]=None
+            self.sm[sitename]["dep_issue"]=None
+
+        global sm_conf
+        if not site or (site and isinstance(site, str)): #@todo rework
+            if site and site not in sm_conf.keys():
+                raise ValueError("Unknown site name")
+            self.sm = {}
+            for sitename in [s for s in sm_conf.keys() if site == s] if site else sm_conf.keys():
+                init_default(sitename)
+        elif isinstance(site,dict): # for dev/testing purposes
+            self.sm = {}
+            for key in site.keys():
+                init_default(key)
+                for k,v in site[key].items():
+                    self.sm[key][k] = v
+
+    def __getitem__(self, key):
+        return self.sm[key]
+
+    def __setitem__(self, key, item):
+        self.sm[key] = item
+
+    def __str__(self):
+        return str(self.sm)
+
+    def keys(self):
+        return self.sm.keys()
+
+    def get_dr_operation_sequence(self, serv, procedure, site) -> [[], []]:  # move active, stop standby
+        """ Get DR operation(cmd) site sequence in the correct order for specific service for provided DR procedure
+        @returns: [['site1','standby'],['site2','active']]
+        @todo to rework when sm_dict[site|opposite]['services'][serv] serv is not present on one site
+        """
+        opposite_site = sm_conf.get_opposite_site(site)
+        site_sequence=[]
+        if procedure == 'move':  # switchover
+            mode=self.sm[site]['services'][serv]['sequence'][0]
+            if mode == 'standby':
+                site_sequence=[[opposite_site, 'standby'], [site, 'active']]
+            elif mode == 'active':
+                site_sequence=[[site, 'active'], [opposite_site, 'standby']]
+        elif procedure == 'stop':  # failover
+            mode=self.sm[opposite_site]['services'][serv]['sequence'][0]
+            if mode == 'standby':
+                site_sequence=[[site, 'standby'], [opposite_site, 'active']]
+            elif mode == 'active':
+                site_sequence=[[opposite_site, 'active'], [site, 'standby']]
+        else:
+            return False
+
+        return site_sequence
+
+    def get_available_sites(self) -> []:
+        """ Return list of available sites """
+        return [site for site in self.sm.keys() if self.sm[site]['status']]
+
+    def get_services_list_for_ok_site(self) -> []:
+        final_set=set()
+        for site in self.sm.values():
+            final_set=final_set.union(set(list(site['services'].keys())))
+        return list(final_set)
+
+    def get_module_services(self, site, module) -> []:
+        module_list=[]
+        for serv in self.sm[site]['services'].keys():
+            if module == self.sm[site]['services'][serv]['module']:
+                module_list.append(serv)
+        return module_list
+
+    def make_ignored_services(self, service_dep_ordered: list) -> []:
+        """ Make list of services which are not intended to run, ignored."""
+        ignored_list=[]
+        for site in self.sm.keys():
+            for serv in self.sm[site]['services']:
+                if serv not in service_dep_ordered and serv not in ignored_services:
+                    ignored_list.append(serv)
+        return list(set(ignored_list))
+
+
+def sm_get_cluster_state(site=None) -> SMClusterState:
+    """ Get cluster status or per specific site and init sm_dict object
     """
-    global sm_conf
-    sm_dict={"sites":{}}
-    sites = [s for s in sm_conf.keys() if site == s ] if site else sm_conf.keys()
-    for site_name in sites:
-        sm_dict["sites"][site_name]={}
-        sm_dict["sites"][site_name]["status"] = False # True - site is fully OK or io_http_json_request return code in case error
-        sm_dict["sites"][site_name]["services"] = {}
+    sm_dict = SMClusterState(site)
+    for site_name in sm_dict.keys():
         response, ret, code = sm_process_service(site_name, "site-manager", "status")
-        sm_dict["sites"][site_name]["return_code"] = code # HTTP or SSL
-        sm_dict["sites"][site_name]["status"] = ret
-
-        sm_dict["sites"][site_name].update(response)
+        sm_dict[site_name]["return_code"] = code # HTTP or SSL
+        sm_dict[site_name]["status"] = ret
+        sm_dict[site_name].update(response)
+        #### todo to remove hack
+        sm_dict[site_name]['services']['cluster-replicator']['module']='replicator'
     return sm_dict
-
-
-def data_make_ignored_services(sm_dict:dict, service_dep_ordered: list) -> []:
-    """ Make list of services which are not intended to run, ignored."""
-    ignored_list = []
-    for site in sm_dict['sites']:
-        for serv in sm_dict['sites'][site]['services'].keys():
-            if serv not in service_dep_ordered and serv not in ignored_services:
-                ignored_list.append(serv)
-    return list(set(ignored_list))
-
-
-def data_get_available_sites(sm_dict:dict) -> []:
-    """ Return list of available sites """
-    return [site for site in sm_dict['sites'].keys() if sm_dict['sites'][site]['status']]
 
 
 def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
     global thread_result_queue
 
-    if service in "cluster-replicator":  # replicator WA todo replicator
-        thread_result_queue.put(service)
-        logging.debug(f"Skipping {service} in thread")
-        return
+    service_response = ServiceDRStatus({'services':{service:{}}})
 
+    logging.info(f"Processing {service} in thread start...")
     if cmd in site_cmds:
-        mode=data_convert_sitecmd_to_dr_mode(cmd)
+        mode=sm_conf.convert_sitecmd_to_dr_mode(cmd)
         sm_process_service(site, service, mode)
-        data_sortout_service_results(sm_poll_service_required_status(site, service, mode, sm_dict))
+        service_response = sm_poll_service_required_status(site, service, mode, sm_dict)
+        thread_result_queue.put(service_response)
     elif cmd in dr_procedures:
-        for site_to_process, mode in data_get_dr_operation_sequence(sm_dict, service, cmd, site):
+        # todo to handle False(no service on this site)
+        for site_to_process, mode in sm_dict.get_dr_operation_sequence(service, cmd, site):
             if cmd == "stop" and mode == "standby":
                 force = True
                 logging.info(f"Force key enabled for procedure 'stop' for service {service} on passivated site")
             else:
                 force = args.force
 
-            if sm_dict['sites'][site_to_process]['status']: # to process only available sites
-                sm_process_service(site_to_process, service, mode) # todo skip next site in case previous site failed ?
-                data_sortout_service_results(sm_poll_service_required_status(site_to_process, service, mode, sm_dict), force)
+            if sm_dict[site_to_process]['status']: # to process only available sites
+                sm_process_service(site_to_process, service, mode) # todo skip next site in case previous site failed ??
+                service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force)
 
-    thread_result_queue.put(service)
-    logging.info(f"Processing {service} in thread")
+        thread_result_queue.put(service_response)
+
+    logging.info(f"Processing {service} in thread finished")
+
+
+class NotValid(Exception):
+    """ Raised when it is not possible to process specified command on current cluster state"""
+    pass
+
+
+class TopologicalSorter2(TopologicalSorter):
+    """ added method to get successors of specific node """
+    def successors(self, node):
+        for i in self._node2info.values():
+            if i.node == node:
+                return i.successors
+        return None
+
+
+def print_service_order(ts: TopologicalSorter2, sm_dict: SMClusterState):
+    """ Show service list ordered by dependency in debug mode"""
+    stage=0
+    logging.debug(f"Service order by dependency:")
+    while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
+        stage += 1
+        logging.debug(f"------ Stage {stage} -------")
+        for serv in ts.get_ready():
+            logging.debug(f"{serv}")
+            ts.done(serv)
+        if len(module_flow) > 1:  # print custom module service name
+            logging.debug(f"{sm_dict.get_module_services(sm_dict.get_available_sites()[0],list(module_flow[0].keys())[0])[0]}")
+    logging.debug("Done. ----------------")
 
 
 def main(services:[] = None, cmd="", site=""):
     """ Business Logic - implements main flow """
 
-    # get status for all sites in case DR procedure or specific site in case cmd
+    # init SMClusterState object ann get status for all sites in case DR procedure or specific site in case cmd
     sm_dict = sm_get_cluster_state(site if cmd in site_cmds and site else None)
 
     # assemble ordered service list to proceed, keeping in services specified in cli
-    service_dep_ordered,return_code, ts = make_ordered_services_to_process(sm_dict, services)
+    for site_i in sm_dict.get_available_sites():
+        service_dep_ordered, return_code, ts = make_ordered_services_to_process(sm_dict, site_i, services)
+        sm_dict[site_i]['service_dep_ordered'] = service_dep_ordered
+        sm_dict[site_i]['ts'] = ts
+        sm_dict[site_i]['deps_issue'] = not return_code
+        logging.debug(f"Site:{site_i} list:{sm_dict[site_i]['service_dep_ordered']} deps_issue:{sm_dict[site_i]['deps_issue']}")
 
     # validation to satisfy cmd and current site status
-    if not validate_operation(sm_dict, (service_dep_ordered,return_code), cmd, site, services):
+    service_dep_ordered = None; ts = None
+    try:
+        service_dep_ordered, ts = validate_operation(sm_dict, cmd, site, services)
+        if len(module_flow) > 1: # add custom module service
+            services_name = sm_dict.get_module_services(sm_dict.get_available_sites()[0],
+                                                                   list(module_flow[0].keys())[0])[0]
+            if services_name not in ignored_services and services_name not in service_dep_ordered:
+                service_dep_ordered.append(services_name)
+        logging.debug(service_dep_ordered)
+    except NotValid:
         exit(1)
 
-    ignored_services.extend(data_make_ignored_services(sm_dict, service_dep_ordered))
-    thread_pool = []
+    ignored_services.extend(sm_dict.make_ignored_services(service_dep_ordered))
+
+    # main flow by command
     if cmd in "status":
         for serv in service_dep_ordered:
-            for site_i in data_get_available_sites(sm_dict):
+            for site_i in sm_dict.get_available_sites():
                 def run_in_thread(site, serv, sm_dict):  # to run each status service in parallel
                     response, ret, _ = sm_process_service(site, serv, "status")
-                    if not sm_dict['sites'][site_i]['services'].get(serv):
-                        sm_dict['sites'][site_i]['services'][serv] = {} 
-                    sm_dict['sites'][site]['services'][serv]['status']=response['services'][serv] if ret else False
+                    if not sm_dict[site_i]['services'].get(serv):
+                        sm_dict[site_i]['services'][serv] = {}
+                    sm_dict[site]['services'][serv]['status']=response['services'][serv] if ret else False
+
                 thread=threading.Thread(target=run_in_thread, args=(site_i, serv, sm_dict))
                 thread.name = f"Thread: {serv}"
                 thread.start()
                 thread_pool.append(thread)
         for thread in thread_pool:
             thread.join()
+        print_service_order(ts,sm_dict)
         print_main_table(sm_dict, service_dep_ordered, [site] if site else [_ for _ in sm_conf.keys()])
     elif cmd in "list":
         print(f"---------------------------------------------------------------------\n" +
-              f"Sites managed by site-manager:               {[site for site in sm_dict['sites'].keys()]}\n\n" +
-              f"Kubernetes services managed by site-manager: {data_get_services_list_for_ok_site(sm_dict)}\n" +
+              f"Sites managed by site-manager:               {[site for site in sm_dict.keys()]}\n\n" +
+              f"Kubernetes services managed by site-manager: {sm_dict.get_services_list_for_ok_site()}\n" +
               f"Kubernetes services that will be processed:  {service_dep_ordered}\n" +
               f"---------------------------------------------------------------------")
     elif cmd in site_cmds + dr_procedures:  # per site command or DR procedure
         print_service_operation_summary("top", sm_dict, service_dep_ordered, cmd, site)
 
-        if "cluster-replicator" in service_dep_ordered:  # replicator WA @todo replicator
-            if cmd == "standby":
-                sm_process_replicator(sm_dict, [site, data_convert_sitecmd_to_dr_mode(cmd)])
-            elif cmd in dr_procedures:
-                sm_process_replicator(sm_dict, data_get_dr_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[0])
+        def run_module(module, state):
+            """@todo need more flexible module support """
+            logging.info(f"Processing {module} module to mode:{state}")
 
-            if "cluster-replicator" in failed_services:
-                logging.error(f"cluster-replicator failed, skipping rest of services, exiting")
-                exit(1)
+            if len(sm_dict.get_module_services(site, module)) == 1:
+                if cmd in dr_procedures:
+                    if state in 'active':
+                        site_to_run = sm_conf.get_opposite_site(site)
+                    else:
+                        site_to_run = site
+                    site_to_run = sm_conf.get_opposite_site(site_to_run) if cmd in 'move' else site_to_run
+                else:
+                    site_to_run = site
 
-        while ts and ts.is_active():   # process all services one by one  in  sorted by dependency
-            for serv in ts.get_ready():
-                thread=threading.Thread(target=sm_process_service_with_polling,
-                                        args=(site, serv, cmd, sm_dict))
-                thread.name=f"Thread: {serv}"
-                thread_pool.append(thread)
-                thread.start()
-            global thread_result_queue
-            serv_done = thread_result_queue.get()
-            if serv_done in failed_services: # mark failed and skip successors of serv_done
-                for s in ts.successors(serv_done):
-                    ts.done(s)
-                    failed_services.append(s)
-                    logging.warning(f"Service {s} marked as failed due to dependencies")
-            ts.done(serv_done)
-        for thread in thread_pool:
-            thread.join()
+                service_to_run=sm_dict.get_module_services(site_to_run, module)[0]
+                logging.debug(f"on site {site_to_run}. Services {service_to_run}  ")
+                sm_process_service(site_to_run, service_to_run, state)
+                response=sm_poll_service_required_status(site_to_run, service_to_run, state, sm_dict)
+                response.sortout_service_results(done_services, failed_services)
+            else:  # stateful module
+                failed_successors=[]
+                while ts and ts.is_active():  # process all services one by one  sorted by dependency
+                    for serv in ts.get_ready():
+                        if serv in failed_successors:
+                            logging.info(f"Service {serv} marked as failed due to dependencies")
+                            thread_result_queue.put(ServiceDRStatus({'services':{serv:{}}}))
+                            break
+                        thread=threading.Thread(target=sm_process_service_with_polling,
+                                                args=(site, serv, cmd, sm_dict))
+                        thread.name=f"Thread: {serv}"
+                        thread_pool.append(thread)
+                        thread.start()
+                    service_response=thread_result_queue.get()
+                    if not service_response.is_ok():  # mark failed and skip successors of serv_done
+                        for s in ts.successors(service_response.service):
+                            logging.debug(f"Found successor {s} for failed {service_response.service} ")
+                            failed_successors.append(s)
+                    ts.done(service_response.service)
+                    service_response.sortout_service_results(done_services, failed_services)
 
-        if "cluster-replicator" in service_dep_ordered: #replicator WA @todo replicator
-            if len(failed_services) != 0:  #skip replicator in case failed infra and fail it
-                data_sortout_service_results(({'services': {"cluster-replicator":{}}},False))
-                logging.warning(f"Service cluster-replicator marked as failed due to dependencies")
-            else:
-                if cmd == "active":
-                    sm_process_replicator(sm_dict, [site, data_convert_sitecmd_to_dr_mode(cmd)])
-                elif cmd in dr_procedures:
-                    sm_process_replicator(sm_dict, data_get_dr_operation_sequence(sm_dict, "cluster-replicator", cmd, site)[1])
-
+                    logging.info(f"failed_services: {failed_services}")
+                    logging.info(f"done_services: {done_services}")
+                for thread in thread_pool:
+                    thread.join()
+        status = True
+        for elem in module_flow:
+            for module, state in elem.items():
+                if not status:
+                    for i in sm_dict.get_module_services(sm_dict.get_available_sites()[0], module):
+                        if i not in failed_services:
+                            failed_services.append(i)
+                        if i in done_services:
+                            done_services.remove(i)
+                    break
+                if cmd in ['standby','mntc'] and (state and state in 'active'):
+                    break
+                if cmd in 'active' and (state and state in 'standby'):
+                    continue
+                run_module(module, state)
+                if failed_services and cmd not in 'mntc':
+                    logging.debug(f"Module {module} failed. Failed services {failed_services}")
+                    logging.error(f"Module {module} failed, skipping rest of services, exiting")
+                    status = False
+                    break
         print_service_operation_summary("tail",sm_dict, service_dep_ordered, cmd, site )
     else:
         logging.error(f"Unknown combination of {cmd} {site} options")
@@ -297,66 +514,15 @@ def main(services:[] = None, cmd="", site=""):
     return True
 
 
-class TopologicalSorter2(TopologicalSorter):
-    """ added method to get successors of specific node """
-    def successors(self, node):
-        for i in self._node2info.values():
-            if i.node == node:
-                return i.successors
-        return None
 
 
-def sm_process_replicator(sm_dict,site_mode: []):   #@todo replicator
-    """ Process replicator in blocking mode"""
-    logging.debug(f"Processing replicator service on site:{site_mode[0]} to mode:{site_mode[1]}")
-    if sm_dict['sites'][site_mode[0]]['status']:
-        sm_process_service(site_mode[0], "cluster-replicator", site_mode[1])
-        data_sortout_service_results(sm_poll_service_required_status(site_mode[0], "cluster-replicator", site_mode[1], sm_dict))
-
-
-def data_sortout_service_results(result: Tuple[dict, bool], force: bool = False):
-    """ Put service name in appropriate list(failed or done)
-    @param result: Tuple[json response dict, return code]
-    @param force: True/False --force mode to ignore healthz
-    """
-    if not result[0]: # do not process in case empty response, nothing to sortout
-        return
-    service = list(result[0]['services'].keys())[0]
-    if result[1] or (not result[1] and force ): #return Ok , or --force enabled - done_service
-        if service not in failed_services:
-            done_services.append(service)
-    else:
-        failed_services.append(service) if service not in failed_services else None
-        done_services.remove(service) if service in done_services else None
-
-    if not result[1] and force:
-        logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")
-
-    logging.debug(f"failed_services: {failed_services}")
-    logging.debug(f"done_services: {done_services}")
-
-
-def print_service_operation_summary(part, sm_dict, services_to_run: [], cmd="", site=""):
-    def get_sm_managed_services(sm_dict):
-        final_set = set()
-        for site in sm_dict["sites"].values():
-            final_set=final_set.union(set(list(site['services'].keys())))
-        return list(final_set)
-
-    def get_active_site(sm_dict, cmd, site):
-        if cmd in ["active", "move"]:
-            return site
-        elif cmd in ["stop", "standby"]:
-            return data_get_opposite_site(sm_dict, site)
-        else:
-            return None
-
+def print_service_operation_summary(part, sm_dict: SMClusterState, services_to_run: [], cmd="", site=""):
     if part in "top":
         logging.info("---------------------------------------------------------------------")
         logging.info(f"Procedure:     {cmd}")
-        logging.info(f"Active sites:  {get_active_site(sm_dict, cmd, site)}")
-        logging.info(f"Standby sites: {data_get_opposite_site(sm_dict, get_active_site(sm_dict, cmd, site))}")
-        logging.info(f"Kubernetes services managed by site-manager: {get_sm_managed_services(sm_dict)}")
+        logging.info(f"Active sites:  {sm_conf.get_active_site(cmd, site)}")
+        logging.info(f"Standby sites: {sm_conf.get_opposite_site(sm_conf.get_active_site(cmd, site))}")
+        logging.info(f"Kubernetes services managed by site-manager: {sm_dict.get_services_list_for_ok_site()}")
         logging.info(f"Kubernetes services that will be processed:  {services_to_run}")
         logging.info("---------------------------------------------------------------------")
     elif part in "tail":
@@ -368,46 +534,7 @@ def print_service_operation_summary(part, sm_dict, services_to_run: [], cmd="", 
         logging.info("---------------------------------------------------------------------")
 
 
-def data_get_services_list_for_ok_site(sm_dict) ->[]:
-    for site in sm_dict['sites'].keys():
-        if sm_dict["sites"][site]["status"]:
-            return [ serv for serv in sm_dict["sites"][site]["services"].keys()]
-    return []
-
-
-def data_get_opposite_site(sm_dict, site):
-    opposite_site = None
-    for s in sm_dict['sites'].keys():
-        if s != site:
-            opposite_site = s
-    return opposite_site
-
-
-def data_get_dr_operation_sequence(sm_dict, serv, procedure, site) -> [[], []]: # move active, stop standby
-    """ Get DR operation(cmd) site sequence in the correct order for specific service for provided DR procedure
-    @returns: [['site1','standby'],['site2','active']]
-    """
-    opposite_site = data_get_opposite_site(sm_dict, site)
-    site_sequence = []
-    if procedure == 'move': #switchover
-        mode = sm_dict['sites'][site]['services'][serv]['sequence'][0]
-        if mode == 'standby':
-            site_sequence=[[opposite_site,'standby'],[site,'active']]
-        elif mode == 'active':
-            site_sequence = [[site,'active'],[opposite_site,'standby']]
-    elif procedure == 'stop': #failover
-        mode = sm_dict['sites'][opposite_site]['services'][serv]['sequence'][0]
-        if mode == 'standby':
-            site_sequence = [[site,'standby'],[opposite_site,'active']]
-        elif mode == 'active':
-            site_sequence = [[opposite_site,'active'],[site,'standby']]
-    else:
-        return False
-
-    return site_sequence
-
-
-def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = None ) -> Tuple[list, bool, Optional[TopologicalSorter2]]:
+def make_ordered_services_to_process(sm_dict: SMClusterState, site, services_to_process: list = None ) -> Tuple[list, bool, Optional[TopologicalSorter2]]:
     """ Make ordered and validated services list from all sites in sm_dict
     @returns: ordered list or empty if not possible to assemble(integrity issue), True or False  in case minor issue
         TopologicalSorter object in case success
@@ -420,7 +547,7 @@ def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = 
         @todo: [3] multiple dependency service support
         @note:  format of input list  [{'serv2':{'after':['serv1'],'before':['serv3']}},...]
         """
-        ts=TopologicalSorter2()
+        ts = TopologicalSorter2()
         for item in dep_list.keys():
             ts.add(item)
             if dep_list[item].get('after') and dep_list[item]['after'][0] in [ii for ii in dep_list.keys()]:
@@ -428,6 +555,7 @@ def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = 
             if dep_list[item].get('before') and dep_list[item]['before'][0] in [ii for ii in dep_list.keys()]:
                 ts.add(dep_list[item]['before'][0], item)
         return ts
+
     def after_before_check(ll: dict) -> {}:
         """ Check AFTER and BEFORE dependency integrity
         @returns: dict of services if any with non exist deps , see format in @note
@@ -452,89 +580,131 @@ def make_ordered_services_to_process(sm_dict: dict, services_to_process: list = 
     temp_dict = copy.deepcopy(sm_dict)
 
     # leave only service listed in service_to_process and not skipped/ignored
-    for site in temp_dict['sites']:
-        for serv in temp_dict['sites'][site]['services'].copy().keys():
-            if services_to_process and serv not in services_to_process:
-                temp_dict['sites'][site]['services'].pop(serv,None)
-            if ignored_services and serv in ignored_services: # remove skipped/ignored
-                temp_dict['sites'][site]['services'].pop(serv, None)
+    for serv in temp_dict[site]['services'].copy().keys():
+        if temp_dict[site]['services'][serv].get('module',"") not in default_module:
+            temp_dict[site]['services'].pop(serv, None)
+        if services_to_process and serv not in services_to_process:
+            temp_dict[site]['services'].pop(serv,None)
+        if ignored_services and serv in ignored_services: # remove skipped/ignored
+            temp_dict[site]['services'].pop(serv, None)
+
 
     # collect sorted ordered service list
-    service_lists = {}
-    for site in temp_dict['sites']:  # todo data_get_available_sites(temp_dict['sites']) ?
-        try:
-            service_lists[site] = [i for i in build_after_before_graph(temp_dict['sites'][site]['services']).static_order()]
-            for service, depends in after_before_check(temp_dict['sites'][site]['services']).items():  # check deps
-                for depend in depends:
-                    logging.warning(f"Site: {site}. Service: {service} has nonexistent "
-                                    f"{depend} dependency: {depends[depend]}")
-                    ret = False
-        except CycleError as e:
-            logging.error(f"Site {site} has integrity issues: %s",e)
-            integrity_error = True
+    service_lists = []
+    try:
+        service_lists = [i for i in build_after_before_graph(temp_dict[site]['services']).static_order()]
+        for service, depends in after_before_check(temp_dict[site]['services']).items():  # check deps
+            for depend in depends:
+                logging.warning(f"Site: {site}. Service: {service} has nonexistent "
+                                f"{depend} dependency: {depends[depend]}")
+                ret = False
+    except CycleError as e:
+        logging.error(f"Site {site} has integrity issues: %s",e)
+        integrity_error = True
 
     if integrity_error:
         return [], False, type(None) # return error, integrity issue
 
-    # compare service lists when two sites are ready only
-    equal_list = True #todo to rework
-    for i in range(len(service_lists.keys()) - 1):
-        if set(list(service_lists.values())[i]) != set(list(service_lists.values())[i+1]):
-            equal_list = False
-
     # check services equality on all sites
-    ts=build_after_before_graph(temp_dict['sites'][list(temp_dict['sites'].keys())[0]]['services'])
+    ts = build_after_before_graph(temp_dict[site]['services'])
     ts.prepare()
-    if equal_list:
-        return list(list(service_lists.values())[0]), ret, ts
-    else:
-        logging.warning(f"The service lists are different on sites: " 
-                        f"{list(service_lists.values())[0]} {list(service_lists.values())[1]} ")
-        merged_list = list(set(list(service_lists.values())[0] + list(service_lists.values())[1]))
-        return merged_list, False, ts #todo[1] might be diff list on both, how to show status/list/move ?
+    return service_lists, ret, ts
 
 
-def validate_operation(sm_dict:dict, service_dep_ordered: Tuple, cmd, site, services_to_run:[]=None) -> bool:
+def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=None) -> Tuple[list, TopologicalSorter2]:
     """ Validate command compliance to current site state
-    @param service_dep_ordered:
     @param sm_dict: populated sm_dict
-    @returns: Allowed or not to proceed operation
+    @returns: Allowed or not to proceed operation <cmd> on <site>
+    @todo warn/fail in case deps are different
     """
     def check_site_ssl_available(checked_site: str):
-        if not sm_dict['sites'][checked_site]['status']:
+        if not sm_dict[checked_site]['status']:
             logging.error(f"Site: {checked_site} is not available")
-            if sm_dict['sites'][checked_site]['return_code'] == ssl.SSLErrorNumber.SSL_ERROR_SSL.__int__():
+            if sm_dict[checked_site]['return_code'] == ssl.SSLErrorNumber.SSL_ERROR_SSL.__int__():
                 logging.error(f"SSL certificate verify failed for site:{checked_site}. Please use key -k or --insecure")
             return False
         return True
+
+    def check_services_on_site(services, site):
+        ret = True
+        for s in services:
+            if s not in sm_dict[site]["services"].keys():
+                logging.warning(f"Service '{s}' does not exist on '{site}' site")
+                ret = False
+        return ret
+
+    def check_dep_issue(site):
+        if sm_dict[site]['deps_issue']:
+            logging.warning(f"Dependency issues on site: {site}")
+            return False
+        return True
+
     global sm_conf
-    #check site availability
-    if cmd == "stop":
-        ret = check_site_ssl_available(data_get_opposite_site(sm_dict, site))
-    elif cmd == "move":
-        ret = all(check_site_ssl_available(site) for site in sm_conf.keys())
-    elif cmd in ["status","list"]: # for DR check both, for cmd only site
+    service_dep_ordered = None ; ts = None
+    ret = True
+
+    if cmd in "stop":
+        # check site availability
+        if not check_site_ssl_available(sm_conf.get_opposite_site(site)) or \
+                not check_dep_issue(sm_conf.get_opposite_site(site)):
+            raise NotValid
+        service_dep_ordered = services_to_run if services_to_run else \
+            sm_dict[sm_conf.get_opposite_site(site)]['service_dep_ordered']
+        check_services_on_site(service_dep_ordered, sm_conf.get_opposite_site(site))
+        ts=sm_dict[sm_conf.get_opposite_site(site)]['ts']
+
+    elif cmd in "move":
+        service_dep_ordered = services_to_run if services_to_run else \
+            sm_dict[site]['service_dep_ordered']
+        if not all(check_site_ssl_available(site_i) for site_i in sm_conf.keys()) or \
+                not all(check_services_on_site(service_dep_ordered, site_i) for site_i in sm_conf.keys()) or \
+                not all(check_dep_issue(site_i) for site_i in sm_conf.keys()):
+            raise NotValid
+        if sm_dict[site]['service_dep_ordered'] != \
+                sm_dict[sm_conf.get_opposite_site(site)]['service_dep_ordered']:
+            logging.critical(f"Not able to perform 'move' operation because of different service lists on sites ")
+            raise NotValid
+        ts=sm_dict[site]['ts']
+
+    elif cmd in readonly_cmd:
         ret = any([check_site_ssl_available(site)] if site else
                   [check_site_ssl_available(s) for s in sm_conf.keys()])
+        if not ret:
+            raise NotValid
+
+        if len(sm_dict.get_available_sites()) > 1 and \
+                len(sm_dict[sm_dict.get_available_sites()[0]]['service_dep_ordered']) >= \
+                len(sm_dict[sm_dict.get_available_sites()[1]]['service_dep_ordered']):
+            service_dep_ordered=sm_dict[sm_dict.get_available_sites()[0]]['service_dep_ordered']
+            ts=sm_dict[sm_dict.get_available_sites()[0]]['ts']
+        elif len(sm_dict.get_available_sites()) > 1:
+            service_dep_ordered=sm_dict[sm_dict.get_available_sites()[1]]['service_dep_ordered']
+            ts=sm_dict[sm_dict.get_available_sites()[1]]['ts']
+        else:
+            service_dep_ordered=sm_dict[sm_dict.get_available_sites()[0]]['service_dep_ordered']
+            ts=sm_dict[sm_dict.get_available_sites()[0]]['ts']
+        if services_to_run:
+            service_dep_ordered = services_to_run
+        all(check_services_on_site(service_dep_ordered, site_i) for site_i in sm_dict.get_available_sites())
+        all(check_dep_issue(site_i) for site_i in sm_dict.get_available_sites())
+
+    elif cmd in site_cmds:
+
+        service_dep_ordered = services_to_run if services_to_run else \
+            sm_dict[site]['service_dep_ordered']
+        if not check_site_ssl_available(site) or \
+                not check_services_on_site(service_dep_ordered, site) or \
+                not check_dep_issue(site):
+            raise NotValid
+        ts=sm_dict[site]['ts']
+
     else:
-        ret = check_site_ssl_available(site)
+        ret = False
 
     if not ret:
-        return False
+        raise NotValid
 
-    # warn about absent --run-service
-    for s in services_to_run if services_to_run else service_dep_ordered[0]:
-        for site_i in [data_get_opposite_site(sm_dict, site) if cmd in "stop" else site] \
-                if site else sm_dict["sites"].keys():
-            if s not in sm_dict["sites"][site_i]["services"].keys():
-                logging.warning(f"Service {s} does not exist in {site_i} kubernetes cluster")
-
-    # check dependency issues for switchover
-    if cmd in "move" and not service_dep_ordered[1]:
-        logging.critical("Not able to perform 'move' operation because of dependency issues")
-        return False
-
-    return True
+    return service_dep_ordered,ts
 
 
 def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None, retry=3) -> Tuple[bool, Dict, int]:
@@ -559,7 +729,6 @@ def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None
         http_body = {}
     logging.debug(f"REST url: {url}")
     logging.debug(f"REST data: {http_body}")
-    logging.debug(f"REST headers: {headers}")
 
     session = requests.Session()
     retries = Retry(total=retry)
@@ -594,17 +763,6 @@ def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None
     return False,{},False
 
 
-def data_convert_sitecmd_to_dr_mode(site_cmd):
-    """ Converts <site_cmd>  into DR mode ["active","standby","disable"]
-    """
-    if site_cmd == "mntc":
-        return "disable"
-    elif site_cmd == "return":
-        return  "standby"
-    else:  # "active","standby" are modes.
-        return site_cmd
-
-
 def sm_process_service(site, service, site_cmd: str, no_wait=False, force=False) -> Tuple[Dict, bool, int]:
     """ Processes the service with specific site cmd """
     global sm_conf
@@ -612,7 +770,7 @@ def sm_process_service(site, service, site_cmd: str, no_wait=False, force=False)
     if site_cmd in ["status","list"]:  # RO operations
         body = {} if service == "site-manager" else {"procedure": "status", "run-services": [service]}
     else:
-        body = {"procedure": data_convert_sitecmd_to_dr_mode(site_cmd), "run-services": [service], "no-wait": no_wait, "force": force}
+        body = {"procedure": sm_conf.convert_sitecmd_to_dr_mode(site_cmd), "run-services": [service], "no-wait": no_wait, "force": force}
 
     ret, response, return_code = io_make_http_json_request(sm_conf[site]["url"],
                                                            sm_conf[site]["token"],
@@ -621,20 +779,22 @@ def sm_process_service(site, service, site_cmd: str, no_wait=False, force=False)
     return response,True if return_code == HTTPStatus.OK else False, return_code
 
 
-def sm_poll_service_required_status(site, service, mode, sm_dict) -> Tuple[Dict, bool]:
-    """ Polls service status command till desired mode is reached """
-    def service_status_polling(site,service, state,error_state=None,timeout=SERVICE_DEFAULT_TIMEOUT,delay=5) -> Tuple[Dict,bool]:
-        """   Polls "site-manager status" <service> command till <state> dict returns during <timeout> period with <delay>
+def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = False) -> ServiceDRStatus:
+    """ Polls service status command till desired mode is reached
+        @param force: True/False --force mode to ignore healthz
+    """
+    def service_status_polling(site, service, state, error_state =None, timeout=SERVICE_DEFAULT_TIMEOUT, delay=5) -> Tuple[Dict,bool]:
+        """  Polls "site-manager status" <service> command till <state> dict returns during <timeout> period with <delay>
         @param state:  expected dict state from site-manager service status command. {"status": ["up"]}
         @param error_state: optional error state which should be processed immediately. {"status": ["failed"]}
         """
-        data = {}
         key = list(state.keys())[0]
         value = list(state.values())[0]
         value_error = list(state.values())[0] if error_state else []
 
         init_time = int(time.time())
         count = 0
+        data = {'services':{service:{}}}
         while int(time.time()) <= init_time + int(timeout):
             count += 1
 
@@ -642,9 +802,9 @@ def sm_poll_service_required_status(site, service, mode, sm_dict) -> Tuple[Dict,
             logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
 
             data, ret, _ = sm_process_service(site, service, "status")
+            data  = {'services':{service:{}}} if not data else data
 
             logging.debug(f"Service: {service}. Site: {site}. Received data: {data}. Return code: {ret}")
-
             if ret and data["services"][service][key] in value:
                 return data, ret
             elif ret and data["services"][service][key] in value_error:
@@ -656,27 +816,34 @@ def sm_poll_service_required_status(site, service, mode, sm_dict) -> Tuple[Dict,
 
     data, ret = service_status_polling(site,service,{"status":["done"]},["failed"])
     if not ret:
-        return data, ret
+        return ServiceDRStatus(data)
 
     data, ret = service_status_polling(site,service,{"mode":[mode]})
     if not ret:
-        return data, ret
+        return ServiceDRStatus(data)
 
     if mode == "active":
         data, ret = service_status_polling(site,service,{"healthz":["up"]})
     elif mode == "standby":
         data, ret = service_status_polling(site,service,{"healthz": \
-                                                              sm_dict["sites"][site]["services"][service]["allowedStandbyStateList"]})
+                                                              sm_dict[site]["services"][service]["allowedStandbyStateList"]})
     else:
-        data, ret = service_status_polling(site,service,{"healthz": ["down"]})
+        data, ret = service_status_polling(site,service,{"healthz": ["up"]})
 
     if data["services"][service].get("mode","--") == "--" or \
             data["services"][service].get("status","--") == "--":
-        return {"mode": "unknown", "status": "unknown", "healthz": "--"},False
-    return data,ret
+        data, ret = {"services": {service: {"mode": "unknown", "status": "unknown", "healthz": "--"}}},False
+
+    if force:
+        logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")
+        stat = ServiceDRStatus(data)
+        stat.healthz = "up"
+        return stat
+
+    return ServiceDRStatus(data)
 
 
-def print_main_table(sm_dict, services_to_run, sites_name: []):
+def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: []):
     """ Method intended to display main section of status table
     @param dict sm_dict: the results of the procedure received from the site-manager
     @param list services_to_run: the list of services that have been processed
@@ -713,11 +880,11 @@ def print_main_table(sm_dict, services_to_run, sites_name: []):
         service_pt_row = list()
         service_pt_row.append(service_item)
         for sites_item in sites_name:
-            if sm_dict['sites'][sites_item]['status'] and sm_dict['sites'][sites_item]['services'][service_item]['status']:
+            if sm_dict[sites_item]['status'] and sm_dict[sites_item]['services'][service_item]['status']:
                 service_pt_row.append(
-                    f"{sm_dict['sites'][sites_item]['services'][service_item]['status']['mode']} / "
-                    f"{sm_dict['sites'][sites_item]['services'][service_item]['status']['status']} / "
-                    f"{sm_dict['sites'][sites_item]['services'][service_item]['status']['healthz']}")
+                    f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
+                    f"{sm_dict[sites_item]['services'][service_item]['status']['status']} / "
+                    f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']}")
             else:
                 service_pt_row.append("-- / -- / --")
         pt.add_row(service_pt_row)
@@ -788,4 +955,3 @@ if __name__ == "__main__":
     if not main([i for i in run_services if i not in skip_services], args.command,
                 args.site if hasattr(args, 'site') else False):
         exit(1)
-

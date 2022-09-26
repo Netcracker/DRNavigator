@@ -649,28 +649,9 @@ Output:
 }
 ```
 
-HTTP Code: 401
+HTTP Code: 400
 
-2. Start new procedure when previous is running:
-
-```
-$ curl -XPOST \
-       --header "Content-Type: application/json" \
-       -d '{"procedure":"active", "run-services": "paas,paas-1"}' \
-       http://site-manager.example.com/sitemanager
-```
-
-Output:
-
-```json
-{
-  "message": "Process active is still running. Procedure active rejected!"
-}
-```
-
-HTTP Code: 409
-
-3. Try to start procedure with incorrect services:
+2. Try to start procedure with incorrect services:
 
 ```
 $ curl -XPOST \
@@ -691,7 +672,7 @@ Output:
 
 ```
 
-HTTP Code: 401
+HTTP Code: 400
 
 ## Metrics endpoint
 
