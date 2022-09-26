@@ -941,11 +941,20 @@ def parse_command_line() -> argparse.Namespace:
     parser_8.add_argument('site', nargs='?', default="", help=SITE_HELP_SECTION)  # todo to update help
     parser_8.set_defaults(command='status')
 
+    parser_9 = subparsers.add_parser('version', help='get current version')
+    parser_9.set_defaults(command='version')
+
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_command_line()
+
+    # get version command
+    if args.command in "version":
+        with open('version', 'r') as f:
+            print('SM-client %s' % f.read())
+        exit(0)
 
     if not init_and_check_config(args):
         exit(1)
