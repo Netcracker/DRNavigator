@@ -319,7 +319,7 @@ def sm_get_cluster_state(site=None) -> SMClusterState:
         sm_dict[site_name]["return_code"] = code # HTTP or SSL
         sm_dict[site_name]["status"] = ret
         sm_dict[site_name].update(response)
-        #### todo to remove hack
+        #### TODO to remove hack
         sm_dict[site_name]['services']['cluster-replicator']['module']='replicator'
     return sm_dict
 
@@ -942,7 +942,6 @@ def parse_command_line() -> argparse.Namespace:
     parser_8.set_defaults(command='status')
 
     return parser.parse_args()
-
 
 if __name__ == "__main__":
     args = parse_command_line()
