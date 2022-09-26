@@ -4,8 +4,6 @@ pytest based unit test
 python3  -m pytest -o log_cli=true -s -v test_smclient.py <-k  test_name*>
 """
 import json
-import logging
-
 import pytest
 from smclient import *
 from http import HTTPStatus
@@ -264,8 +262,6 @@ def test_SMClusterState_init():
     assert str(e.value) in "Only two sites in clusters are supported"
 
 
-
-
 def test_ServiceDRStatus_init():
 
     stat = ServiceDRStatus({'services': {'test':{'healthz':'up', 'mode':'disable', 'status':'done'}}})
@@ -275,7 +271,7 @@ def test_ServiceDRStatus_init():
 
     assert ServiceDRStatus({'services': {'test':{'mode':'disable'}}})['mode'] in "disable"
 
-    assert ServiceDRStatus({'services': {'test':{}}})['mode'] in "unknown"
+    assert ServiceDRStatus({'services': {'test':{}}})['mode'] in "--"
 
     assert ServiceDRStatus({'services':{'test':{}}}).service in "test"
 

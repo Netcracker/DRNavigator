@@ -197,10 +197,10 @@ class ServiceDRStatus:
          else:
              raise ValueError("Missing service name")
          serv= data['services'][self.service] if data.get('services') else data
-         self.mode = serv['mode'] if serv.get("mode") in ["active", "standby", "disable"] else "unknown"
+         self.mode = serv['mode'] if serv.get("mode") in ["active", "standby", "disable"] else "--"
          self.nowait = serv["nowait"] if serv.get("nowait") else False
          self.healthz = serv["healthz"] if serv.get("healthz") in ["up", "down", "degraded"] else "--"
-         self.status = serv["status"] if serv.get("status") in ["running","done","failed"] else "unknown"
+         self.status = serv["status"] if serv.get("status") in ["running","done","failed"] else "--"
          self.message = serv["message"] if serv.get("message") else ""
          # https://github.com/Netcracker/DRNavigator/blob/b4161fb15271485974abf5862e7272abc386fbc8/modules/stateful.py#L16
 
@@ -319,8 +319,9 @@ def sm_get_cluster_state(site=None) -> SMClusterState:
         sm_dict[site_name]["return_code"] = code # HTTP or SSL
         sm_dict[site_name]["status"] = ret
         sm_dict[site_name].update(response)
-        #### TODO to remove hack
-        sm_dict[site_name]['services']['cluster-replicator']['module']='replicator'
+        #### TODO to remove hack once replicator module is updated accordingly
+        if sm_dict[site_name]["status"] and sm_dict[site_name]['services']['cluster-replicator']:
+            sm_dict[site_name]['services']['cluster-replicator']['module'] = 'replicator'
     return sm_dict
 
 
@@ -371,14 +372,16 @@ def print_service_order(ts: TopologicalSorter2, sm_dict: SMClusterState):
     """ Show service list ordered by dependency in debug mode"""
     stage=0
     logging.debug(f"Service order by dependency:")
+    if len(module_flow) > 1:  # print custom module service name
+        logging.debug("--------------------")
+        logging.debug(
+            f"{sm_dict.get_module_services(sm_dict.get_available_sites()[0], list(module_flow[0].keys())[0])[0]}")
     while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
         stage += 1
         logging.debug(f"------ Stage {stage} -------")
         for serv in ts.get_ready():
             logging.debug(f"{serv}")
             ts.done(serv)
-        if len(module_flow) > 1:  # print custom module service name
-            logging.debug(f"{sm_dict.get_module_services(sm_dict.get_available_sites()[0],list(module_flow[0].keys())[0])[0]}")
     logging.debug("Done. ----------------")
 
 
@@ -404,7 +407,7 @@ def main(services:[] = None, cmd="", site=""):
             services_name = sm_dict.get_module_services(sm_dict.get_available_sites()[0],
                                                                    list(module_flow[0].keys())[0])[0]
             if services_name not in ignored_services and services_name not in service_dep_ordered:
-                service_dep_ordered.append(services_name)
+                service_dep_ordered.insert(0,services_name)
         logging.debug(service_dep_ordered)
     except NotValid:
         exit(1)
@@ -416,10 +419,10 @@ def main(services:[] = None, cmd="", site=""):
         for serv in service_dep_ordered:
             for site_i in sm_dict.get_available_sites():
                 def run_in_thread(site, serv, sm_dict):  # to run each status service in parallel
-                    response, ret, _ = sm_process_service(site, serv, "status")
+                    response, _, return_code = sm_process_service(site, serv, "status")
                     if not sm_dict[site_i]['services'].get(serv):
                         sm_dict[site_i]['services'][serv] = {}
-                    sm_dict[site]['services'][serv]['status']=response['services'][serv] if ret else False
+                    sm_dict[site]['services'][serv]['status'] = ServiceDRStatus(response) if return_code else False
 
                 thread=threading.Thread(target=run_in_thread, args=(site_i, serv, sm_dict))
                 thread.name = f"Thread: {serv}"
@@ -512,8 +515,6 @@ def main(services:[] = None, cmd="", site=""):
         exit(1)
 
     return True
-
-
 
 
 def print_service_operation_summary(part, sm_dict: SMClusterState, services_to_run: [], cmd="", site=""):
@@ -869,13 +870,13 @@ def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: []):
 
         for sites_item in sites_name:
             comment_pt_row.append(header)
-            separator_pt_row.append("--------------------------")
+            separator_pt_row.append("------------------------------------")
 
         pt.add_row(comment_pt_row)
         pt.add_row(separator_pt_row)
 
         return pt
-    pt = make_table("mode | DR status | healthz", sites_name)
+    pt = make_table("mode | DR status | healthz | message", sites_name)
     for service_item in services_to_run:
         service_pt_row = list()
         service_pt_row.append(service_item)
@@ -884,9 +885,10 @@ def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: []):
                 service_pt_row.append(
                     f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
                     f"{sm_dict[sites_item]['services'][service_item]['status']['status']} / "
-                    f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']}")
+                    f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']} / "
+                    f"{sm_dict[sites_item]['services'][service_item]['status']['message']}")
             else:
-                service_pt_row.append("-- / -- / --")
+                service_pt_row.append("-- / -- / -- /")
         pt.add_row(service_pt_row)
 
     print(pt)
