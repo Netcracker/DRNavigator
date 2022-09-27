@@ -10,7 +10,7 @@ Description: Client util to communicate with site-manager in kubernetes based cl
     logging into file
     make smclient delivery as single binary, using pyinstaller ???
     cli json output
-    SM specific data structures (dataclasses ?): sm_dict; service response: 50%
+    SM specific data structures : sm_dict; service response: 50%
 """
 
 import argparse
@@ -228,7 +228,7 @@ class SMClusterState:
             self.sm[sitename]={}
             self.sm[sitename]["services"]={}
             self.sm[sitename]["return_code"]=None
-            self.sm[sitename]["status"]=False
+            self.sm[sitename]["status"]=False #ServiceDRStatus
             self.sm[sitename]["service_dep_ordered"]=None
             self.sm[sitename]["ts"]=None
             self.sm[sitename]["dep_issue"]=None
@@ -769,9 +769,9 @@ def sm_process_service(site, service, site_cmd: str, no_wait=False, force=False)
     global sm_conf
 
     if site_cmd in ["status","list"]:  # RO operations
-        body = {} if service == "site-manager" else {"procedure": "status", "run-services": [service]}
+        body = {} if service == "site-manager" else {"procedure": "status", "run-service": service}
     else:
-        body = {"procedure": sm_conf.convert_sitecmd_to_dr_mode(site_cmd), "run-services": [service], "no-wait": no_wait, "force": force}
+        body = {"procedure": sm_conf.convert_sitecmd_to_dr_mode(site_cmd), "run-service": service, "no-wait": no_wait, "force": force}
 
     ret, response, return_code = io_make_http_json_request(sm_conf[site]["url"],
                                                            sm_conf[site]["token"],
