@@ -864,15 +864,15 @@ Check status of services:
 ```
 $ ./sm-client status
 
-+---------------------------------+----------------------------------------+----------------------------------------+
-| Service                         |        k8s-1                           |         k8s-2                          |
-+---------------------------------+----------------------------------------+----------------------------------------+
-|                                 | mode | DR status | healthz | message   | mode | DR status | healthz | message   |
-|   --------------------------    |       --------------------------       |       --------------------------       |
-| postgres-service-site-manager   | standby / done / up / "--"             |  active / done / up / "--"             |
-| kafka                           | standby / done / up / "some kafka msg" |  active / done / up / "some kafka msg" |
-| paas                            | standby / done / up / "some paas msg"  |  active / done / up / "some paas msg"  |
-+---------------------------------+----------------------------------------+----------------------------------------+
++---------------------------------+--------------------------------------+--------------------------------------+
+| Service                         |        k8s-1                         |         k8s-2                        |
++---------------------------------+--------------------------------------+--------------------------------------+
+|                                 | mode | DR status | healthz | message | mode | DR status | healthz | message |
+|   --------------------------    |      --------------------------      |      --------------------------      |
+| postgres-service-site-manager   | standby / done / up / --             |  active / done / up / --             |
+| kafka                           | standby / done / up / some kafka msg |  active / done / up / some kafka msg |
+| paas                            | standby / done / up / some paas msg  |  active / done / up / some paas msg  |
++---------------------------------+--------------------------------------+--------------------------------------+
 ```
 
 Show list of services in kubernetes clusters with CR sitemanager:

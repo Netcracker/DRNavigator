@@ -335,7 +335,7 @@ def sitemanager_post():
     # Check for service what does not exist in cluster
     if run_service not in all_services:
 
-        return json_response(400, {"message": f"You defined service that does not exist in cluster",
+        return json_response(400, {"message": f"Service doesn't exist",
                                    "wrong-service": run_service})
 
     logging.info(f"Following service will be processed: {run_service}")
