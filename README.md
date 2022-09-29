@@ -11,6 +11,12 @@
 
 DRNavigator is the project to manage applications in two or more kubernetes clusters.
 
+# Resource limits
+
+Before installation be aware, that you have enough resources for DRNavigator.
+For one pod it's recommended to use 100m cpu and 80Mi memory limits per worker and by default DRNavigator uses 2 workers.
+You can override worker count and cpu/memory limits using helm enviroments.
+
 # Prepare kubernetes cluster to work with DRNavigator
 
 To support ability of services be managed by `site-manager` you should prepare following steps:
@@ -138,6 +144,8 @@ To support ability of services be managed by `site-manager` you should prepare f
     | image.tag                   | docker image tag                                                      | v1.0                            |
     | ingress.create              | enable/disable ingress creation                                       | true                            |
     | ingress.name                | define URL for `site-manager` ingress                                 | ""                              |
+    | limits.cpu                  | cpu limits per pod                                                    | 200m                            |
+    | limits.memory               | memory limits per pod                                                 | 160Mi                           |
     | paas_platform               | define PAAS type. It can be "kubernetes" or "openshift"               | "kubernetes"                    |
     | tls.generateCerts.enabled   | enable/disable certificates generation via cert-manager               | false                           |
     | tls.generateCerts.clusterIssuerName | define name cluster issuer, if you wand to use it (if empty, will be created self-signed issuer )  | ""                              |

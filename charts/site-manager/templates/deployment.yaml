@@ -64,8 +64,8 @@ spec:
             mountPath: /methic_dir/
         resources:
           limits:
-              cpu: "300m"
-              memory: "150Mi"
+              cpu: "{{ .Values.limits.cpu }}"
+              memory: "{{ .Values.limits.memory }}"
         readinessProbe:
           httpGet:
             path: /health
