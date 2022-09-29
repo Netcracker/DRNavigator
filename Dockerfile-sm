@@ -13,15 +13,14 @@ COPY flank_exporter_config.py /app/flank_exporter_config.py
 
 WORKDIR /app/
 
-RUN mkdir -p /prometheus_dir
+RUN mkdir -p /methic_dir
 
 RUN useradd -r -u "${SM_UID}" "${SM_USER}" && \
     pip install --upgrade pip && \
     pip install wheel==0.37.0 && \
     pip install -r requirements.txt
 
-ENV PROMETHEUS_MULTIPROC_DIR /prometheus_dir
-ENV prometheus_multiproc_dir /prometheus_dir
+ENV PROMETHEUS_MULTIPROC_DIR /methic_dir
 
 USER "${SM_USER}"
 
