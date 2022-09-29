@@ -44,7 +44,7 @@ def test_process_service__status_ok(caplog):
     print(f"Using {site}")
     pytest.site_name=site
     json_body_s, ret, code=sm_process_service(site, "site-manager", "status")
-    assert ret == True \
+    assert ret is True \
            and type(json_body_s) is dict \
            and json.loads('"' + str(json_body_s) + '"') \
            and json_body_s["services"], "Returned: dict, valid JSON, JSON contains valid response"
@@ -57,7 +57,7 @@ def test_process_service__rw_ok(caplog):
     args_init("config.yaml")
     json_body_s, ret, code=sm_process_service(pytest.site_name if hasattr(pytest, "site_name") else "k8s-1",
                                            "cluster-replicator", "status")
-    assert ret == True and \
+    assert ret is True and \
            type(json_body_s) is dict and \
            json.loads('"' + str(json_body_s) + '"') and \
            code == HTTPStatus.OK, \

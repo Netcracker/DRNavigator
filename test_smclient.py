@@ -283,7 +283,7 @@ def test_ServiceDRStatus_init():
         assert ServiceDRStatus({'services':{}})
 
     stat = ServiceDRStatus({'message': 'You defined service that does not exist in cluster',
-                            'wrong-services': ['absent-service']})
+                            'wrong-service': 'absent-service'})
     assert stat.service in 'absent-service' and stat.message and not stat.is_ok()
 
 
