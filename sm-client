@@ -878,7 +878,7 @@ def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: []):
 
         pt.add_row(comment_pt_row)
         pt.add_row(separator_pt_row)
-
+        pt.max_width = 50
         return pt
     pt = make_table("mode | DR status | healthz | message", sites_name)
     for service_item in services_to_run:
