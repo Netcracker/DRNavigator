@@ -410,7 +410,7 @@ def main(services:[] = None, cmd="", site=""):
             for _ in sm_dict.get_available_sites():
                 if sm_dict.get_module_services(_, list(module_flow[0].keys())[0]):
                     services_name = sm_dict.get_module_services(_,list(module_flow[0].keys())[0])[0]
-                    if services_name not in ignored_services and services_name not in service_dep_ordered:
+                    if (services_name in services if services else True) and services_name not in service_dep_ordered:
                         service_dep_ordered.insert(0,services_name)
         logging.debug(service_dep_ordered)
     except NotValid:
@@ -449,7 +449,7 @@ def main(services:[] = None, cmd="", site=""):
             """@todo need more flexible module support """
             logging.info(f"Processing {module} module to mode:{state}")
 
-            if len(sm_dict.get_module_services(site, module)) == 1:
+            if module not in default_module:
                 if cmd in dr_procedures:
                     if state in 'active':
                         site_to_run = sm_conf.get_opposite_site(site)
@@ -458,12 +458,12 @@ def main(services:[] = None, cmd="", site=""):
                     site_to_run = sm_conf.get_opposite_site(site_to_run) if cmd in 'move' else site_to_run
                 else:
                     site_to_run = site
-
                 service_to_run=sm_dict.get_module_services(site_to_run, module)[0]
-                logging.debug(f"on site {site_to_run}. Services {service_to_run}  ")
-                sm_process_service(site_to_run, service_to_run, state)
-                response=sm_poll_service_required_status(site_to_run, service_to_run, state, sm_dict)
-                response.sortout_service_results(done_services, failed_services)
+                if service_to_run in services if services else True:
+                    logging.debug(f"on site {site_to_run}. Services {service_to_run}  ")
+                    sm_process_service(site_to_run, service_to_run, state)
+                    response=sm_poll_service_required_status(site_to_run, service_to_run, state, sm_dict)
+                    response.sortout_service_results(done_services, failed_services)
             else:  # stateful module
                 failed_successors=[]
                 while ts and ts.is_active():  # process all services one by one  sorted by dependency
@@ -489,15 +489,16 @@ def main(services:[] = None, cmd="", site=""):
                     logging.info(f"done_services: {done_services}")
                 for thread in thread_pool:
                     thread.join()
-        status = True
+        dr_status = True
         for elem in module_flow:
             for module, state in elem.items():
-                if not status:
+                if not dr_status:
                     for i in sm_dict.get_module_services(sm_dict.get_available_sites()[0], module):
-                        if i not in failed_services:
-                            failed_services.append(i)
-                        if i in done_services:
-                            done_services.remove(i)
+                        if i in services if services else True:
+                            if i not in failed_services:
+                                failed_services.append(i)
+                            if i in done_services:
+                                done_services.remove(i)
                     break
                 if cmd in ['standby','mntc'] and (state and state in 'active'):
                     break
@@ -507,7 +508,7 @@ def main(services:[] = None, cmd="", site=""):
                 if failed_services and cmd not in 'mntc':
                     logging.debug(f"Module {module} failed. Failed services {failed_services}")
                     logging.error(f"Module {module} failed, skipping rest of services, exiting")
-                    status = False
+                    dr_status = False
                     break
         print_service_operation_summary("tail",sm_dict, service_dep_ordered, cmd, site )
     else:
