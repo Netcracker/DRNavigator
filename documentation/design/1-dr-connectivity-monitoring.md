@@ -48,6 +48,43 @@ Below is the diagram showing the process of getting neighbors status.
 
 ![](/documentation/images/dr-monitor.png)
 
+The information about neighbors is collected on demand when external tools 
+send HTTP GET requests to `/neighbors/status` path. 
+The response contains information about all neighbors DNS resolving, pod-to-service and pod-to-pod connectivity statues,
+for example:
+```yaml
+neighbors:
+  - name: cluster-b
+    clusterIp:
+      name: dr-monitor.ns.svc.cluster-b.local
+      dnsStatus:
+        resolved: true
+        svcAddress: 1.1.1.1
+      svcStatus:
+        available: true
+        podAddress: 2.2.2.2
+      podStatus:
+        available: true
+  - name: cluster-c
+    clusterIp:
+      name: dr-monitor.ns.svc.cluster-c.local
+      dnsStatus:
+        resolved: false
+        error: "no such host"
+```
+The statuses are collected in order - first DNS resolving is checked, then pod-to-service and then pod-to-pod
+connectivity. If a certain status fails, an error message is attached and further statuses are not collected.
+
+Internally, `dr-monitor` instance works as following for each neighbor:
+1. It tries to resolve neighbor DNS name and get ClusterIP address.
+2. It sends HTTP GET request to neighbor `/ping` path using ClusterIP address. 
+The response contains neighbor pod IP address.
+3. It sends HTTP GET request to neighbor `/ping` path using pod IP address.
+
+### Integration with Prometheus
+The information about clusters geo health could be sent to Prometheus. For this, a separate `/metrics` path is used,
+which serves DNS, pod-to-service and pod-to-pod statuses metrics for each neighbor.
+
 # Consequences
 
 TBD
