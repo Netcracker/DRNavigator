@@ -63,7 +63,7 @@ ignored_services = []
 failed_services = []
 
 args = None
-module_flow = [{'stateful': ''}]  # custom DR sequence per module
+module_flow = [{'stateful': None}]  # custom DR sequence per module
 default_module = 'stateful'
 
 thread_pool=[]
@@ -160,8 +160,7 @@ def init_and_check_config(args) -> bool:
         skip_services = args.skip_services.replace(',', ' ').replace('  ', ' ').split(' ')
 
     global module_flow
-    module_flow = conf_parsed.get("flow", {})
-
+    module_flow = conf_parsed.get("flow", module_flow)
     site_names = [i["name"] for i in conf_parsed["sites"]]
     global sm_conf
     sm_conf = SMConf()
@@ -500,9 +499,9 @@ def main(services:[] = None, cmd="", site=""):
                             if i in done_services:
                                 done_services.remove(i)
                     break
-                if cmd in ['standby','mntc'] and (state and state in 'active'):
+                if cmd in ['standby','mntc'] and  str(state) in 'active':
                     break
-                if cmd in 'active' and (state and state in 'standby'):
+                if cmd in 'active' and  str(state) in 'standby':
                     continue
                 run_module(module, state)
                 if failed_services and cmd not in 'mntc':
