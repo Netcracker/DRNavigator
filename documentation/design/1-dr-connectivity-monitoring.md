@@ -46,7 +46,7 @@ from all `dr-monitor` instances.
 
 Below is the diagram showing the process of getting neighbors status.
 
-TBD
+![](/documentation/images/dr-monitor.png)
 
 # Consequences
 
