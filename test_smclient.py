@@ -326,7 +326,7 @@ def test_runservise_engine(caplog):
                 logging.debug(f"Found successor {s} for failed {service_response.service} ")
                 failed_successors.append(s)
         ts.done(service_response.service)
-        service_response.sortout_service_results(done_services,failed_services)
+        service_response.sortout_service_results()
     for thread in thread_pool:
         thread.join()
 
