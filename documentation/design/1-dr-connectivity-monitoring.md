@@ -50,7 +50,7 @@ Below is the diagram showing the process of getting neighbors status.
 
 The information about neighbors is collected on demand when external tools 
 send HTTP GET requests to `/neighbors/status` path. 
-The response contains information about all neighbors DNS resolving, pod-to-service and pod-to-pod connectivity statues,
+The response contains information about all neighbors DNS resolving, pod-to-service and pod-to-pod connectivity statuses,
 for example:
 ```yaml
 neighbors:
