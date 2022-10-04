@@ -99,4 +99,5 @@ which serves DNS, pod-to-service and pod-to-pod statuses metrics for each neighb
 
 # Consequences
 
-TBD
+* New `dr-monitor` application should be implemented. It should be part of DRNavigator repository and deployed using site-manager chart.
+* KubeMarine `check_paas` procedure should support DR checks using `dr-monitor` API.
