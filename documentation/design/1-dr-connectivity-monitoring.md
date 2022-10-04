@@ -82,12 +82,12 @@ The response contains neighbor pod IP address.
 3. It sends HTTP GET request to neighbor `/ping` path using pod IP address.
 
 ### Integration with `check_paas`
-The `check_paas` procedure should be modified to support checks using `dr-monitor` instance. 
-Since `dr-monitor` is an optional service, `check_paas` do not use it by default.
+The `check_paas` procedure should be modified to support DR checks using `dr-monitor` instance. 
+Since `dr-monitor` is an optional service, `check_paas` does not use it by default.
 To let `check_paas` know that it should perform DR checks, a `procedure.yaml` should be passed
 containing information about `dr-monitor` instance:
 ```yaml
-drMonitorService:
+drMonitor:
   name: dr-monitor.ns.svc.cluster-a.local
 ```
 The information includes at least service name, but it could also contain port, protocol, cert path, etc.
