@@ -92,7 +92,7 @@ drMonitor:
 ```
 The information includes at least service name, but it could also contain port, protocol, cert path, etc.
 To send the request, `check_paas` uses `curl` from one of the cluster nodes. 
-All the checks are performed as single check since they depend
+All the checks are performed as single check since they are ordered as dependencies.
 
 ### Integration with Prometheus
 The information about clusters geo health could be sent to Prometheus. For this, a separate `/metrics` path is used,
