@@ -489,17 +489,28 @@ def main(services:[] = None, cmd="", site=""):
                     thread.join()
         dr_status = True
         for elem in module_flow:
-            for module, state in elem.items():
+            for module, states in elem.items():
                 if not dr_status:
                     for i in sm_dict.get_module_services(sm_dict.get_available_sites()[0], module):
                         if i in service_dep_ordered:
                             ServiceDRStatus({'services':{i:{'status':'failed'}}}).sortout_service_results()
                     break
-                if cmd in ['standby','mntc','return'] and str(state) in 'active':
+                if cmd in ['standby', 'mntc', 'return'] and (states and states == ['active']):
                     break
-                if cmd in 'active' and str(state) in 'standby':
+                if cmd in 'active' and (states and set(states) == {'standby', 'disable'}):
                     continue
-                run_module(module, state if cmd not in 'mntc' else 'mntc')
+
+                def get_state(cmd, states) -> str:
+                    if not states:
+                        return ''
+
+                    if cmd in ['move', 'stop']:
+                        return states[0]
+                    elif cmd in 'mntc':
+                        return 'mntc'
+                    else:
+                        return states[0]
+                run_module(module, get_state(cmd,states))
                 if failed_services:
                     logging.debug(f"Module {module} failed. Failed services {failed_services}")
                     logging.error(f"Module {module} failed, skipping rest of services, exiting")
