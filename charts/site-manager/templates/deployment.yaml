@@ -61,7 +61,7 @@ spec:
             mountPath: /certs
             name: sm-certs
           - name: metric-volume
-            mountPath: /methic_dir/
+            mountPath: /metric_dir/
         resources:
           limits:
               cpu: "{{ .Values.limits.cpu }}"
