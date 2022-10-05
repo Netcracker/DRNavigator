@@ -460,7 +460,8 @@ def main(services:[] = None, cmd="", site=""):
                 if service_to_run in service_dep_ordered:
                     logging.debug(f"on site {site_to_run}. Services {service_to_run}  ")
                     sm_process_service(site_to_run, service_to_run, state)
-                    response=sm_poll_service_required_status(site_to_run, service_to_run, state, sm_dict)
+                    response=sm_poll_service_required_status(site_to_run, service_to_run,
+                                                             sm_conf.convert_sitecmd_to_dr_mode(state), sm_dict)
                     response.sortout_service_results()
             else:  # stateful module
                 failed_successors=[]
