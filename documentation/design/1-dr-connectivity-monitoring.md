@@ -59,12 +59,12 @@ neighbors:
       name: dr-monitor.ns.svc.cluster-b.local
       dnsStatus:
         resolved: true
-        svcAddress: 1.1.1.1
       svcStatus:
         available: true
-        podAddress: 2.2.2.2
+        address: 1.1.1.1
       podStatus:
         available: true
+        address: 2.2.2.2
   - name: cluster-c
     clusterIp:
       name: dr-monitor.ns.svc.cluster-c.local
