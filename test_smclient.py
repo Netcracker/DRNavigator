@@ -364,15 +364,5 @@ def test_get_dr_operation_sequence():
     # switchover to site2
     assert [['k8s-2', 'active'], ['k8s-1', 'standby']] == sm_dict2.get_dr_operation_sequence('serv1', 'move', 'k8s-2')
 
-    sm_dict_missing_service={"sites":
-        {"site1":{"services":{
-            "serv1":{"sequence":["standby", "active"]}, }},
-            "site2":{"services":{
-                "serv1":{"sequence":["standby", "active"]},
-                "serv2":{"sequence":["standby", "active"]}}}}}
-    assert True  # todo
-    # [['site1', 'standby'], ['site2', 'active']] ==       data_get_dr_operation_sequence(sm_dict_missing_service, 'serv2', 'move', 'site1')
-
-
 
 
