@@ -14,4 +14,4 @@ jobs:
       - name: Build Docker Image for sm-client
         run: docker build -t sm-client -f Dockerfile-sc --no-cache .
       - name: Build Docker Image for paas-geo-monitor
-        run: docker build -t sm-client -f paas-geo-monitor/Dockerfile --no-cache .
+        run: docker build -t paas-geo-monitor -f paas-geo-monitor/Dockerfile --no-cache paas-geo-monitor/
