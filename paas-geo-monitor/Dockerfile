@@ -1,7 +1,4 @@
-FROM artifactorycn.netcracker.com:17114/library/golang:1.18.3-alpine3.16 as builder
-
-ENV GOPROXY=https://artifactorycn.netcracker.com/pd.sandbox-staging.go.group \
-    GOSUMDB=off
+FROM golang:1.18.3-alpine3.16 as builder
 
 WORKDIR /workspace
 
@@ -20,7 +17,7 @@ COPY main.go ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o paas-geo-monitor ./main.go
 
 
-FROM artifactorycn.netcracker.com:17114/library/alpine:3.16.1
+FROM alpine:3.16.2
 
 ENV USER_UID=1001 USER_NAME=paas-geo-monitor GROUP_NAME=paas-geo-monitor
 
