@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type HttpClient struct {
@@ -29,7 +30,7 @@ func (h *HttpClient) Resolve(name string) (string, error) {
 
 func (h *HttpClient) Get(reqUrl string, ip string) (string, error) {
 	// TODO support insecure/CA
-	client := &http.Client{Transport: &http.Transport{}}
+	client := &http.Client{Transport: &http.Transport{}, Timeout: 5 * time.Second}
 
 	if ip != "" {
 		client.Transport.(*http.Transport).DialContext = func(c context.Context, n, addr string) (net.Conn, error) {
