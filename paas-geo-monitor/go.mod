@@ -1,4 +1,4 @@
-module git.netcracker.com/prod.platform.ha/paas-geo-monitor
+module github.com/netcracker/drnavigator/paas-geo-monitor
 
 go 1.18
 

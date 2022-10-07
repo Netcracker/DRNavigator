@@ -2,7 +2,7 @@ package resources_test
 
 import (
 	"errors"
-	"git.netcracker.com/prod.platform.ha/paas-geo-monitor/pkg/resources"
+	"github.com/netcracker/drnavigator/paas-geo-monitor/pkg/resources"
 	"testing"
 )
 

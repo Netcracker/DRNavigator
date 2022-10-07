@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"fmt"
-	"git.netcracker.com/prod.platform.ha/paas-geo-monitor/pkg/app"
+	"github.com/netcracker/drnavigator/paas-geo-monitor/pkg/app"
 	"os"
 
 	"github.com/spf13/cobra"

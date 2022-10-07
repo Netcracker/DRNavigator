@@ -2,10 +2,10 @@ package app
 
 import (
 	"fmt"
-	"git.netcracker.com/prod.platform.ha/paas-geo-monitor/pkg/client"
-	"git.netcracker.com/prod.platform.ha/paas-geo-monitor/pkg/resources"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/netcracker/drnavigator/paas-geo-monitor/pkg/client"
+	"github.com/netcracker/drnavigator/paas-geo-monitor/pkg/resources"
 	"gopkg.in/yaml.v3"
 	"net"
 	"net/http"
