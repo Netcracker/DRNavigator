@@ -51,3 +51,8 @@ tls:
       additionalIpAddresses: []
 
 paas_platform: kubernetes
+
+paas_geo_monitor:
+  install: false
+  config:
+    neighbors: []
