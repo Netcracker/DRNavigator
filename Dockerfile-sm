@@ -13,11 +13,9 @@ COPY flank_exporter_config.py /app/flank_exporter_config.py
 
 WORKDIR /app/
 
-RUN mkdir -p /metric_dir
-
-RUN chmod -R 777 /metric_dir
-
-RUN useradd -r -u "${SM_UID}" "${SM_USER}" && \
+RUN mkdir -p /metric_dir && \
+    chmod -R 777 /metric_dir && \
+    useradd -r -u "${SM_UID}" "${SM_USER}" && \
     pip install --upgrade pip && \
     pip install wheel==0.37.0 && \
     pip install -r requirements.txt
