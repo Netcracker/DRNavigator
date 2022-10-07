@@ -41,6 +41,10 @@ ingress:
   create: true
   name: ""
 
+limits:
+  cpu: "200m"
+  memory: "160Mi"
+
 tls:
   generateCerts:
     enabled: false

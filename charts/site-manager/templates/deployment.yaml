@@ -24,6 +24,7 @@ spec:
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
         args:
           - "--bind=0.0.0.0:8443"
+          - "--config=flank_exporter_config.py"
           - '--worker-class=gevent'
           - "--certfile=/certs/tls.crt"
           - "--keyfile=/certs/tls.key"
@@ -59,10 +60,12 @@ spec:
           - readOnly: true
             mountPath: /certs
             name: sm-certs
+          - name: metric-volume
+            mountPath: /metric_dir/
         resources:
           limits:
-              cpu: "300m"
-              memory: "150Mi"
+              cpu: "{{ .Values.limits.cpu }}"
+              memory: "{{ .Values.limits.memory }}"
         readinessProbe:
           httpGet:
             path: /health
@@ -88,3 +91,5 @@ spec:
         - name: sm-certs
           secret:
             secretName: sm-certs
+        - name: metric-volume
+          emptyDir: {}

@@ -9,16 +9,21 @@ COPY site-manager.py /app/
 COPY modules /app/modules
 COPY utils.py /app/
 COPY requirements-sm.txt /app/requirements.txt
+COPY flank_exporter_config.py /app/flank_exporter_config.py
 
 WORKDIR /app/
 
-RUN useradd -r -u "${SM_UID}" "${SM_USER}" && \
+RUN mkdir -p /metric_dir && \
+    chmod -R 777 /metric_dir && \
+    useradd -r -u "${SM_UID}" "${SM_USER}" && \
     pip install --upgrade pip && \
     pip install wheel==0.37.0 && \
     pip install -r requirements.txt
+
+ENV PROMETHEUS_MULTIPROC_DIR /metric_dir
 
 USER "${SM_USER}"
 
 ENTRYPOINT ["gunicorn"]
 
-CMD ["--bind=0.0.0.0:8443", "--preload", "--worker-class=gevent", "-w 4", "site-manager:app"]
+CMD ["--bind=0.0.0.0:8443", "--config=flank_exporter_config.py", "--preload", "--worker-class=gevent", "-w 4", "site-manager:app"]
