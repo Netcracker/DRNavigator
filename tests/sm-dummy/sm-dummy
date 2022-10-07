@@ -1,0 +1,157 @@
+#!/usr/bin/env python3
+"""
+Script to emulate operator functionality to test site-manager.
+
+Supported env parameters:
+ - SMA_TIMEOUT    - set sleep timeout for DR procedure, by default 15
+ - SMA_INIT_MODE  - initial mode for service, by default active
+ - SMA_DEBUG      - debug mode for Flask, by default False
+ - SMA_PORT       - port for http server, by default 8080
+ - SMA_HEALTHZ    - healthz output in dummy mode, by default up
+ - SMA_HTTP_AUTH       - check authorization for /sitemanager request, by default False
+ - SMA_SM_NAMESPACE    - site-manager namespace (for authorization checking), by default site-manager
+ - SMA_SM_AUTH_SA      - site-manager service account name (for authorization checking), by default sm-auth-sa
+ - SMA_KUBECONFIG_FILE - kubeconfig for local integration with kubernetes cloud, by default empty
+"""
+
+import time
+import os
+import threading
+import logging
+
+from flask import Flask, request, jsonify, make_response
+from kubernetes import client, config
+
+
+sma_timeout = int(os.environ.get("SMA_TIMEOUT", 15))
+sma_port = int(os.environ.get("SMA_PORT", 8080))
+
+mode = os.environ.get("SMA_INIT_MODE", "active")
+status = 'done'
+message = "I'm OK"
+
+app = Flask(__name__)
+app.config['DEBUG'] = os.environ.get("SMA_DEBUG", False)
+
+SMA_HTTP_AUTH = bool(os.environ.get("SMA_HTTP_AUTH", False))
+SMA_KUBECONFIG_FILE = os.environ.get("SMA_KUBECONFIG_FILE", "")
+SMA_SM_NAMESPACE = os.environ.get("SMA_SM_NAMESPACE", "site-manager")
+SMA_SM_AUTH_SA = os.environ.get("SMA_SM_AUTH_SA", "sm-auth-sa")
+SMA_SEND_MESSAGE = os.environ.get("BACK_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
+
+if os.environ.get("SMA_DEBUG", False):
+    logging_level = logging.DEBUG
+    logging_format = "%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
+else:
+    logging_level = logging.INFO
+    logging_format = "%(asctime)s [%(levelname)s] %(filename)s: %(message)s"
+
+logging.basicConfig(format=logging_format, level=logging_level)
+
+
+def run(mode_to_set):
+    global mode
+    global status
+    global message
+
+    status = "running"
+    mode = mode_to_set
+    message = f"Procedure {mode} in process..."
+
+    time.sleep(sma_timeout)
+
+    status = "done"
+    message = "I'm OK"
+
+
+def json_response(code, body):
+    """
+    Method to perform json output
+    :param int code: http code for operation
+    :param dict body: dict with message or lists for http response
+    """
+    response = make_response(jsonify(body), code,)
+    response.headers["Content-Type"] = "application/json"
+
+    return response
+
+
+def check_authorization(request):
+    if SMA_HTTP_AUTH:
+        if "Authorization" not in request.headers:
+            return json_response(401, {"message": "Unauthorized access"})
+
+        if SMA_KUBECONFIG_FILE != "":
+            k8s_api_client = config.load_kube_config(config_file=SMA_KUBECONFIG_FILE)
+        else:
+            k8s_api_client = config.load_incluster_config()
+
+        if len(request.headers["Authorization"].split(" ")) != 2:
+            return json_response(403, {"message": "Bearer is empty or wrong"})
+        token = request.headers["Authorization"].split(" ")[1]   
+
+        k8s_auth_api = client.AuthenticationV1Api(k8s_api_client)
+        token_review = client.V1TokenReview(spec = client.V1TokenReviewSpec(token = token))
+
+        api_response = k8s_auth_api.create_token_review(body = token_review)
+        if not api_response.status.authenticated or api_response.status.user.username != f"system:serviceaccount:{SMA_SM_NAMESPACE}:{SMA_SM_AUTH_SA}":
+            logging.debug("Authorization failed, token review status: %s", api_response.status)
+            return json_response(403, {"message": "Bearer is empty or wrong"})
+
+
+@app.route('/')
+def hello():
+    user_agent = request.headers.get('User-Agent')
+    return f"Hello! I see you are using {user_agent}"
+
+
+@app.route('/healthz')
+def healthz():
+    return jsonify(status=os.environ.get("SMA_HEALTHZ", "up"))
+
+
+@app.route('/sitemanager', methods=['GET', 'POST'])
+def sitemanager():
+    result = check_authorization(request)
+    if result:
+        return result
+
+    global mode
+    global status
+
+    if request.method == "GET":
+        if SMA_SEND_MESSAGE:
+            return jsonify(mode=mode,
+                       status=status,
+                       message=message)
+        else:
+            return jsonify(mode=mode,
+                       status=status)
+
+    elif request.method == "POST":
+        try:
+            data = request.get_json()
+            logging.debug(f"Received data: {data}")
+
+            mode_to_set = data["mode"]
+        except:
+            mode_to_set = mode
+
+        if status != "running" and \
+           mode_to_set != mode and \
+           mode_to_set in ("active", "standby", "disable"):
+
+            thread = threading.Thread(target=run, args=(mode_to_set,))
+            thread.start()
+
+        return jsonify(status=status, mode=mode)
+
+
+if __name__ == '__main__':
+
+    # Use WSGI server
+    # from waitress import serve
+    # serve(app, host="0.0.0.0", port=sma_port)
+
+    # Use Flask server
+    app.run(host='0.0.0.0', port=sma_port)

@@ -1,0 +1,71 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Values.name }}
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.name }}
+    spec:
+      {{- if .Values.serviceAccount.create }}
+      serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- end }}
+      containers:
+      - name: sm-dummy
+        {{- if eq .Values.paas_platform "kubernetes" }}
+        securityContext:
+          runAsUser: 1001
+        {{- end }}
+        image: {{ .Values.image }}
+        env:
+          - name: SMA_TIMEOUT
+            value: '{{ .Values.env.SMA_TIMEOUT }}'
+          - name: SMA_INIT_MODE
+            value: '{{ .Values.env.SMA_INIT_MODE }}'
+          - name: SMA_DEBUG
+            value: '{{ .Values.env.SMA_DEBUG }}'
+          - name: SMA_HEALTHZ
+            value: '{{ .Values.env.SMA_HEALTHZ }}'
+          - name: SMA_SEND_MESSAGE
+            value: '{{ .Values.env.SMA_SEND_MESSAGE }}'
+          - name: SMA_HTTP_AUTH
+            value: '{{ .Values.env.SMA_HTTP_AUTH }}'
+          - name: SMA_SM_NAMESPACE
+            value: '{{ .Values.env.SMA_SM_NAMESPACE }}'
+          - name: SMA_SM_AUTH_SA
+            value: '{{ .Values.env.SMA_SM_AUTH_SA }}'       
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources:
+          limits:
+              cpu: "300m"
+              memory: "150Mi"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+          periodSeconds: 2
+          successThreshold: 1
+          failureThreshold: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8080
+            scheme: HTTP
+          timeoutSeconds: 2
+          periodSeconds: 20
+          successThreshold: 1
+          failureThreshold: 5
+        terminationMessagePath: /dev/termination-log
+        imagePullPolicy: Always
