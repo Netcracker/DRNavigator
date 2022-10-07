@@ -6,7 +6,6 @@ ARG SM_UID=1001
 USER root
 
 COPY site-manager.py /app/
-COPY modules /app/modules
 COPY utils.py /app/
 COPY requirements-sm.txt /app/requirements.txt
 COPY flank_exporter_config.py /app/flank_exporter_config.py
