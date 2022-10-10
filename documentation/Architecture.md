@@ -933,9 +933,9 @@ sm-client:
   http_auth: True
   
 flow:
-  - custom_module: ['standby','disable']
+  - custom_module: [standby,disable]
   - stateful:
-  - custom_module: ['active']
+  - custom_module: [active]
 ```
 The above example implies the following DR sequences:
 #### Switchover
