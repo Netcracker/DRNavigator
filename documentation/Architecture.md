@@ -19,7 +19,7 @@
 - [CLI tool sm-client](#cli-tool-sm-client)
     - [Configuration file](#configuration-file)
     - [Examples of using sm-client](#examples-of-using-sm-client)
-    - [Daemon mode](#daemon-mode)
+    - [Custom modules support](#custom-modules-support)
 
 <!-- /MarkdownTOC -->
 
@@ -38,7 +38,7 @@ In scheme with two kubernetes clusters there are `site-manager` services in each
 
 The modular system is introduced that allows different behavior to be applied for different microservices. This system is more flexible and allows you to add or exclude support for certain cases.
 
-Currently the following modules have been added:
+Currently, the following modules have been added:
 
 * `stateful` module - intended for services that will be fully managed through the service's operators.
 
@@ -67,7 +67,7 @@ metadata:
     app: <SERVICE>
 spec:
   sitemanager:
-    module: "stateful"
+    module: "stateful" 
     after: ["<SERVICE-1>", "<SERVICE-3>"]
     before: ["<SERVICE-5>"]
     sequence: ["standby", "active"]
@@ -148,7 +148,7 @@ where:
 
 ## Infra service endpoints
 
-To start DR procedures `site-manager` should send REST request to operator. There are two parameters to define URL for operator: `serviceEndpoint` and `ingressEndpoint`. `serviceEndpoint` should be used for communication inside kubernetes cluster and define name of kubernetes service. `ingressEndpoint` should be used then operator has kubernetes ingress and can receive REST requests outside of kubernetes cluster.
+To start DR procedures `site-manager` should send REST request to operator. There are two parameters to define URL for operator: `serviceEndpoint` and `ingressEndpoint`. `serviceEndpoint` should be used for communication inside kubernetes cluster and define name of kubernetes service. `ingressEndpoint` should be used then operator has kubernetes ingress and can receive REST requests outside kubernetes cluster.
 
 To check current infra service health status `site-manager` checks URL from `healthzEndpoint`. 
 
@@ -166,7 +166,6 @@ To check current infra service health status `site-manager` checks URL from `hea
 
     `sm-client` is running as service in Docker container and can receive REST queries with commands. All procedures occur in runtime. `sm-client` does not exit after all DR procedures finished and continues to listen for new REST queries. `sm-client` can be started on DVM or on Operation portal VM. To achieve HA the `sm-client` can be started on few nodes but only one should launch DR procedures at a time.
 
-3. Run `sm-client` as a service in docker container inside kubernetes cluster
 3. Run `sm-client` as a service in docker container inside kubernetes cluster
 
     ![](/documentation/images/site-manager-SM-new-arch-3.png)
@@ -210,53 +209,45 @@ This part describes which contract must implement the service so that the Site-m
 
 To implement secure access between Site-Manager and services, the special header is added to POST and GET requests coming from Site-Manager:
 
-```
+```yaml
 "Authorization": "Bearer <TOKEN>"
 ```
 
 In order for the service to make sure that the request is secure, on the service side it is necessary to organize the verification of this token for authenticity and belonging to Site-Manager. This is done as follows:
 
-1) You need to make a request to verify the received token (`TokenReview`) through the `Kubernetes-client` or `Kubectl` of the following format:
-
-```
-apiVersion: authentication.k8s.io/v1
-kind: TokenReview
-spec:
-  token: <TOKEN>
-```
-
-Where: `<TOKEN>` is a Bearer received from Site-Manager `Authorization` request header.
-
-[Kubernetes-client TokenReview Api for Go](https://github.com/kubernetes-client/go/blob/master/kubernetes/docs/AuthenticationV1Api.md)
-
-2) Kube-api for this request will return a response in the format:
-
-```
-apiVersion: authentication.k8s.io/v1
-kind: TokenReview
-spec:
-  token: <TOKEN>
-status:
-  audiences:
-  - <audience identifiers>
-  authenticated: true
-  user:
-    groups:
-    -system:serviceaccounts
-    -system:serviceaccounts:site-manager
-    -system:authenticated
-    uid: c1a61275-608e-462e-89df-cf2a8ecc6d13
-    username: system:serviceaccount:site-manager:sm-auth-sa
-```
-
-3) In this response, we are interested in the following fields:
-
-```
-  - status.authenticated = true
-  - status.user.username = system:serviceaccount:site-manager:sm-auth-sa
-```
-
-Where `site-manager` is Site-Manager's Namespace name and `sm-auth-sa` is SA name.
+1. You need to make a request to verify the received token (`TokenReview`) through the `Kubernetes-client` or `Kubectl` of the following format
+    ```yaml
+    apiVersion: authentication.k8s.io/v1
+    kind: TokenReview
+    spec:
+      token: <TOKEN>
+    ```
+    Where: `<TOKEN>` is a Bearer received from Site-Manager `Authorization` request header. [Kubernetes-client TokenReview Api for Go](https://github.com/kubernetes-client/go/blob/master/kubernetes/docs/AuthenticationV1Api.md)
+2. Kube-api for this request will return a response in the format:
+    ```yaml
+    apiVersion: authentication.k8s.io/v1
+    kind: TokenReview
+    spec:
+      token: <TOKEN>
+    status:
+      audiences:
+      - <audience identifiers>
+      authenticated: true
+      user:
+        groups:
+        - system:serviceaccounts
+        - system:serviceaccounts:site-manager
+        - system:authenticated
+        uid: c1a61275-608e-462e-89df-cf2a8ecc6d13
+        username: system:serviceaccount:site-manager:sm-auth-sa
+    ```
+   
+3. In this response, we are interested in the following fields:
+    ```
+      - status.authenticated = true
+      - status.user.username = system:serviceaccount:site-manager:sm-auth-sa
+    ```
+    Where `site-manager` is Site-Manager's Namespace name and `sm-auth-sa` is SA name.
 
 ![](/documentation/images/site-manager-http-auth.png)
 
@@ -265,35 +256,33 @@ More information about token can be found at [site-manager authorization](#site-
 What might be required to implement this approach:
 
 1. The operator which processing requests from Site-Manager must have a `serviceaccount`.
-
 2. The operator's `serviceaccount` must be wrapped in a `ClusterRoleBinding` with the `system:auth-delegator` cluster role:
-
-```
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
-metadata:
-  name: <CRB-NAME>
-subjects:
-- kind: ServiceAccount
-  name: <SERVICE-ACCOUNT-NAME>
-  namespace: <NAMESPACE>
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
-  name: system:auth-delegator
-```
-
+    ```yaml
+    apiVersion: rbac.authorization.k8s.io/v1
+    kind: ClusterRoleBinding
+    metadata:
+      name: <CRB-NAME>
+    subjects:
+    - kind: ServiceAccount
+      name: <SERVICE-ACCOUNT-NAME>
+      namespace: <NAMESPACE>
+    roleRef:
+      apiGroup: rbac.authorization.k8s.io
+      kind: ClusterRole
+      name: system:auth-delegator
+    ```
 3. Adding a handler in the operator that checks the token for GET and POST requests using `TokenReview` described earlier.
 
 ### Check infra service mode and status of DR procedure:
 
-**URL**: `<service>.<namespace>.svc.cluster.local/sitemanager`
+* **URL**: `<service>.<namespace>.svc.cluster.local/sitemanager`
+* **Method**: `/GET`
+* **Code**: 200
 
-**Method**: `/GET`
-
-**Code**: 200
-
-**Answer**: `{"mode": "active|standby|disable", "status": "running|done|failed"}`
+**Answer**: 
+```json 
+{"mode": "active|standby|disable", "status": "running|done|failed"}
+```
 
 Where `mode` is the role of cluster part, `status` is the current state of DR procedure.
 
@@ -327,14 +316,10 @@ Output:
 ### Set new mode for infra service:
 
 **Important**: The contract between the Site-Manager and manageable services for changing the mode implies that the Rest API of the service has the property of [idempotency](https://restfulapi.net/idempotent-rest-apis/), which means that changing the mode of the service to an already existing mode does not bring the service into an inconsistent state. If the service is already moving to the required mode, the response should contain the corresponding mode and the status equal to `running`.
-
-**URL**: `<service>.<namespace>.svc.cluster.local/sitemanager`
-
-**Method**: `/POST`
-
-**Code**:    200
-
-**Data Params**: `{"mode": "active|standby|disable", "no-wait": True|False}`
+* **URL**: `<service>.<namespace>.svc.cluster.local/sitemanager`
+* **Method**: `/POST`
+* **Code**:    200
+* **Data Params**: `{"mode": "active|standby|disable", "no-wait": True|False}`
 
 where:
   - `active` - set mode `active` for managed cluster. This mode is for setting part of cluster to be master or main.
@@ -344,31 +329,29 @@ where:
 
 Example of `/POST` request with `curl` command:
 
-```
+```bash
 $ curl --silent \
        --request POST \
        --header "Content-Type: application/json" \
        --data '{"mode":"active"}' \
        http://<service>.<namespace>.svc.cluster.local/sitemanager
-
 ```
 
 Output:
-
 ```json
 {"mode":"active","status": "running"}
 ```
 
 ### Check infra service healthz of service:
 
-**URL**: `<service>.<namespace>.svc.cluster.local/healthz`
+* **URL**: `<service>.<namespace>.svc.cluster.local/healthz`
+* **Method**: `/GET`
+* **Code**: 200
 
-**Method**: `/GET`
-
-**Code**: 200
-
-**Answer**: `{"status": "up|down|degraded"}`
-
+**Answer**: 
+```json
+{"status": "up|down|degraded"}
+```
 where:
   - `status` - current status of the service.
       - `up` - means that the service correctly working.
@@ -402,14 +385,11 @@ This part describes what requests a Site-manager can respond to on both kubernet
 
 ### Get dict with all services and settings:
 
-**URL**: `site-manager.example.com/sitemanager`
+* **URL**: `site-manager.example.com/sitemanager`
+* **Method**: `/GET`
+* **Code**: 200
 
-**Method**: `/GET`
-
-**Code**: 200
-
-**Answer**: 
-
+**Answer**:
 ```json
 {
   "services": {
@@ -450,15 +430,13 @@ This dict is compiled CRs of all services managed by `site-manager` and contains
 
 Example of `/GET` request with `curl` command:
 
-```
+```bash
 $ curl --silent \
        --request GET \
        https://site-manager.example.com/sitemanager
-
 ```
 
 Output:
-
 ```json
 {
   "services": {
@@ -496,15 +474,18 @@ Output:
 
 ### Check infra services mode and status of DR procedure:
 
-**URL**: `site-manager.example.com/sitemanager`
+* **URL**: `site-manager.example.com/sitemanager`
+* **Method**: `/POST`
+* **Code**: 200
+* **Data Params**: `{"procedure": "status"}`
 
-**Method**: `/POST`
-
-**Code**: 200
-
-**Data Params**: `{"procedure": "status"}`
-
-**Answer**: `[{"name": "service-name-1", "mode": "active|standby|disable", "status": "running|done|failed"}, {"name": "service-name-2", "mode": "active|standby|disable", "status": "running|done|failed"}]`
+**Answer**: 
+```json
+[
+  {"name": "service-name-1", "mode": "active|standby|disable", "status": "running|done|failed"}, 
+  {"name": "service-name-2", "mode": "active|standby|disable", "status": "running|done|failed"}
+]
+```
 
 This command shows current status of DR procedures and results of health checks.
 
@@ -512,7 +493,7 @@ This command shows current status of DR procedures and results of health checks.
 
 Example of `/GET` request with `curl` command shows output for services `paas` and `paas-1`:
 
-```
+```bash
 $ curl -XPOST \
        --header "Content-Type: application/json" \
        -d '{"procedure":"status", "run-services": ["paas","paas-1"]}' \
@@ -542,19 +523,19 @@ Output:
 
 ### Show list of infra services:
 
-**URL**: `site-manager.example.com/sitemanager`
+* **URL**: `site-manager.example.com/sitemanager`
+* **Method**: `/POST`
+* **Code**: 200
+* **Data Params**: `{"procedure": "list"}`
 
-**Method**: `/POST`
-
-**Code**: 200
-
-**Data Params**: `{"procedure": "list"}`
-
-**Answer**: `{"all_services": ["service-1", "service-2"], "running-services": ["service-1", "service-2"]}`
+**Answer**: 
+```json
+{"all_services": ["service-1", "service-2"], "running-services": ["service-1", "service-2"]}
+```
 
 Example:
 
-```
+```bash
 $ curl -XPOST \
        --header "Content-Type: application/json" \
        -d '{"procedure":"list"}' \
@@ -591,25 +572,25 @@ Output:
 
 ### Start DR procedure `active`, `standby` or `disable`:
 
-**URL**: `site-manager.example.com/sitemanager`
+* **URL**: `site-manager.example.com/sitemanager`
+* **Method**: `/POST`
+* **Code**: 200
+* **Data Params**: `{"procedure": "active|standby|disable"}`
 
-**Method**: `/POST`
-
-**Code**: 200
-
-**Data Params**: `{"procedure": "active|standby|disable"}`
-
-**Answer**: `{"message": "Procedure active is started", "procedure": "active", "services": ["paas","paas-1"]}`
+**Answer**: 
+```json 
+{"message": "Procedure active is started", "procedure": "active", "services": ["paas","paas-1"]}
+```
 
 This command performs the specified procedure for the selected services.
     
-Active|standby|disable are the atomic operations and sm-client don't need to check both clusters. The decision should be taken by operator.
+```active|standby|disable``` are the atomic operations and sm-client don't need to check both clusters. The decision should be taken by operator.
 
 **Note**: response may contain section `additional`, which will contain specific information for the module in dictionary format. 
 
 Example:
 
-```
+```bash
 $ curl -XPOST \
        --header "Content-Type: application/json" \
        -d '{"procedure":"active", "run-services": "paas,paas-1"}' \
@@ -631,29 +612,24 @@ Output:
 ```
 
 ### Possible errors:
-
-1. Wrong procedure:
-
-```
+* Wrong procedure:
+```bash
 $ curl -XPOST \
        --header "Content-Type: application/json" \
        -d '{"procedure":"wrong", "run-services": "paas,paas-1"}' \
        http://site-manager.example.com/sitemanager
 ```
-
 Output:
-
 ```json
 {
   "message": "You should define procedure from list: ['active', 'standby', 'disable', 'list', 'status']"
 }
 ```
+HTTP Code: 400 
 
-HTTP Code: 400
+* Try to start procedure with incorrect services:
 
-2. Try to start procedure with incorrect services:
-
-```
+```bash
 $ curl -XPOST \
        --header "Content-Type: application/json" \
        -d '{"procedure":"active", "run-services": "paas,paas-12"}' \
@@ -678,7 +654,7 @@ HTTP Code: 400
 
 To check metrics from running `site-manager` can be used `/metrics` endpoint. Output has prometheus specific format and intended for external monitoring system.
 
-```
+```bash
 curl   --silent \
        --request GET \
        https://site-manager.example.com/metrics
@@ -686,7 +662,7 @@ curl   --silent \
 
 # DR procedures flow
 
-## Switchover
+## switchover
 
 Example for service with `sequence` parameter as ["standby", "active"]:
 
@@ -700,7 +676,7 @@ Example for service without `sequence` parameter:
 
 For this example we consider Mongo as an example of service without sequence. For this case we send new mode to both clusters and wait for status `done` also for both clusters.
 
-## Failover
+## failover
 
 Example for two services. The first service with defined `sequence` and the second without sequence:
 
@@ -874,54 +850,49 @@ Kubernetes services managed by site-manager: ['postgres', 'sm-test', 'mongo', 'p
 kubernetes services that will be processed: ['postgres', 'sm-test', 'mongo', 'paas']
 ---------------------------------------------------------------------
 ```
-
-## Daemon mode
-
-To start `sm-client` in daemon mode you should run:
-
+## Custom modules support
+It is possible to make custom DR flow (Switchover/Failover; Active/Standby/Disable) sequence based on [module of DR service](#stateful-module-concept)
+```yaml
+spec:
+  sitemanager:
+    module: "custom_module"
 ```
-$ ./sm-client daemon
-
- * Serving Flask app "sm-client" (lazy loading)
- * Environment: production
-   WARNING: This is a development server. Do not use it in a production deployment.
-   Use a production WSGI server instead.
- * Debug mode: off
-
-2021-04-23 17:31:40,328 [INFO] _internal.py:  * Running on http://0.0.0.0:8080/ (Press CTRL+C to quit)
+Optional section ```flow``` needs to be provided. 
+It describes the sequence of modules with appropriate DR states which needs to be run during DR operation.  
+For example:
+```yaml
+---
+sites:
+  - name: k8s-1
+    token: <TOKEN>
+    site-manager: http://site-manager.k8s-1.example.com/sitemanager
+    cacert: <path-to-ca-certificate>
+  - name: k8s-2
+    token: <TOKEN>
+    site-manager: http://site-manager.k8s-2.example.com/sitemanager
+    cacert: <path-to-ca-certificate>
+sm-client:
+  http_auth: True
+  
+flow:
+  - custom_module: ['standby','disable']
+  - stateful:
+  - custom_module: ['active']
 ```
-
-In daemon mode `sm-client` starts to listen TCP port 8080 and can receive HTTP REST requests. All output will be in logging yet.
-
-To send REST API requests to `sm-client` you should comply with the following contract:
-
-**URL**: `site-manager.example.com/sitemanager`
-
-**Method**: `/POST`
-
-**Code**: 200
-
-**Data Params**: `{"procedure": "active|standby|disable", "site": NAME_OF_SITE_FROM_CONFIG, "run-services": LIST_OF_SERVICES, "skip-services": LIST_OF_SERVICES, "force": "True|False"}`
-
-**Answer**: `{"message": "Procedure active is started", "procedure": "active", "services": ["SERVICE-1","SERVICE-2"]}`
-
-where:
- - `procedure` is the command to execute by `sm-client`. It can be `move`, `stop`, `return`, `mntc`, `active`, `standby`, `list` or `status`. Mandatory parameter
- - `site` is the name of site. Should be the same as one of sites from `config.yml`. Mandatory parameter
- - `run-services` parameter in JSON object defines comma separated list of services for processing. Optional parameter.
- - `skip-services` parameter in JSON object defines comma separated list of services to be skipped for processing. Optional parameter.
- - `force` parameter defines ability to ignore `healthz` status different to `up`. Supported following values: "True", "true", 1. Optional parameter.
-
-**Note:** `run-services` and `skip-services` cannot be used in the same command.
-
-Example:
-
-```
-$ curl --silent \
-       --request POST \
-       --header "Content-Type: application/json" \
-       --data '{"procedure": "standby", "site": "k8s-2", "run-services": "paas,postgres", "force": "true"}' \
-       http://site-manager.example.com/sitemanager
-```
-
-In case if any of procedures is processing all new procedures will be rejected. New procedure will be applied only in waiting mode of `sm-client`.
+The above example implies the following DR sequences:
+#### Switchover
+1. Standby all `custom_module` services
+2. Standby, Active for all `stateful` services , according to [DR sequence](#sitemanager-custom-resource-for-stateful)
+3. Active all `custom_module` services
+#### Failover
+1. Standby, Active`stateful` services 
+2. Active `custom_module` services
+#### Active
+1. Active `stateful` services 
+2. Active `custom_module` services
+#### Standby
+1. Standby `custom_module` services
+2. Standby `stateful` services
+#### Disable
+1. Disable `custom_module` services
+2. Disable `stateful` services 
