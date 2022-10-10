@@ -910,6 +910,7 @@ kubernetes services that will be processed: ['postgres', 'sm-test', 'mongo', 'pa
 ```
 ## Custom modules support
 It is possible to make custom DR flow (Switchover/Failover; Active/Standby/Disable) sequence based on [module of DR service](#stateful-module-concept)
+
 ```yaml
 spec:
   sitemanager:
@@ -954,5 +955,7 @@ The above example implies the following DR sequences:
 #### Disable
 1. Disable `custom_module` services
 2. Disable `stateful` services 
+
+Note: the `stateful` module is default. It should not be specified in config in case no custom modules.
 
 
