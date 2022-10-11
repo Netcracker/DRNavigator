@@ -70,21 +70,19 @@ An example response:
 ```yaml
 - name: cluster-2
   clusterIpStatus:
-    clusterIp:
-      name: paas-geo-monitor.ns.svc.cluster-b2.local
-      svcPort: 8080
-      podPort: 8080
-      protocol: http
+    name: paas-geo-monitor.ns.svc.cluster-b2.local
+    svcPort: 8080
+    podPort: 8080
+    protocol: http
     dnsStatus:
       resolved: false
       error: 'failed to resolve neighbor: unable to resolve name dr-monitor.ns.svc.cluster-2.local: lookup dr-monitor.ns.svc.cluster-2.local: no such host'
 - name: cluster-3
   clusterIpStatus:
-    clusterIp:
-      name: dr-monitor.ns.svc.cluster-3.local
-      svcPort: 8080
-      podPort: 8080
-      protocol: http
+    name: dr-monitor.ns.svc.cluster-3.local
+    svcPort: 8080
+    podPort: 8080
+    protocol: http
     dnsStatus:
       resolved: true
     svcStatus:

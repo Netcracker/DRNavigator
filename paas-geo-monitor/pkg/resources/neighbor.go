@@ -30,7 +30,7 @@ type NeighborStatus struct {
 
 // ClusterIpStatus represents a status of k8s ClusterIp service
 type ClusterIpStatus struct {
-	ClusterIp `yaml:"clusterIp"`
+	ClusterIp `yaml:"clusterIp,inline"`
 	DnsStatus *DnsStatus `yaml:"dnsStatus,omitempty"`
 	SvcStatus *SvcStatus `yaml:"svcStatus,omitempty"`
 	PodStatus *PodStatus `yaml:"podStatus,omitempty"`
