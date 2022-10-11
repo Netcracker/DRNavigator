@@ -26,13 +26,34 @@ paas_geo_monitor:
       - name: neighbor1
         clusterIp:
           name: paas-geo-monitor.site-manager-3.svc.cluster.local
-          svcPort: 80
-          podPort: 8080
 ```
 For more installation options see chart `values.yaml`. For `config` format see [Configuration](#configuration). 
 
 # Configuration
-TBD
+The service configuration allows you to configure instance-wide options and neighbors.
+
+| Field                                           | Description                                            |
+|-------------------------------------------------|--------------------------------------------------------|
+| **port**<br/>_int_                              | The port that the service should listen. Default 8080. |
+| **neighbors**<br/>_array [Neighbor](#neighbor)_ | Array of neighbor service instances in other clusters. |
+
+## Neighbor
+Neighbor represents a service instance from another cluster.
+
+| Field                                       | Description                                  |
+|---------------------------------------------|----------------------------------------------|
+| **name**<br/>_string_                       | The name of the neighbor. Mandatory.         |
+| **clusterIp**<br/>_[ClusterIp](#clusterip)_ | ClusterIp service representing the neighbor. |
+
+## ClusterIp
+ClusterIp represents neighbor k8s ClusterIP service.
+
+| Field                     | Description                                 |
+|---------------------------|---------------------------------------------|
+| **name**<br/>_string_     | The hostname of k8s service. Mandatory      |
+| **svcPort**<br/>_int_     | Service port of the neighbor. Default 8080. |
+| **podPort**<br/>_int_     | Pod port of the neighbor. Default 8080.     |
+| **protocol**<br/>_string_ | The protocol to use. Default `http`.        |
 
 # API
 TBD

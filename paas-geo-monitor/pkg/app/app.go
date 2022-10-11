@@ -29,13 +29,8 @@ func Serve(cfg *Config) error {
 	e.GET("/ping", pingHandler(pingIp))
 	e.GET("/neighbors/status", getNeighborsStatusHandler(cfg.Neighbors))
 
-	port := cfg.Port
-	if port == 0 {
-		port = 8080
-	}
-
 	// todo: support TLS
-	return e.Start(fmt.Sprintf(":%d", port))
+	return e.Start(fmt.Sprintf(":%d", cfg.Port))
 }
 
 func GetConfig(cfgPath string) (*Config, error) {
@@ -56,6 +51,10 @@ func GetConfig(cfgPath string) (*Config, error) {
 		if err != nil {
 			return nil, err
 		}
+	}
+
+	if cfg.Port == 0 {
+		cfg.Port = 8080
 	}
 
 	return cfg, nil
