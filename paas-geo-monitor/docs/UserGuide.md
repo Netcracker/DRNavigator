@@ -32,6 +32,8 @@ For more installation options see chart `values.yaml`. For `config` format see [
 # Configuration
 The service configuration allows you to configure instance-wide options and neighbors.
 
+**Note**: `PING_IP` env variable should be set, otherwise service will not work. See [ping endpoint](#ping).
+
 | Field                                           | Description                                            |
 |-------------------------------------------------|--------------------------------------------------------|
 | **port**<br/>_int_                              | The port that the service should listen. Default 8080. |
@@ -40,10 +42,10 @@ The service configuration allows you to configure instance-wide options and neig
 ## Neighbor
 Neighbor represents a service instance from another cluster.
 
-| Field                                       | Description                                  |
-|---------------------------------------------|----------------------------------------------|
-| **name**<br/>_string_                       | The name of the neighbor. Mandatory.         |
-| **clusterIp**<br/>_[ClusterIp](#clusterip)_ | ClusterIp service representing the neighbor. |
+| Field                                       | Description                                           |
+|---------------------------------------------|-------------------------------------------------------|
+| **name**<br/>_string_                       | The name of the neighbor. Mandatory.                  |
+| **clusterIp**<br/>_[ClusterIp](#clusterip)_ | K8s ClusterIP service <br/>representing the neighbor. |
 
 ## ClusterIp
 ClusterIp represents neighbor k8s ClusterIP service.
@@ -56,4 +58,47 @@ ClusterIp represents neighbor k8s ClusterIP service.
 | **protocol**<br/>_string_ | The protocol to use. Default `http`.        |
 
 # API
-TBD
+The service provides following HTTP APIs. 
+
+## Neighbors status
+Neighbors status endpoint:
+* Path: `/neighbors/status`
+* Method: `GET`
+
+The endpoint returns information about DNS, pod-to-pod and pod-to-service statuses of all neighbors.
+An example response:
+```yaml
+- name: cluster-2
+  clusterIpStatus:
+    clusterIp:
+      name: paas-geo-monitor.ns.svc.cluster-b2.local
+      svcPort: 8080
+      podPort: 8080
+      protocol: http
+    dnsStatus:
+      resolved: false
+      error: 'failed to resolve neighbor: unable to resolve name dr-monitor.ns.svc.cluster-2.local: lookup dr-monitor.ns.svc.cluster-2.local: no such host'
+- name: cluster-3
+  clusterIpStatus:
+    clusterIp:
+      name: dr-monitor.ns.svc.cluster-3.local
+      svcPort: 8080
+      podPort: 8080
+      protocol: http
+    dnsStatus:
+      resolved: true
+    svcStatus:
+      available: true
+      address: 1.1.1.1
+    podStatus:
+      available: true
+      address: 2.2.2.2
+```
+
+## Ping
+Ping endpoint:
+* Path: `/ping`
+* Method: `GET`
+
+The endpoint returns IP address of the instance, which is then used to verify pod-to-pod connectivity.
+The IP address is taken from `PING_IP` env variable.
