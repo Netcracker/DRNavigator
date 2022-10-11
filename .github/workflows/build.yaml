@@ -9,6 +9,10 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v2
+      - name: Write Tag 
+        run: |
+            echo $GITHUB_REF_NAME > version
+            echo "TAG=${GITHUB_REF_NAME}"
       - name: Build Docker Image for site-manager
         run: docker build -t site-manager -f Dockerfile-sm --no-cache .
       - name: Build Docker Image for sm-client
