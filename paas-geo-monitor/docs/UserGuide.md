@@ -23,9 +23,9 @@ paas_geo_monitor:
   install: true
   config:
     neighbors:
-      - name: neighbor1
+      - name: cluster-2
         clusterIp:
-          name: paas-geo-monitor.site-manager-3.svc.cluster.local
+          name: paas-geo-monitor.site-manager.svc.cluster-2.local
 ```
 For more installation options see chart `values.yaml`. For `config` format see [Configuration](#configuration). 
 
