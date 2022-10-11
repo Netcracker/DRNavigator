@@ -70,7 +70,7 @@ An example response:
 ```yaml
 - name: cluster-2
   clusterIpStatus:
-    name: paas-geo-monitor.ns.svc.cluster-b2.local
+    name: paas-geo-monitor.ns.svc.cluster-2.local
     svcPort: 8080
     podPort: 8080
     protocol: http
