@@ -56,4 +56,4 @@ paas_geo_monitor:
   image: artifactorycn.netcracker.com:17009/stza0218/paas-geo-monitor:v1
   install: false
   config:
-    neighbors: []
+    peers: []

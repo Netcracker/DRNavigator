@@ -6,8 +6,8 @@ import (
 	"testing"
 )
 
-func TestNeighbor_StatusCorrect(t *testing.T) {
-	n := resources.Neighbor{Name: "neighbor-test", ClusterIp: resources.ClusterIp{Name: "test.com"}}
+func TestPeer_StatusCorrect(t *testing.T) {
+	p := resources.Peer{Name: "peer-test", ClusterIp: resources.ClusterIp{Name: "test.com"}}
 	cMock := &ClientMock{
 		ResolvedIp: "1.1.1.1",
 		PingIpMapping: map[string]string{
@@ -15,12 +15,12 @@ func TestNeighbor_StatusCorrect(t *testing.T) {
 			"2.2.2.2": "2.2.2.2",
 		},
 	}
-	err := n.Init(cMock)
+	err := p.Init(cMock)
 	if err != nil {
-		t.Fatalf("failed to init neighbor: %s", err)
+		t.Fatalf("failed to init peer: %s", err)
 	}
 
-	status, err := n.Status()
+	status, err := p.Status()
 	if err != nil {
 		t.Fatalf("failed to get status: %s", err)
 	}
@@ -36,17 +36,17 @@ func TestNeighbor_StatusCorrect(t *testing.T) {
 	}
 }
 
-func TestNeighbor_DnsFailed(t *testing.T) {
-	n := resources.Neighbor{Name: "neighbor-test", ClusterIp: resources.ClusterIp{Name: "test.com"}}
+func TestPeer_DnsFailed(t *testing.T) {
+	p := resources.Peer{Name: "peer-test", ClusterIp: resources.ClusterIp{Name: "test.com"}}
 	cMock := &ClientMock{
 		ResolvedIp: "",
 	}
-	err := n.Init(cMock)
+	err := p.Init(cMock)
 	if err != nil {
-		t.Fatalf("failed to init neighbor: %s", err)
+		t.Fatalf("failed to init peer: %s", err)
 	}
 
-	status, err := n.Status()
+	status, err := p.Status()
 	if err != nil {
 		t.Fatalf("failed to get status: %s", err)
 	}
@@ -56,17 +56,17 @@ func TestNeighbor_DnsFailed(t *testing.T) {
 	}
 }
 
-func TestNeighbor_PingFailed(t *testing.T) {
-	n := resources.Neighbor{Name: "neighbor-test", ClusterIp: resources.ClusterIp{Name: "test.com"}}
+func TestPeer_PingFailed(t *testing.T) {
+	p := resources.Peer{Name: "peer-test", ClusterIp: resources.ClusterIp{Name: "test.com"}}
 	cMock := &ClientMock{
 		ResolvedIp: "1.1.1.1",
 	}
-	err := n.Init(cMock)
+	err := p.Init(cMock)
 	if err != nil {
-		t.Fatalf("failed to init neighbor: %s", err)
+		t.Fatalf("failed to init peer: %s", err)
 	}
 
-	status, err := n.Status()
+	status, err := p.Status()
 	if err != nil {
 		t.Fatalf("failed to get status: %s", err)
 	}

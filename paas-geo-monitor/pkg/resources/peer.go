@@ -6,12 +6,12 @@ import (
 	"net/url"
 )
 
-// Neighbor represents monitor instance from another cluster
-type Neighbor struct {
+// Peer represents monitor instance from another cluster
+type Peer struct {
 	Name      string
 	ClusterIp ClusterIp `yaml:"clusterIp"`
 
-	Client NeighborClient
+	Client PeerClient
 }
 
 // ClusterIp represents a k8s ClusterIP service
@@ -22,8 +22,8 @@ type ClusterIp struct {
 	Protocol string
 }
 
-// NeighborStatus represents a status of another monitor instance from the perspective of current instance
-type NeighborStatus struct {
+// PeerStatus represents a status of another monitor instance from the perspective of current instance
+type PeerStatus struct {
 	Name            string
 	ClusterIpStatus *ClusterIpStatus `yaml:"clusterIpStatus"`
 }
@@ -56,12 +56,12 @@ type PodStatus struct {
 	Error     string `yaml:"error,omitempty"`
 }
 
-type NeighborClient interface {
+type PeerClient interface {
 	Resolve(name string) (string, error)
 	Get(url string, ip string) (string, error)
 }
 
-func (n *Neighbor) Init(client NeighborClient) error {
+func (n *Peer) Init(client PeerClient) error {
 	n.Client = client
 	if n.ClusterIp.PodPort == 0 {
 		n.ClusterIp.PodPort = 8080
@@ -76,24 +76,24 @@ func (n *Neighbor) Init(client NeighborClient) error {
 	reqUrl := fmt.Sprintf("%s://%s/ping", n.ClusterIp.Protocol, n.ClusterIp.Name)
 	_, err := url.ParseRequestURI(reqUrl)
 	if err != nil {
-		return fmt.Errorf("error validating %s neighbor, incorrect url: %w", n.Name, err)
+		return fmt.Errorf("error validating %s peer, incorrect url: %w", n.Name, err)
 	}
 
 	return nil
 }
 
-func (n *Neighbor) Status() (*NeighborStatus, error) {
+func (n *Peer) Status() (*PeerStatus, error) {
 	if n.Client == nil {
 		return nil, fmt.Errorf("not initialized with a client")
 	}
 
 	clusterIpStatus := ClusterIpStatus{ClusterIp: n.ClusterIp, DnsStatus: &DnsStatus{}}
-	neighborStatus := &NeighborStatus{Name: n.Name, ClusterIpStatus: &clusterIpStatus}
+	peerStatus := &PeerStatus{Name: n.Name, ClusterIpStatus: &clusterIpStatus}
 
 	resolvedSvcIp, err := n.Client.Resolve(n.ClusterIp.Name)
 	if err != nil {
-		clusterIpStatus.DnsStatus.Error = fmt.Sprintf("failed to resolve neighbor: %s", err)
-		return neighborStatus, nil
+		clusterIpStatus.DnsStatus.Error = fmt.Sprintf("failed to resolve peer: %s", err)
+		return peerStatus, nil
 	}
 	clusterIpStatus.DnsStatus.Resolved = true
 
@@ -101,13 +101,13 @@ func (n *Neighbor) Status() (*NeighborStatus, error) {
 	svcPingUrl := fmt.Sprintf("%s://%s:%d/ping", n.ClusterIp.Protocol, n.ClusterIp.Name, n.ClusterIp.SvcPort)
 	svcPingResponse, err := n.Client.Get(svcPingUrl, resolvedSvcIp)
 	if err != nil {
-		clusterIpStatus.SvcStatus.Error = fmt.Sprintf("failed to ping neighbor service: %s", err)
-		return neighborStatus, nil
+		clusterIpStatus.SvcStatus.Error = fmt.Sprintf("failed to ping peer service: %s", err)
+		return peerStatus, nil
 	}
 	// svcPingResponse should be a valid IP of the pod
 	if net.ParseIP(svcPingResponse) == nil {
-		clusterIpStatus.SvcStatus.Error = fmt.Sprintf("neighbor ping returned incorrect IP: %s", err)
-		return neighborStatus, nil
+		clusterIpStatus.SvcStatus.Error = fmt.Sprintf("peer ping returned incorrect IP: %s", err)
+		return peerStatus, nil
 	}
 	clusterIpStatus.SvcStatus.Available = true
 
@@ -115,15 +115,16 @@ func (n *Neighbor) Status() (*NeighborStatus, error) {
 	podPingUrl := fmt.Sprintf("%s://%s:%d/ping", n.ClusterIp.Protocol, n.ClusterIp.Name, n.ClusterIp.PodPort)
 	podPingResponse, err := n.Client.Get(podPingUrl, svcPingResponse)
 	if err != nil {
-		clusterIpStatus.PodStatus.Error = fmt.Sprintf("failed to ping neighbor pod: %s", err)
-		return neighborStatus, nil
+		clusterIpStatus.PodStatus.Error = fmt.Sprintf("failed to ping peer pod: %s", err)
+		return peerStatus, nil
 	}
 	// both svc and pod pings should return the same IP
 	if svcPingResponse != podPingResponse {
-		clusterIpStatus.PodStatus.Error = fmt.Sprintf("expected neighbor pod IP %s, got %s", svcPingResponse, podPingResponse)
-		return neighborStatus, nil
+		clusterIpStatus.PodStatus.Error =
+			fmt.Sprintf("expected peer pod IP %s, got %s", svcPingResponse, podPingResponse)
+		return peerStatus, nil
 	}
 	clusterIpStatus.PodStatus.Available = true
 
-	return neighborStatus, nil
+	return peerStatus, nil
 }

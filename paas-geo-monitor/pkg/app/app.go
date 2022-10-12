@@ -13,8 +13,8 @@ import (
 )
 
 type Config struct {
-	Port      int
-	Neighbors []resources.Neighbor
+	Port  int
+	Peers []resources.Peer
 }
 
 func Serve(cfg *Config) error {
@@ -27,7 +27,7 @@ func Serve(cfg *Config) error {
 	}
 
 	e.GET("/ping", pingHandler(pingIp))
-	e.GET("/neighbors/status", getNeighborsStatusHandler(cfg.Neighbors))
+	e.GET("/peers/status", getPeersStatusHandler(cfg.Peers))
 
 	// todo: support TLS
 	return e.Start(fmt.Sprintf(":%d", cfg.Port))
@@ -46,8 +46,8 @@ func GetConfig(cfgPath string) (*Config, error) {
 		return nil, err
 	}
 
-	for i := range cfg.Neighbors {
-		err := cfg.Neighbors[i].Init(&client.HttpClient{})
+	for i := range cfg.Peers {
+		err := cfg.Peers[i].Init(&client.HttpClient{})
 		if err != nil {
 			return nil, err
 		}
@@ -66,11 +66,11 @@ func pingHandler(pingIp string) func(c echo.Context) error {
 	}
 }
 
-func getNeighborsStatusHandler(neighbors []resources.Neighbor) func(c echo.Context) error {
+func getPeersStatusHandler(peers []resources.Peer) func(c echo.Context) error {
 	return func(c echo.Context) error {
-		statuses := make([]*resources.NeighborStatus, len(neighbors))
-		for i := range neighbors {
-			s, err := neighbors[i].Status()
+		statuses := make([]*resources.PeerStatus, len(peers))
+		for i := range peers {
+			s, err := peers[i].Status()
 			if err != nil {
 				return fmt.Errorf("failed to collect statuses: %s", err)
 			}

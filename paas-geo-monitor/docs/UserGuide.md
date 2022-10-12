@@ -6,9 +6,9 @@ The primary focus is to check following aspects:
 3. Pod-to-pod connectivity between clusters.
 
 The service should be deployed in each cluster in a schema.
-Each instance should be able to discover other instances (neighbors) 
+Each instance should be able to discover other instances (peers) 
 in other clusters, so each instance should be provided with a 
-special configuration, containing service names of the neighbors.
+special configuration, containing service names of the peers.
 
 Each instance reports connectivity status for the current cluster only.
 So, to gather information about all clusters, 
@@ -17,12 +17,13 @@ you should contact each instance.
 # Installation
 
 The installation is done using a [helm chart](/charts/site-manager). By default, this service is not installed.
-To install the service, it is required to enable it and provide information about neighbors, for example:
+To install the service, it is required to enable it and provide information 
+about peers, for example:
 ```yaml
 paas_geo_monitor:
   install: true
   config:
-    neighbors:
+    peers:
       - name: cluster-2
         clusterIp:
           name: paas-geo-monitor.site-manager.svc.cluster-2.local
@@ -30,42 +31,43 @@ paas_geo_monitor:
 For more installation options see chart `values.yaml`. For `config` format see [Configuration](#configuration). 
 
 # Configuration
-The service configuration allows you to configure instance-wide options and neighbors.
+The service configuration allows you to configure instance-wide options and 
+peers.
 
 **Note**: `PING_IP` env variable should be set, otherwise service will not work. See [ping endpoint](#ping).
 
-| Field                                           | Description                                            |
-|-------------------------------------------------|--------------------------------------------------------|
-| **port**<br/>_int_                              | The port that the service should listen. Default 8080. |
-| **neighbors**<br/>_array [Neighbor](#neighbor)_ | Array of neighbor service instances in other clusters. |
+| Field                               | Description                                             |
+|-------------------------------------|---------------------------------------------------------|
+| **port**<br/>_int_                  | The port that the service should listen. Default 8080.  |
+| **peers**<br/>_array [Peer](#peer)_ | Array of peer service <br/>instances in other clusters. |
 
-## Neighbor
-Neighbor represents a service instance from another cluster.
+## Peer
+Peer represents a service instance from another cluster.
 
 | Field                                       | Description                                           |
 |---------------------------------------------|-------------------------------------------------------|
-| **name**<br/>_string_                       | The name of the neighbor. Mandatory.                  |
-| **clusterIp**<br/>_[ClusterIp](#clusterip)_ | K8s ClusterIP service <br/>representing the neighbor. |
+| **name**<br/>_string_                       | The name of the peer. Mandatory.                  |
+| **clusterIp**<br/>_[ClusterIp](#clusterip)_ | K8s ClusterIP service <br/>representing the peer. |
 
 ## ClusterIp
-ClusterIp represents neighbor k8s ClusterIP service.
+ClusterIp represents peer k8s ClusterIP service.
 
 | Field                     | Description                                 |
 |---------------------------|---------------------------------------------|
 | **name**<br/>_string_     | The hostname of k8s service. Mandatory      |
-| **svcPort**<br/>_int_     | Service port of the neighbor. Default 8080. |
-| **podPort**<br/>_int_     | Pod port of the neighbor. Default 8080.     |
+| **svcPort**<br/>_int_     | Service port of the peer. Default 8080. |
+| **podPort**<br/>_int_     | Pod port of the peer. Default 8080.     |
 | **protocol**<br/>_string_ | The protocol to use. Default `http`.        |
 
 # API
 The service provides following HTTP APIs. 
 
-## Neighbors status
-Neighbors status endpoint:
-* Path: `/neighbors/status`
+## peers status
+peers status endpoint:
+* Path: `/peers/status`
 * Method: `GET`
 
-The endpoint returns information about DNS, pod-to-pod and pod-to-service statuses of all neighbors.
+The endpoint returns information about DNS, pod-to-pod and pod-to-service statuses of all peers.
 An example response:
 ```yaml
 - name: cluster-2
@@ -76,7 +78,7 @@ An example response:
     protocol: http
     dnsStatus:
       resolved: false
-      error: 'failed to resolve neighbor: unable to resolve name dr-monitor.ns.svc.cluster-2.local: lookup dr-monitor.ns.svc.cluster-2.local: no such host'
+      error: 'failed to resolve peer: unable to resolve name dr-monitor.ns.svc.cluster-2.local: lookup dr-monitor.ns.svc.cluster-2.local: no such host'
 - name: cluster-3
   clusterIpStatus:
     name: dr-monitor.ns.svc.cluster-3.local
