@@ -22,11 +22,11 @@ from inside each cluster. Particularly it is going to verify dns resolving, pod-
 by trying to resolve and reach `dr-monitor` service in another cluster. 
 The information about clusters geo health could be pulled by external tools, like monitoring or KubeMarine `check_paas`.
 
-### Neighbors configuration format
+### Peers configuration format
 The `dr-monitor` instance in one cluster should know about `dr-monitor` instances in other clusters, 
 this information should be provided through configuration, for example:
 ```yaml
-neighbors:
+peers:
   - name: cluster-b
     clusterIp:
       name: dr-monitor.ns.svc.cluster-b.local
@@ -35,25 +35,25 @@ neighbors:
       name: dr-monitor.ns.svc.cluster-c.local
     port: 8081
 ```
-Here, we specify that our `dr-monitor` instance has two neighbors, 
+Here, we specify that our `dr-monitor` instance has two peers, 
 which should be reached by the name of the ClusterIP service.
 
-### Getting neighbors status
-To get the status of DNS resolving, pod-to-pod and pod-to-service connectivity for neighbors, external tool should
+### Getting peers status
+To get the status of DNS resolving, pod-to-pod and pod-to-service connectivity for peers, external tool should
 contact `dr-monitor` instance in one of the clusters. This instance verifies resolving and connectivity from the
 perspective of its own cluster. Thus, to get the full picture it is required to aggregate information
 from all `dr-monitor` instances.
 
-Below is the diagram showing the process of getting neighbors status.
+Below is the diagram showing the process of getting peers status.
 
 ![](/documentation/images/dr-monitor.png)
 
-The information about neighbors is collected on demand when external tools 
-send HTTP GET requests to `/neighbors/status` path. 
-The response contains information about all neighbors DNS resolving, pod-to-service and pod-to-pod connectivity statuses,
+The information about peers is collected on demand when external tools 
+send HTTP GET requests to `/peers/status` path. 
+The response contains information about all peers DNS resolving, pod-to-service and pod-to-pod connectivity statuses,
 for example:
 ```yaml
-neighbors:
+peers:
   - name: cluster-b
     clusterIp:
       name: dr-monitor.ns.svc.cluster-b.local
