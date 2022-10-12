@@ -1,0 +1,117 @@
+version: '3.8'
+
+networks:
+  site-1:
+    driver: bridge
+  site-2:
+    driver: bridge
+
+services:
+  # site-1
+  stateful_service-site-1:
+    image: sm-dummy
+    container_name: stateful_service-site-1
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE={{ 'active' if env.active_site == "site_1" else 'standby' }}
+    expose:
+      - 8080
+    ports:
+      - "{{ env.sites.site_1.exposed_ports.service.stateful_service }}:8080"
+    networks:
+      - site-1
+
+  custom_module_service-site-1:
+    image: sm-dummy
+    container_name: custom_module_service-site-1
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE={{ 'active' if env.active_site == "site_1" else 'standby' }}
+    expose:
+      - 8080
+    ports:
+      - "{{ env.sites.site_1.exposed_ports.service.custom_module_service }}:8080"
+    networks:
+      - site-1
+
+  site-manager-site-1:
+    image: site-manager
+    container_name: site-manager-site-1
+    restart: unless-stopped
+    volumes:
+      - {{ env.config_dir }}\site-manager-config.yaml:/val/config.yaml
+      - {{ env.config_dir }}\secrets:/tls
+    command:
+      - "--bind=0.0.0.0:8443"
+      - '--worker-class=gevent'
+      - "--certfile=/tls/site-manager-tls.crt"
+      - "--keyfile=/tls/site-manager-tls.key"
+      - "-w 2"
+      - "site-manager:app"
+    environment:
+      - SM_CONFIG_FILE=/val/config.yaml
+      - SM_DEBUG=True
+      - FRONT_HTTP_AUTH=True
+    expose:
+      - 8443
+    ports:
+      - "{{ env.sites.site_1.exposed_ports.site_manager }}:8443"
+    networks:
+      - site-1
+
+
+  # site-2
+  stateful_service-site-2:
+    image: sm-dummy
+    container_name: stateful_service-site-2
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE={{ 'active' if env.active_site == "site_2" else 'standby' }}
+    expose:
+      - 8080
+    ports:
+      - "{{ env.sites.site_2.exposed_ports.service.stateful_service }}:8080"
+    networks:
+      - site-2
+
+  custom_module_service-site-2:
+    image: sm-dummy
+    container_name: custom_module_service-site-2
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE={{ 'active' if env.active_site == "site_2" else 'standby' }}
+    expose:
+      - 8080
+    ports:
+      - "{{ env.sites.site_2.exposed_ports.service.custom_module_service }}:8080"
+    networks:
+      - site-2
+
+  site-manager-site-2:
+    image: site-manager
+    container_name: site-manager-site-2
+    restart: unless-stopped
+    volumes:
+      - {{ env.config_dir }}\site-manager-config-2.yaml:/val/config.yaml
+      - {{ env.config_dir }}\secrets:/tls
+    command:
+      - "--bind=0.0.0.0:8443"
+      - '--worker-class=gevent'
+      - "--certfile=/tls/site-manager-tls.crt"
+      - "--keyfile=/tls/site-manager-tls.key"
+      - "-w 2"
+      - "site-manager:app"
+    environment:
+      - SM_CONFIG_FILE=/val/config.yaml
+      - SM_DEBUG=True
+      - FRONT_HTTP_AUTH=True
+    expose:
+      - 8443
+    ports:
+      - "{{ env.sites.site_2.exposed_ports.site_manager }}:8443"
+    networks:
+      - site-2

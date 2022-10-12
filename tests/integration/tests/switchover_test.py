@@ -1,0 +1,57 @@
+import pytest
+import logging
+import os
+import test_utils
+
+test_dir = os.path.dirname(__file__)
+docker_config_dir = "/resources/service-a-b-cluster"
+
+template_env = {
+    "sites": {
+        "site_1": {
+            "exposed_ports": {
+                "service": {
+                    "serviceA": 9001,
+                    "serviceB": 9002
+                },
+                "site_manager": 9011
+            },
+            "token": "12345"
+        },
+        "site_2": {
+            "exposed_ports": {
+                "service": {
+                    "serviceA": 9003,
+                    "serviceB": 9004
+                },
+                "site_manager": 9012
+            },
+            "token": "54321"
+        }
+    },
+    "active_site": "site_1"
+}
+
+
+@pytest.mark.usefixtures('config_dir')
+@pytest.mark.usefixtures('prepare_docker_compose')
+class SwitchoverTestCase:
+
+    def test_init_statuses(self, config_dir, capfd):
+        logging.info("TEST INIT STATUSES")
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+                                   {"healthz": "up", "status": "done", "message": "",
+                                    "mode": "active" if template_env["active_site"] == site else "standby"})
+
+    def test_move_to_another_site(self, config_dir, capfd):
+        logging.info("TEST MOVE WITH STATEFUL SERVICES TO ANOTHER SITE")
+        # Run move to another site
+        test_utils.run_sm_client_command(
+            ["--config", f"{config_dir}/sm-client-config.yaml", "-v", "move", "site_2"])
+
+        # Check status after move to another site
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+                                {"healthz": "up", "status": "done", "message": "",
+                                "mode": "active" if "site_2" == site else "standby"})
+
+

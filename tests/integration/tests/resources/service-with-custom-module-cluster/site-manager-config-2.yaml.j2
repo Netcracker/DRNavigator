@@ -1,0 +1,55 @@
+server:
+  bind-address: 0.0.0.0
+  bind-port: 8080
+
+  # API extensions
+  api:
+    - name: no-wait
+      default: false
+      required: true
+
+kubernetes:
+  sm_group: "netcracker.com"
+  sm_plural: "sitemanagers"
+  sm_version: "v1"
+
+  # Services defaults
+  services:
+    http_scheme: "http://"
+    service_default_timeout: 200
+
+testing:
+  enabled: True
+  token: "{{ env.sites.site_2.token }}"
+  sm_dict:
+    services:
+      stateful_service:
+        after: []
+        allowedStandbyStateList:
+        - up
+        before: []
+        namespace: stateful_service-ns
+        module: stateful
+        parameters:
+            healthzEndpoint: http://stateful_service-site-2:8080/healthz
+            ingressEndpoint: ""
+            serviceEndpoint: http://stateful_service-site-2:8080/sitemanager
+        sequence:
+        - standby
+        - active
+        timeout: 360
+      custom_module_service:
+        after: []
+        allowedStandbyStateList:
+        - up
+        before: []
+        namespace: custom_module_service-ns
+        module: custom_module
+        parameters:
+            healthzEndpoint: http://custom_module_service-site-2:8080/healthz
+            ingressEndpoint: ""
+            serviceEndpoint: http://custom_module_service-site-2:8080/sitemanager
+        sequence:
+        - standby
+        - active
+        timeout: 360
