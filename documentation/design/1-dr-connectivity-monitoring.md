@@ -75,11 +75,11 @@ peers:
 The statuses are collected in order - first DNS resolving is checked, then pod-to-service and then pod-to-pod
 connectivity. If a certain status fails, an error message is attached and further statuses are not collected.
 
-Internally, `dr-monitor` instance works as following for each neighbor:
-1. It tries to resolve neighbor DNS name and get ClusterIP address.
-2. It sends HTTP GET request to neighbor `/ping` path using ClusterIP address. 
-The response contains neighbor pod IP address.
-3. It sends HTTP GET request to neighbor `/ping` path using pod IP address.
+Internally, `dr-monitor` instance works as following for each peer:
+1. It tries to resolve peer DNS name and get ClusterIP address.
+2. It sends HTTP GET request to peer `/ping` path using ClusterIP address. 
+The response contains peer pod IP address.
+3. It sends HTTP GET request to peer `/ping` path using pod IP address.
 
 ### Integration with `check_paas`
 The `check_paas` procedure should be modified to support DR checks using `dr-monitor` instance. 
@@ -96,7 +96,7 @@ All the checks are performed as single check since they are ordered as dependenc
 
 ### Integration with Prometheus
 The information about clusters geo health could be sent to Prometheus. For this, a separate `/metrics` path is used,
-which serves DNS, pod-to-service and pod-to-pod statuses metrics for each neighbor.
+which serves DNS, pod-to-service and pod-to-pod statuses metrics for each peer.
 
 # Consequences
 
