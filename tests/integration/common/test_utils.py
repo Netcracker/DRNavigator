@@ -2,7 +2,7 @@ import logging
 import pytest
 import requests
 import re
-import smclient_some
+import smclient
 
 
 def run_sm_client_command_with_exit(args, expected_exit_code=0):
