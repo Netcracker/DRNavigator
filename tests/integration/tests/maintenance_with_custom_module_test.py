@@ -54,7 +54,7 @@ class MaintenanceWihCustomModuleTestCase:
     def test_maintenance_active_site(self, config_dir, capfd):
         logging.info("TEST MAINTENANCE ACTIVE SITE WITH CUSTOM MODULE SERVICES")
         # Run activate
-        test_utils.run_sm_client_command(
+        test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "mntc", "site_1"])
 
         # Check status after move to another site
@@ -65,7 +65,7 @@ class MaintenanceWihCustomModuleTestCase:
     def test_maintenance_standby_site(self, config_dir, capfd):
         logging.info("TEST MAINTENANCE STANDBY SITE WITH CUSTOM MODULE SERVICES")
         # Run activate
-        test_utils.run_sm_client_command(
+        test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "mntc", "site_2"])
 
         # Check status after move to another site
@@ -76,7 +76,7 @@ class MaintenanceWihCustomModuleTestCase:
     def test_return_first_site(self, config_dir, capfd):
         logging.info("TEST RETURN FIRST SITE WITH STATEFUL SERVICES")
         # Run activate
-        test_utils.run_sm_client_command(
+        test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "return", "site_1"])
 
         # Check status after move to another site
@@ -87,7 +87,7 @@ class MaintenanceWihCustomModuleTestCase:
     def test_return_second_site(self, config_dir, capfd):
         logging.info("TEST RETURN SECOND SITE WITH STATEFUL SERVICES")
         # Run activate
-        test_utils.run_sm_client_command(
+        test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "return", "site_2"])
 
         # Check status after move to another site

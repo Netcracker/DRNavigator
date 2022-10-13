@@ -59,7 +59,7 @@ class ReadStatusesTestCase:
 
     def test_list_section(self, config_dir):
         logging.info("TEST LIST COMMAND")
-        test_utils.run_sm_client_command(
+        test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "list"])
 
     def test_status_without_config(self):

@@ -987,6 +987,7 @@ def main(command_args=None):
     if not run([i for i in run_services if i not in skip_services], args.command,
                 args.site if hasattr(args, 'site') else False):
         exit(1)
+    exit(0)
 
 if __name__ == "__main__":
     main()

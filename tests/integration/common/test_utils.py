@@ -14,10 +14,6 @@ def run_sm_client_command_with_exit(args, expected_exit_code=0):
     assert pytest_wrapped_e.value.code == expected_exit_code
 
 
-def run_sm_client_command(args):
-    smclient.main(args)
-
-
 # TODO: temporary solution
 # returns dict[site-name][service][status/mode/healthz/message]
 def parse_status_table(capfd):
@@ -73,7 +69,8 @@ def check_status_from_sm_client(status_dict, site_name, service_name, expected_s
 
 
 def check_statuses(capfd, template_env, expected_status_func: lambda site_name, service_name: dict):
-    run_sm_client_command(["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "status"])
+    run_sm_client_command_with_exit(["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'),
+                                     "-v", "status"])
     sm_client_statuses_dict = parse_status_table(capfd)
     for site, config in template_env["sites"].items():
         for service, port in config["exposed_ports"]["service"].items():

@@ -54,7 +54,7 @@ class SwitchoverTestCase:
     def test_move_to_another_site(self, config_dir, capfd):
         logging.info("TEST MOVE WITH STATEFUL SERVICES TO ANOTHER SITE")
         # Run move to another site
-        test_utils.run_sm_client_command(
+        test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "move", "site_2"])
 
         # Check status after move to another site

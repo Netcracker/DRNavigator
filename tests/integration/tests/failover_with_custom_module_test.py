@@ -54,7 +54,7 @@ class FailoverWithCustomModuleTestCase:
     def test_activate_all_sites(self, config_dir, capfd):
         logging.info("TEST ACTIVATE ALL WITH CUSTOM MODULE SERVICES")
         # Run activate
-        test_utils.run_sm_client_command(
+        test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "active", "site_2"])
 
         # Check status after move to another site
@@ -64,7 +64,7 @@ class FailoverWithCustomModuleTestCase:
     def test_passivate_site(self, config_dir, capfd):
         logging.info("TEST PASSIVATE WITH CUSTOM MODULE SERVICES")
         # Run passivate
-        test_utils.run_sm_client_command(
+        test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "standby", "site_2"])
 
         # Check status after move to another site
@@ -75,7 +75,7 @@ class FailoverWithCustomModuleTestCase:
     def test_passivate_all_sites(self, config_dir, capfd):
         logging.info("TEST PASSIVATE ALL WITH CUSTOM MODULE SERVICES")
         # Run passivate
-        test_utils.run_sm_client_command(
+        test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "standby", "site_1"])
 
         # Check status after move to another site
@@ -85,7 +85,7 @@ class FailoverWithCustomModuleTestCase:
     def test_activate_site(self, config_dir, capfd):
         logging.info("TEST ACTIVATE WITH CUSTOM MODULE SERVICES")
         # Run activate
-        test_utils.run_sm_client_command(
+        test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "active", "site_1"])
 
         # Check status after move to another site
