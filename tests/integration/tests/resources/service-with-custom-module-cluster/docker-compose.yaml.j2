@@ -15,6 +15,7 @@ services:
     environment:
       - SMA_DEBUG=True
       - SMA_INIT_MODE={{ 'active' if env.active_site == "site_1" else 'standby' }}
+      - SMA_TIMEOUT={{ env.service_timeout }}
     expose:
       - 8080
     ports:
@@ -29,6 +30,7 @@ services:
     environment:
       - SMA_DEBUG=True
       - SMA_INIT_MODE={{ 'active' if env.active_site == "site_1" else 'standby' }}
+      - SMA_TIMEOUT={{ env.service_timeout }}
     expose:
       - 8080
     ports:
@@ -70,6 +72,7 @@ services:
     environment:
       - SMA_DEBUG=True
       - SMA_INIT_MODE={{ 'active' if env.active_site == "site_2" else 'standby' }}
+      - SMA_TIMEOUT={{ env.service_timeout }}
     expose:
       - 8080
     ports:
@@ -84,6 +87,7 @@ services:
     environment:
       - SMA_DEBUG=True
       - SMA_INIT_MODE={{ 'active' if env.active_site == "site_2" else 'standby' }}
+      - SMA_TIMEOUT={{ env.service_timeout }}
     expose:
       - 8080
     ports:

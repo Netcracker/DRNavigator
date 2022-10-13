@@ -35,6 +35,7 @@ template_env = {
         }
     },
     "active_site": "site_1",
+    "service_timeout": 0,
     "config_dir": "<is filled in config_dir fixture>",
     "os_path_sep": "<is filled in config_dir fixture>"
 }
