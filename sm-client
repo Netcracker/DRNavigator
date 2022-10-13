@@ -150,17 +150,24 @@ def init_and_check_config(args) -> bool:
     global SERVICE_DEFAULT_TIMEOUT
     SERVICE_DEFAULT_TIMEOUT = conf_parsed.get("sm-client", {}).get("service_default_timeout", 200)
 
+    global ignored_services
+    ignored_services = []
+
     global run_services
     # Check services for running
     if args.run_services != '':
         run_services = args.run_services.replace(',', ' ').replace('  ', ' ').split(' ')
+    else:
+        run_services = []
 
     global skip_services
     if args.skip_services != '':
         skip_services = args.skip_services.replace(',', ' ').replace('  ', ' ').split(' ')
+    else:
+        skip_services = []
 
     global module_flow
-    module_flow = conf_parsed.get("flow", module_flow)
+    module_flow = conf_parsed.get("flow", [{'stateful': None}])
     site_names = [i["name"] for i in conf_parsed["sites"]]
     global sm_conf
     sm_conf = SMConf()

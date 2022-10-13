@@ -1,3 +1,8 @@
+"""
+pytest sm-client common commands tests
+python3 -u -m pytest  ./tests/integration -k ReadStatusesTestCase
+"""
+
 import pytest
 import logging
 import os

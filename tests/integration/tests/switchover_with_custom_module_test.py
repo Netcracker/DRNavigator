@@ -1,3 +1,8 @@
+"""
+pytest sm-client common commands tests
+python3 -u -m pytest  ./tests/integration -k SwitchoverWithCustomModuleTestCase
+"""
+
 import pytest
 import logging
 import os
@@ -55,5 +60,3 @@ class SwitchoverWithCustomModuleTestCase:
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                 "mode": "active" if "site_2" == site else "standby"})
-
-
