@@ -29,7 +29,9 @@ template_env = {
             "token": "54321"
         }
     },
-    "active_site": "site_1"
+    "active_site": "site_1",
+    "config_dir": "<is filled in config_dir fixture>",
+    "os_path_sep": "<is filled in config_dir fixture>"
 }
 
 
@@ -38,16 +40,16 @@ template_env = {
 class SwitchoverWithCustomModuleTestCase:
 
     def test_init_statuses(self, config_dir, capfd):
-        logging.info("TEST INIT STATUSES")
+        logging.info("TEST INIT STATUSES WITH CUSTOM MODULE SERVICES")
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                    {"healthz": "up", "status": "done", "message": "",
                                     "mode": "active" if template_env["active_site"] == site else "standby"})
 
     def test_move_to_another_site(self, config_dir, capfd):
-        logging.info("TEST MOVE WITH STATEFUL SERVICES TO ANOTHER SITE")
+        logging.info("TEST MOVE  WITH CUSTOM MODULE SERVICES TO ANOTHER SITE")
         # Run move to another site
         test_utils.run_sm_client_command(
-            ["--config", f"{config_dir}/sm-client-config.yaml", "-v", "move", "site_2"])
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "move", "site_2"])
 
         # Check status after move to another site
         test_utils.check_statuses(capfd, template_env, lambda site, service:

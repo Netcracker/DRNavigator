@@ -41,8 +41,8 @@ services:
     container_name: site-manager-site-1
     restart: unless-stopped
     volumes:
-      - {{ env.config_dir }}\site-manager-config.yaml:/val/config.yaml
-      - {{ env.config_dir }}\secrets:/tls
+      - {{ env.config_dir }}{{ env.os_path_sep }}site-manager-config.yaml:/val/config.yaml
+      - {{ env.config_dir }}{{ env.os_path_sep }}secrets:/tls
     command:
       - "--bind=0.0.0.0:8443"
       - '--worker-class=gevent'
@@ -96,8 +96,8 @@ services:
     container_name: site-manager-site-2
     restart: unless-stopped
     volumes:
-      - {{ env.config_dir }}\site-manager-config-2.yaml:/val/config.yaml
-      - {{ env.config_dir }}\secrets:/tls
+      - {{ env.config_dir }}{{ env.os_path_sep }}site-manager-config-2.yaml:/val/config.yaml
+      - {{ env.config_dir }}{{ env.os_path_sep }}secrets:/tls
     command:
       - "--bind=0.0.0.0:8443"
       - '--worker-class=gevent'

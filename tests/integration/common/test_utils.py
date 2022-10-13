@@ -1,4 +1,6 @@
 import logging
+import os
+
 import pytest
 import requests
 import re
@@ -71,7 +73,7 @@ def check_status_from_sm_client(status_dict, site_name, service_name, expected_s
 
 
 def check_statuses(capfd, template_env, expected_status_func: lambda site_name, service_name: dict):
-    run_sm_client_command(["--config", f"{template_env['config_dir']}/sm-client-config.yaml", "-v", "status"])
+    run_sm_client_command(["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "status"])
     sm_client_statuses_dict = parse_status_table(capfd)
     for site, config in template_env["sites"].items():
         for service, port in config["exposed_ports"]["service"].items():

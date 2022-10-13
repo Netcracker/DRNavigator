@@ -30,7 +30,8 @@ template_env = {
         }
     },
     "active_site": "site_1",
-    "config_dir": "<is filled in config_dir fixture>"
+    "config_dir": "<is filled in config_dir fixture>",
+    "os_path_sep": "<is filled in config_dir fixture>"
 }
 
 
@@ -53,7 +54,7 @@ class ReadStatusesTestCase:
     def test_list_section(self, config_dir):
         logging.info("TEST LIST COMMAND")
         test_utils.run_sm_client_command(
-            ["--config", f"{template_env['config_dir']}/sm-client-config.yaml", "-v", "list"])
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "list"])
 
     def test_status_without_config(self):
         logging.info("TEST STATUS COMMAND WITHOUT CONFIG")
