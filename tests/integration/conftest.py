@@ -6,8 +6,22 @@ import shutil
 from jinja2 import Template
 
 
+def pytest_addoption(parser):
+    parser.addoption("--skip-build", action="store_true", help="skip docker images build")
+
+
+@pytest.fixture(scope='session', name='build_images')
+def build_images(pytestconfig):
+    if not pytestconfig.getoption("--skip-build"):
+        logging.info("Build SM docker image")
+        os.system(f"docker build --rm -f {os.path.abspath('Dockerfile-sm')} -t site-manager .")
+
+        logging.info("Build sm-dummy docker image")
+        os.system(f"docker build --rm -f {os.path.abspath('tests/sm-dummy/Dockerfile')} -t sm-dummy .")
+
+
 @pytest.fixture(scope='class', name='config_dir')
-def prepare_configs(request, tmpdir_factory):
+def prepare_configs(request, tmpdir_factory, build_images):
     # Create class directory
     tmp_dir = os.path.abspath(os.path.join("test-dump", request.cls.__name__))
     if os.path.isdir(tmp_dir):
