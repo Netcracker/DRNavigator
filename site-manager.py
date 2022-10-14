@@ -2,8 +2,8 @@
 """
 Company:     NetCracker
 Author:      Core PaaS Group
-Version:     0.5
-Date:        2021-05-26
+Version:     0.7
+Date:        2021-11-19
 Description: Service for management of microservices in active-standby scheme of kubernetes cluster
 """
 
