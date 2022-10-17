@@ -21,3 +21,4 @@ additional.yml
 BACKUP/*
 test-dump
 self-signed-fake.pem
+pytest.log
