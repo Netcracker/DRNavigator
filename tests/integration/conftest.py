@@ -59,7 +59,7 @@ def prepare_configs(request, tmpdir_factory, build_images):
 def prepare_docker_compose(config_dir):
     # Docker-compose up
     logging.info("Docker compose up")
-    os.system(f"docker-compose -f {os.path.join(config_dir, 'docker-compose.yaml')} up --detach --wait")
+    os.system(f"docker-compose -f {os.path.join(config_dir, 'docker-compose.yaml')} up --detach")
 
     # Run tests
     yield
