@@ -15,3 +15,11 @@ jobs:
         run: docker build -t sm-client -f Dockerfile-sc --no-cache .
       - name: Build Docker Image for sm-dummy
         run: docker build -t sm-dummy -f tests/sm-dummy/Dockerfile --no-cache .
+  unittest:
+    needs: build-image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v2
+      - name: Test step
+        run: echo 'Inside test'
