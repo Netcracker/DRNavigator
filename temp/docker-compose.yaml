@@ -1,0 +1,121 @@
+version: '3.8'
+
+networks:
+  site-1:
+    driver: bridge
+  site-2:
+    driver: bridge
+
+services:
+  # site-1
+  serviceA-site-1:
+    image: sm-dummy
+    container_name: serviceA-site-1
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE=active
+      - SMA_TIMEOUT=0
+    expose:
+      - 8080
+    ports:
+      - "9001:8080"
+    networks:
+      - site-1
+
+  serviceB-site-1:
+    image: sm-dummy
+    container_name: serviceB-site-1
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE=active
+      - SMA_TIMEOUT=0
+    expose:
+      - 8080
+    ports:
+      - "9002:8080"
+    networks:
+      - site-1
+
+  site-manager-site-1:
+    image: site-manager
+    container_name: site-manager-site-1
+    restart: unless-stopped
+    volumes:
+      - ./site-manager-config.yaml:/val/config.yaml
+      - ./secrets:/tls
+    command:
+      - "--bind=0.0.0.0:8443"
+      - '--worker-class=gevent'
+      - "--certfile=/tls/site-manager-tls.crt"
+      - "--keyfile=/tls/site-manager-tls.key"
+      - "-w 2"
+      - "site-manager:app"
+    environment:
+      - SM_CONFIG_FILE=/val/config.yaml
+      - SM_DEBUG=True
+      - FRONT_HTTP_AUTH=True
+    expose:
+      - 8443
+    ports:
+      - "9011:8443"
+    networks:
+      - site-1
+
+
+  # site-2
+  serviceA-site-2:
+    image: sm-dummy
+    container_name: serviceA-site-2
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE=standby
+      - SMA_TIMEOUT=0
+    expose:
+      - 8080
+    ports:
+      - "9003:8080"
+    networks:
+      - site-2
+
+  serviceB-site-2:
+    image: sm-dummy
+    container_name: serviceB-site-2
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE=standby
+      - SMA_TIMEOUT=0
+    expose:
+      - 8080
+    ports:
+      - "9004:8080"
+    networks:
+      - site-2
+
+  site-manager-site-2:
+    image: site-manager
+    container_name: site-manager-site-2
+    restart: unless-stopped
+    volumes:
+      - ./site-manager-config-2.yaml:/val/config.yaml
+      - ./secrets:/tls
+    command:
+      - "--bind=0.0.0.0:8443"
+      - '--worker-class=gevent'
+      - "--certfile=/tls/site-manager-tls.crt"
+      - "--keyfile=/tls/site-manager-tls.key"
+      - "-w 2"
+      - "site-manager:app"
+    environment:
+      - SM_CONFIG_FILE=/val/config.yaml
+      - SM_DEBUG=True
+      - FRONT_HTTP_AUTH=True
+    expose:
+      - 8443
+    ports:
+      - "9012:8443"
+    networks:
+      - site-2
