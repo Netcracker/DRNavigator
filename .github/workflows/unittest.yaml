@@ -2,7 +2,7 @@ name: Unitest
 on:
   workflow_run:
     workflows:
-      - "Build Artifacts"
+      - Build Artifacts
     branches:
       - '**'
     types:
