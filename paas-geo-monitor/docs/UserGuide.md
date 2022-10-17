@@ -20,7 +20,7 @@ The installation is done using a [helm chart](/charts/site-manager). By default,
 To install the service, it is required to enable it and provide information 
 about peers, for example:
 ```yaml
-paas_geo_monitor:
+paasGeoMonitor:
   install: true
   config:
     peers:

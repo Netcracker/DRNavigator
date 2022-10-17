@@ -52,7 +52,7 @@ tls:
 
 paas_platform: kubernetes
 
-paas_geo_monitor:
+paasGeoMonitor:
   image: artifactorycn.netcracker.com:17009/stza0218/paas-geo-monitor:v1
   install: false
   config:

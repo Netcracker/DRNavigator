@@ -1,4 +1,4 @@
-{{ if .Values.paas_geo_monitor.install }}
+{{ if .Values.paasGeoMonitor.install }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -19,7 +19,7 @@ spec:
       - name: paas-geo-monitor
         securityContext:
           runAsUser: 1001
-        image: {{ .Values.paas_geo_monitor.image}}
+        image: {{ .Values.paasGeoMonitor.image}}
         imagePullPolicy: Always
         args:
           - "--config=/config/config.yaml"

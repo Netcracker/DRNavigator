@@ -144,7 +144,7 @@ To support ability of services be managed by `site-manager` you should prepare f
     | tls.generateCerts.duration          | define duration (days) of created certificate via cert-manager                                    | 365                             |
     | tls.generateCerts.subjectAlternativeName.additionalDnsNames    | additional trusted dns names in certificate                                                       | []                              |
     | tls.generateCerts.subjectAlternativeName.additionalIpAddresses | additional trusted ips names in certificate                                                       | []                             |
-    | geo-monitor | see [paas-geo-monitor documentation](/paas-geo-monitor/docs)                                      | |
+    | paasGeoMonitor | see [paas-geo-monitor documentation](/paas-geo-monitor/docs) | |
 
 6. Install `site-manager` to OpenShift
 
