@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build Docker Image for site-manager
         run: docker build -t site-manager -f Dockerfile-sm --no-cache .
       - name: Build Docker Image for sm-client
@@ -23,7 +23,7 @@ jobs:
         python-version: [ "3.9" ]
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -35,4 +35,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-sc-test.txt -r requirements-sc.txt
       - name: Run tests
+        id: unittests
         run: python -m pytest -o log_cli=true -s --show-capture=no -v -rA tests/selftest
+      - name: Collect artifacts
+        if: failure() && steps.unittests.outcome == 'failure'
+        uses: actions/upload-artifact@v3
+        with:
+          name: unittest-logs
+          path: pytest.log
+          retention-days: 7
