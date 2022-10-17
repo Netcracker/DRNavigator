@@ -13,7 +13,7 @@ import threading
 import os
 
 
-test_config_path = os.path.abspath("tests/selftest/resources/config_test.yaml")
+test_config_path = os.path.abspath("tests/selftest/resources/config_test_fake.yaml")
 
 
 def pytest_namespace():
