@@ -150,17 +150,24 @@ def init_and_check_config(args) -> bool:
     global SERVICE_DEFAULT_TIMEOUT
     SERVICE_DEFAULT_TIMEOUT = conf_parsed.get("sm-client", {}).get("service_default_timeout", 200)
 
+    global ignored_services
+    ignored_services = []
+
     global run_services
     # Check services for running
     if args.run_services != '':
         run_services = args.run_services.replace(',', ' ').replace('  ', ' ').split(' ')
+    else:
+        run_services = []
 
     global skip_services
     if args.skip_services != '':
         skip_services = args.skip_services.replace(',', ' ').replace('  ', ' ').split(' ')
+    else:
+        skip_services = []
 
     global module_flow
-    module_flow = conf_parsed.get("flow", module_flow)
+    module_flow = conf_parsed.get("flow", [{'stateful': None}])
     site_names = [i["name"] for i in conf_parsed["sites"]]
     global sm_conf
     sm_conf = SMConf()
@@ -387,7 +394,7 @@ def print_service_order(ts: TopologicalSorter2, sm_dict: SMClusterState):
     logging.debug("Done. ----------------")
 
 
-def main(services:[] = None, cmd="", site=""):
+def run(services:[] = None, cmd="", site=""):
     """ Business Logic - implements main flow """
 
     # init SMClusterState object ann get status for all sites in case DR procedure or specific site in case cmd
@@ -907,7 +914,7 @@ def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: []):
     print(pt)
 
 
-def parse_command_line() -> argparse.Namespace:
+def parse_command_line(command_args) -> argparse.Namespace:
     """ Main argument parser
     @return:
     """
@@ -959,11 +966,12 @@ def parse_command_line() -> argparse.Namespace:
     parser_9 = subparsers.add_parser('version', help='get current version')
     parser_9.set_defaults(command='version')
 
-    return parser.parse_args()
+    return parser.parse_args(args=command_args)
 
 
-if __name__ == "__main__":
-    args = parse_command_line()
+def main(command_args=None):
+    global args
+    args = parse_command_line(command_args)
 
     # get version command
     if args.command in "version":
@@ -976,6 +984,10 @@ if __name__ == "__main__":
 
     ignored_services.extend(skip_services)
 
-    if not main([i for i in run_services if i not in skip_services], args.command,
+    if not run([i for i in run_services if i not in skip_services], args.command,
                 args.site if hasattr(args, 'site') else False):
         exit(1)
+    exit(0)
+
+if __name__ == "__main__":
+    main()

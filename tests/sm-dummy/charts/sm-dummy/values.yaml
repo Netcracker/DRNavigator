@@ -1,0 +1,31 @@
+---
+name: sm-dummy
+paas_platform: kubernetes
+
+env:
+  SMA_TIMEOUT: 15
+  SMA_INIT_MODE: active
+  SMA_DEBUG: True
+  SMA_HEALTHZ: "up"
+  SMA_SEND_MESSAGE: True
+  SMA_HTTP_AUTH: True
+  SMA_SM_NAMESPACE: site-manager
+  SMA_SM_AUTH_SA: sm-auth-sa
+
+serviceAccount:
+  create: true
+  name: sm-dummy-sa
+
+siteManager:
+  installCR: true
+  module: "stateful"
+  before: []
+  after: []
+  sequence: ["standby", "active"]
+  allowedStandbyStateList: ["up"]
+  timeout: 180
+  useDefaultParams: true
+  additionalParams:
+
+image: ""
+ingressName: ""
