@@ -1,6 +1,6 @@
 """
 pytest sm-client common commands tests
-python3 -u -m pytest  ./tests/integration -k FailoverWithCustomModuleTestCase
+python3 -u -m pytest  ./tests/integration -k ActivatePassivateWithCustomModuleTestCase
 """
 
 import pytest
@@ -44,7 +44,7 @@ template_env = {
 @pytest.mark.usefixtures('config_dir')
 @pytest.mark.usefixtures('prepare_docker_compose')
 @pytest.mark.usefixtures('wait_services_until_healthy')
-class FailoverWithCustomModuleTestCase:
+class ActivatePassivateWithCustomModuleTestCase:
 
     def test_init_statuses(self, config_dir, capfd):
         logging.info("TEST INIT STATUSES")

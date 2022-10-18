@@ -1,6 +1,6 @@
 """
 pytest sm-client common commands tests
-python3 -u -m pytest  ./tests/integration -k SwitchoverWithCustomModuleTestCase
+python3 -u -m pytest  ./tests/integration -k SwitchoverFailoverWithCustomModuleTestCase
 """
 
 import pytest
@@ -44,7 +44,7 @@ template_env = {
 @pytest.mark.usefixtures('config_dir')
 @pytest.mark.usefixtures('prepare_docker_compose')
 @pytest.mark.usefixtures('wait_services_until_healthy')
-class SwitchoverWithCustomModuleTestCase:
+class SwitchoverFailoverWithCustomModuleTestCase:
 
     def test_init_statuses(self, config_dir, capfd):
         logging.info("TEST INIT STATUSES WITH CUSTOM MODULE SERVICES")
@@ -62,3 +62,15 @@ class SwitchoverWithCustomModuleTestCase:
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                 "mode": "active" if "site_2" == site else "standby"})
+
+
+    def test_stop_site(self, config_dir, capfd):
+        logging.info("TEST STOP WITH CUSTOM MODULE SERVICES")
+        # Run move to another site
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "stop", "site_2"])
+
+        # Check status after move to another site
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+                                {"healthz": "up", "status": "done", "message": "",
+                                "mode": "standby" if "site_2" == site else "active"})

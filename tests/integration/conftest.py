@@ -114,7 +114,9 @@ def wait_services_until_healthy(request, prepare_docker_compose):
         logging.info(f"Not all services started, sleep {sleep_seconds} seconds")
         time.sleep(sleep_seconds)
 
-    if not all_services_started:
+    if all_services_started:
+        logging.info("All services are healthy")
+    else:
         logging.error("Some services haven't started in expected time")
 
     # Run tests

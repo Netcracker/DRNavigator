@@ -1,6 +1,6 @@
 """
 pytest sm-client common commands tests
-python3 -u -m pytest  ./tests/integration -k FailoverTestCase
+python3 -u -m pytest  ./tests/integration -k SwitchoverFailoverTestCase
 """
 
 import pytest
@@ -44,7 +44,7 @@ template_env = {
 @pytest.mark.usefixtures('config_dir')
 @pytest.mark.usefixtures('prepare_docker_compose')
 @pytest.mark.usefixtures('wait_services_until_healthy')
-class FailoverTestCase:
+class SwitchoverFailoverTestCase:
 
     def test_init_statuses(self, config_dir, capfd):
         logging.info("TEST INIT STATUSES")
@@ -52,44 +52,24 @@ class FailoverTestCase:
                                    {"healthz": "up", "status": "done", "message": "",
                                     "mode": "active" if template_env["active_site"] == site else "standby"})
 
-    def test_activate_all_sites(self, config_dir, capfd):
-        logging.info("TEST ACTIVATE ALL WITH STATEFUL SERVICES")
-        # Run activate
+    def test_move_to_another_site(self, config_dir, capfd):
+        logging.info("TEST MOVE WITH STATEFUL SERVICES TO ANOTHER SITE")
+        # Run move to another site
         test_utils.run_sm_client_command_with_exit(
-            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "active", "site_2"])
-
-        # Check status after move to another site
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
-                                {"healthz": "up", "status": "done", "message": "", "mode": "active"})
-
-    def test_passivate_site(self, config_dir, capfd):
-        logging.info("TEST PASSIVATE WITH STATEFUL SERVICES")
-        # Run passivate
-        test_utils.run_sm_client_command_with_exit(
-            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "standby", "site_2"])
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "move", "site_2"])
 
         # Check status after move to another site
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
-                                 "mode": "standby" if "site_2" == site else "active"})
+                                "mode": "active" if "site_2" == site else "standby"})
 
-    def test_passivate_all_sites(self, config_dir, capfd):
-        logging.info("TEST PASSIVATE ALL WITH STATEFUL SERVICES")
-        # Run passivate
+    def test_stop_site(self, config_dir, capfd):
+        logging.info("TEST STOP WITH STATEFUL SERVICES")
+        # Run move to another site
         test_utils.run_sm_client_command_with_exit(
-            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "standby", "site_1"])
-
-        # Check status after move to another site
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
-                                {"healthz": "up", "status": "done", "message": "","mode": "standby"})
-
-    def test_activate_site(self, config_dir, capfd):
-        logging.info("TEST ACTIVATE WITH STATEFUL SERVICES")
-        # Run activate
-        test_utils.run_sm_client_command_with_exit(
-            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "active", "site_1"])
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "stop", "site_2"])
 
         # Check status after move to another site
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
-                                 "mode": "active" if "site_1" == site else "standby"})
+                                "mode": "standby" if "site_2" == site else "active"})
