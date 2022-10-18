@@ -14,7 +14,7 @@ import os
 
 
 test_config_path = os.path.abspath("tests/selftest/resources/config_test.yaml")
-
+test_wrong_config_path = os.path.abspath("tests/selftest/resources/config_test_wrong.yaml")
 
 def pytest_namespace():
     return {'site_name':None}
@@ -235,23 +235,18 @@ def test_get_available_sites(caplog):
     assert list3 == []
 
 
-def test_unexist_config_file_init():
+def test_SMClusterState_init():
     args_init()
 
     assert SMClusterState()
-
     assert SMClusterState("k8s-1")
-
     with pytest.raises(ValueError) as e:
         SMClusterState("not valid site")
     assert str(e.value) in "Unknown site name"
-
     assert "services" and "dep_issue" in SMClusterState("k8s-2")["k8s-2"]
-
     assert "services" and "dep_issue" in SMClusterState({"k8s-3":{"services":{"serv1":{}},
                                                                   "status":False},
                                                          "k8s-1":{}})["k8s-3"]
-
     sm_dict = SMClusterState()
     sm_dict["k8s-1"]={"services":{
         "serv1":{"module":'stateful'},
@@ -260,8 +255,17 @@ def test_unexist_config_file_init():
     assert sm_dict.get_module_services('k8s-1','stateful') == ['serv1','serv2'] and \
             sm_dict.get_module_services('k8s-1','notstateful') == ['serv3']
 
+    args_init(test_wrong_config_path)
+    with pytest.raises(ValueError) as e:
+        SMClusterState()
+    assert str(e.value) in "Only two sites in clusters are supported"
+
+
+def test_unexist_config_file_init():
+    args_init()
+
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        args_init("config_test_wrong.yaml")
+        args_init("config_test_fake.yaml")
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 1
 
