@@ -19,7 +19,8 @@
 - [CLI tool sm-client](#cli-tool-sm-client)
     - [Configuration file](#configuration-file)
     - [Examples of using sm-client](#examples-of-using-sm-client)
-    - [Daemon mode](#daemon-mode)
+    - [Cuctom module support](#custom-modules-support)
+
 
 <!-- /MarkdownTOC -->
 
@@ -193,7 +194,6 @@ To secure access to manageable services from `Site-Manager` also added same sche
 2. More about this scheme at [API Security model](#api-security-model) part.
 
 **Note:** `site-manager` installed by default with `FRONT_HTTP_AUTH` "Yes" and `BACK_HTTP_AUTH` "Yes" which means that authorization enabled.
-
 # REST API
 
 ## Contract for communication with infra service
@@ -543,11 +543,12 @@ Output:
 ```json
 {
   "services": [
-    "paas": {
-      "healthz": "--", 
-      "message": "",
-      "mode": "active", 
-      "status": "done"
+    { "paas": {
+          "healthz": "--", 
+          "message": "",
+          "mode": "active", 
+          "status": "done"
+      }
     }
   ]
 }
@@ -716,7 +717,28 @@ curl   --silent \
        --request GET \
        https://site-manager.example.com/metrics
 ```
+# DR procedures flow
+## Switchover
 
+Example for service with `sequence` parameter as ["standby", "active"]:
+
+![](/documentation/images/site-manager_diagram_with_PG.png)
+
+Postgres is the service with defined sequence. It means that we need to send new mode to the standby cluster and only in case of procedure successful finished we can send new mode to active site.
+
+Example for service without `sequence` parameter:
+
+![](/documentation/images/site-manager_diagram_with_Mongo.png)
+
+For this example we consider Mongo as an example of service without sequence. For this case we send new mode to both clusters and wait for status `done` also for both clusters.
+
+## Failover
+
+Example for two services. The first service with defined `sequence` and the second without sequence:
+
+![](/documentation/images/site-manager_diagram_failover.png)
+
+Working with services looks like in switchover procedure. We have only one assumption - standby kubernetes cluster may be unavailable. In this case we should not wait for correct status. We can omit statuses of all infra services of standby kubernetes cluster.
 # CLI tool sm-client
 
 `sm-client` is the cli tool to manage DR procedures between infra services that deployed in two kubernetes clusters. It can be started on any Linux host with installed python dependencies: on DVM host or operation portal. Another option is start `sm-client` in docker container. In this case `sm-client` can work even in kubernetes cluster if needed.
@@ -886,27 +908,54 @@ Kubernetes services managed by site-manager: ['postgres', 'sm-test', 'mongo', 'p
 kubernetes services that will be processed: ['postgres', 'sm-test', 'mongo', 'paas']
 ---------------------------------------------------------------------
 ```
+## Custom modules support
+It is possible to make custom DR flow (Switchover/Failover; Active/Standby/Disable) sequence based on [module of DR service](#stateful-module-concept)
 
-# DR procedures flow
+```yaml
+spec:
+  sitemanager:
+    module: "custom_module"
+```
+Optional section ```flow``` needs to be provided. 
+It describes the sequence of modules with appropriate DR states which needs to be run during DR operation.  
+For example:
+```yaml
+---
+sites:
+  - name: k8s-1
+    token: <TOKEN>
+    site-manager: http://site-manager.k8s-1.example.com/sitemanager
+    cacert: <path-to-ca-certificate>
+  - name: k8s-2
+    token: <TOKEN>
+    site-manager: http://site-manager.k8s-2.example.com/sitemanager
+    cacert: <path-to-ca-certificate>
+sm-client:
+  http_auth: True
+  
+flow:
+  - custom_module: [standby,disable]
+  - stateful:
+  - custom_module: [active]
+```
+The above example implies the following DR sequences:
+#### Switchover
+1. Standby all `custom_module` services
+2. Standby, Active for all `stateful` services , according to [DR sequence](#sitemanager-custom-resource-for-stateful)
+3. Active all `custom_module` services
+#### Failover
+1. Standby, Active`stateful` services 
+2. Active `custom_module` services
+#### Active
+1. Active `stateful` services 
+2. Active `custom_module` services
+#### Standby
+1. Standby `custom_module` services
+2. Standby `stateful` services
+#### Disable
+1. Disable `custom_module` services
+2. Disable `stateful` services 
 
-## Switchover
+Note: the `stateful` module is default. It should not be specified in config in case no custom modules.
 
-Example for service with `sequence` parameter as ["standby", "active"]:
 
-![](/documentation/images/site-manager_diagram_with_PG.png)
-
-Postgres is the service with defined sequence. It means that we need to send new mode to the standby cluster and only in case of procedure successful finished we can send new mode to active site.
-
-Example for service without `sequence` parameter:
-
-![](/documentation/images/site-manager_diagram_with_Mongo.png)
-
-For this example we consider Mongo as an example of service without sequence. For this case we send new mode to both clusters and wait for status `done` also for both clusters.
-
-## Failover
-
-Example for two services. The first service with defined `sequence` and the second without sequence:
-
-![](/documentation/images/site-manager_diagram_failover.png)
-
-Working with services looks like in switchover procedure. We have only one assumption - standby kubernetes cluster may be unavailable. In this case we should not wait for correct status. We can omit statuses of all infra services of standby kubernetes cluster.

@@ -33,11 +33,11 @@ message = "I'm OK"
 app = Flask(__name__)
 app.config['DEBUG'] = os.environ.get("SMA_DEBUG", False)
 
-SMA_HTTP_AUTH = bool(os.environ.get("SMA_HTTP_AUTH", False))
+SMA_HTTP_AUTH = os.environ.get("SMA_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
 SMA_KUBECONFIG_FILE = os.environ.get("SMA_KUBECONFIG_FILE", "")
 SMA_SM_NAMESPACE = os.environ.get("SMA_SM_NAMESPACE", "site-manager")
 SMA_SM_AUTH_SA = os.environ.get("SMA_SM_AUTH_SA", "sm-auth-sa")
-SMA_SEND_MESSAGE = os.environ.get("BACK_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
+SMA_SEND_MESSAGE = os.environ.get("SMA_SEND_MESSAGE", False) in (1, True, "Yes", "yes", "True", "true")
 
 if os.environ.get("SMA_DEBUG", False):
     logging_level = logging.DEBUG
