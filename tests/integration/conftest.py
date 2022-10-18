@@ -1,8 +1,11 @@
 import os
+import time
 import pytest
 import logging
 import shutil
-
+import requests
+import urllib3
+from urllib3.exceptions import InsecureRequestWarning
 from jinja2 import Template
 
 
@@ -71,3 +74,48 @@ def prepare_docker_compose(config_dir):
     # Docker-compose down
     logging.info("Docker compose down")
     os.system(f"docker-compose -f {os.path.join(config_dir, 'docker-compose.yaml')} down")
+
+
+@pytest.fixture(scope='class', name='wait_services_until_healthy')
+def wait_services_until_healthy(request, prepare_docker_compose):
+    # Get template env
+    template_env = getattr(request.module, "template_env")
+
+    attempt_count = 5
+    sleep_seconds = 5
+    all_services_started = True
+
+    # Disable warnings about unsecure tls connection
+    urllib3.disable_warnings(InsecureRequestWarning)
+
+    # Check services health
+    for attempt in range(attempt_count):
+        logging.info(f"Check services for healthy, attempt {attempt + 1}...")
+        all_services_started = True
+        for site, config in template_env["sites"].items():
+            for service, port in config["exposed_ports"]["service"].items():
+                try:
+                    status_code = requests.get(f"http://localhost:{port}/healthz").status_code
+                except Exception as e:
+                    status_code = 0
+                if status_code not in [200, 204]:
+                    logging.info(f"Service {service} on site {site} hasn't started yet")
+                    all_services_started = False
+            try:
+                status_code = requests.get(f"https://localhost:{config['exposed_ports']['site_manager']}/health",
+                                           verify=False).status_code
+            except Exception as e:
+                status_code = 0
+            if status_code not in [200, 204]:
+                logging.info(f"Site-manager on site {site} hasn't started yet")
+                all_services_started = False
+        if all_services_started:
+            break
+        logging.info(f"Not all services started, sleep {sleep_seconds} seconds")
+        time.sleep(sleep_seconds)
+
+    if not all_services_started:
+        logging.error("Some services haven't started in expected time")
+
+    # Run tests
+    yield

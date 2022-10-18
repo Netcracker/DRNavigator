@@ -43,6 +43,7 @@ template_env = {
 
 @pytest.mark.usefixtures('config_dir')
 @pytest.mark.usefixtures('prepare_docker_compose')
+@pytest.mark.usefixtures('wait_services_until_healthy')
 class MaintenanceTestCase:
 
     def test_init_statuses(self, config_dir, capfd):
