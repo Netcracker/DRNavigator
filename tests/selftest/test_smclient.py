@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.9
 """
 pytest based unit test
-python3  -m pytest -o log_cli=true -s -v test_smclient.py <-k  test_name*>
+python3  -m pytest -o log_cli=true -s -v tests/selftest/test_smclient.py <-k  test_name*>
 """
 import json
 import pytest
@@ -10,7 +10,11 @@ from http import HTTPStatus
 import http.server
 import ssl
 import threading
+import os
 
+
+test_config_path = os.path.abspath("tests/selftest/resources/config_test.yaml")
+test_wrong_config_path = os.path.abspath("tests/selftest/resources/config_test_wrong.yaml")
 
 def pytest_namespace():
     return {'site_name':None}
@@ -20,7 +24,7 @@ def args_init(config=None):
     args=argparse.ArgumentParser
     args.verbose=True
     args.insecure=True
-    args.config=config if config else "config_test.yaml"
+    args.config=config if config else test_config_path
     args.run_services=""
     args.skip_services=""
     init_and_check_config(args)
@@ -152,7 +156,7 @@ def test_io_http_json_request():
 
     """ FAIL in case SSL verification fails """
     os.system("openssl req -new -x509 -keyout self-signed-fake.pem -out self-signed-fake.pem "
-              "-days 365 -nodes -subj \"/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com\" &>/dev/null")
+              "-days 365 -nodes -subj \"/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com\"")
     httpd=http.server.HTTPServer(('localhost', 4443), http.server.SimpleHTTPRequestHandler)
     httpd.socket=ssl.wrap_socket(httpd.socket, certfile='self-signed-fake.pem', server_side=True)
     thread=threading.Thread(target=httpd.handle_request)
@@ -235,19 +239,14 @@ def test_SMClusterState_init():
     args_init()
 
     assert SMClusterState()
-
     assert SMClusterState("k8s-1")
-
     with pytest.raises(ValueError) as e:
         SMClusterState("not valid site")
     assert str(e.value) in "Unknown site name"
-
     assert "services" and "dep_issue" in SMClusterState("k8s-2")["k8s-2"]
-
     assert "services" and "dep_issue" in SMClusterState({"k8s-3":{"services":{"serv1":{}},
                                                                   "status":False},
                                                          "k8s-1":{}})["k8s-3"]
-
     sm_dict = SMClusterState()
     sm_dict["k8s-1"]={"services":{
         "serv1":{"module":'stateful'},
@@ -256,10 +255,19 @@ def test_SMClusterState_init():
     assert sm_dict.get_module_services('k8s-1','stateful') == ['serv1','serv2'] and \
             sm_dict.get_module_services('k8s-1','notstateful') == ['serv3']
 
-    args_init("config_test_wrong.yaml")
+    args_init(test_wrong_config_path)
     with pytest.raises(ValueError) as e:
         SMClusterState()
     assert str(e.value) in "Only two sites in clusters are supported"
+
+
+def test_unexist_config_file_init():
+    args_init()
+
+    with pytest.raises(SystemExit) as pytest_wrapped_e:
+        args_init("config_test_fake.yaml")
+        assert pytest_wrapped_e.type == SystemExit
+        assert pytest_wrapped_e.value.code == 1
 
 
 def test_ServiceDRStatus_init():

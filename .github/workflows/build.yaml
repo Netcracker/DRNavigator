@@ -8,10 +8,70 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Build Docker Image for site-manager
         run: docker build -t site-manager -f Dockerfile-sm --no-cache .
       - name: Build Docker Image for sm-client
         run: docker build -t sm-client -f Dockerfile-sc --no-cache .
       - name: Build Docker Image for sm-dummy
         run: docker build -t sm-dummy -f tests/sm-dummy/Dockerfile --no-cache .
+  unittest:
+    needs: build-image
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.9" ]
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Get python version
+        run: python --version
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-sc-test.txt -r requirements-sc.txt
+      - name: Run tests
+        id: unittests
+        run: python -m pytest tests/selftest
+      - name: Collect artifacts
+        if: failure() && steps.unittests.outcome == 'failure'
+        uses: actions/upload-artifact@v3
+        with:
+          name: unittest-logs
+          path: pytest.log
+          retention-days: 7
+  integration-tests:
+    needs: build-image
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.9" ]
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Get python version
+        run: python --version
+      - name: Get Docker-compose version
+        run: docker-compose version
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-sc-test.txt -r requirements-sc.txt
+      - name: Run tests
+        id: integrationtests
+        run: python -m pytest tests/integration
+      - name: Collect artifacts
+        if: failure() && steps.integrationtests.outcome == 'failure'
+        uses: actions/upload-artifact@v3
+        with:
+          name: integration-tests-logs
+          path: test-dump/
+          retention-days: 7
