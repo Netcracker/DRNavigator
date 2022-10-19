@@ -24,15 +24,13 @@ from http import HTTPStatus
 from queue import Queue
 
 import yaml
-import requests.packages
 import os
 
-from requests.adapters import HTTPAdapter
 from prettytable import PrettyTable
 from typing import Tuple, Dict, Optional
-from urllib3 import Retry
-from urllib3.exceptions import InsecureRequestWarning
 
+
+from utils import  io_make_http_json_request
 MAIN_HELP_SECTION = """
 Script to manage DR cases in kubernetes Active-Standby scheme
 
@@ -727,62 +725,6 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
     return service_dep_ordered,ts
 
 
-def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None, retry=3) -> Tuple[bool, Dict, int]:
-    """ Sends GET/POST request to service
-    @param string url: the URL to service operator
-    @param token: Bearer token
-    @param verify: Server side SSL verification
-    @param retry: the number of retries
-    @param http_body: the dictionary with procedure and list of services
-    @returns: True/False, Dict with not empty json body in case Ok/{}, HTTP_CODE/
-    IO SSL codes: ssl.SSLErrorNumber.SSL_ERROR_SSL/SSLErrorNumber.SSL_ERROR_EOF
-    """
-    if(not os.getenv("DEBUG")):
-        # Disable warnings about self-signed certificates from requests library
-        requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
-    if token != "" and FRONT_HTTP_AUTH:
-        headers = {"Authorization": f"Bearer {token}"}
-    else:
-        headers = {}
-    if not http_body:
-        http_body = {}
-    logging.debug(f"REST url: {url}")
-    logging.debug(f"REST data: {http_body}")
-
-    session = requests.Session()
-    retries = Retry(total=retry)
-    session.mount('https://', HTTPAdapter(max_retries=retries))
-    session.mount('http://', HTTPAdapter(max_retries=retries))
-
-    logging.getLogger("urllib3").setLevel(logging.CRITICAL)
-
-    try:
-        if any(http_body):
-            resp = session.post(url, json=http_body, timeout=30, headers=headers, verify=verify)
-        else:
-            resp = session.get(url, timeout=5, headers=headers, verify=verify)
-        logging.debug(f"REST response: {resp.json()}")
-        return True, resp.json() if resp.json() else {}, resp.status_code # return ANY content with HTTP code
-
-    except requests.exceptions.SSLError as e:
-        logging.error("SSL certificate verify failed")
-        #TODO in more accurate manner error handling manner
-        if "SSLCertVerificationError" in str(e.args): ## SSL Verification fails ; SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)')
-            return False, {}, ssl.SSLErrorNumber.SSL_ERROR_SSL.__int__() # - 1
-        elif "SSLEOFError" in str(e.args): # SSL connect error, SSL resource is not accessible vi ha-proxy  ; SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
-            #TODO need a test for this case
-            return False, {}, ssl.SSLErrorNumber.SSL_ERROR_EOF.__int__() # - 8
-    except requests.exceptions.JSONDecodeError:
-        logging.error("Wrong JSON data received")
-    except requests.exceptions.RequestException as e:
-        logging.error("General request error %s",e.__doc__)
-    except Exception as e :
-        logging.error("General error %s",e.__doc__)
-
-    return False,{},False
-
-
 def sm_process_service(site, service, site_cmd: str, no_wait=False, force=False) -> Tuple[Dict, bool, int]:
     """ Processes the service with specific site cmd """
     global sm_conf
@@ -795,7 +737,8 @@ def sm_process_service(site, service, site_cmd: str, no_wait=False, force=False)
     ret, response, return_code = io_make_http_json_request(sm_conf[site]["url"],
                                                            sm_conf[site]["token"],
                                                            sm_conf[site]["cacert"],
-                                                           body)
+                                                           body,
+                                                           use_auth=FRONT_HTTP_AUTH)
     return response,True if return_code == HTTPStatus.OK else False, return_code
 
 
