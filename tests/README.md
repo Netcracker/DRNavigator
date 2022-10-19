@@ -1,3 +1,24 @@
+# Site-manager selftests
+
+### How to run:
+
+1. Install requirements for sm-client and tests:
+```
+pip install -r requirements-sc-test.txt -r requirements-sc.txt
+```
+
+2. Run tests:
+
+```
+python -u -m pytest  ./tests/selftest
+```
+
+### How to create your own test case:
+
+1. Go to [test directory](./selftest) .
+2. Create your own script file in this directory or use one of existed scripts;
+3. Locate your tests functions in this script;
+
 # Site-manager integration tests
 
 ### How to run:

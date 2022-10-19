@@ -1,6 +1,6 @@
 """
 pytest sm-client common commands tests
-python3 -u -m pytest  ./tests/integration -k MaintenanceWihCustomModuleTestCase
+python3 -u -m pytest  ./tests/integration -k MaintenanceReturnWihCustomModuleTestCase
 """
 
 import pytest
@@ -43,7 +43,8 @@ template_env = {
 
 @pytest.mark.usefixtures('config_dir')
 @pytest.mark.usefixtures('prepare_docker_compose')
-class MaintenanceWihCustomModuleTestCase:
+@pytest.mark.usefixtures('wait_services_until_healthy')
+class MaintenanceReturnWihCustomModuleTestCase:
 
     def test_init_statuses(self, config_dir, capfd):
         logging.info("TEST INIT STATUSES")
@@ -53,44 +54,92 @@ class MaintenanceWihCustomModuleTestCase:
 
     def test_maintenance_active_site(self, config_dir, capfd):
         logging.info("TEST MAINTENANCE ACTIVE SITE WITH CUSTOM MODULE SERVICES")
-        # Run activate
+        # Run maintenance
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "mntc", "site_1"])
 
-        # Check status after move to another site
+        # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                  "mode": "disable" if "site_1" == site else "standby"})
 
     def test_maintenance_standby_site(self, config_dir, capfd):
         logging.info("TEST MAINTENANCE STANDBY SITE WITH CUSTOM MODULE SERVICES")
-        # Run activate
+        # Run maintenance
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "mntc", "site_2"])
 
-        # Check status after move to another site
+        # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                  "mode": "disable"})
 
     def test_return_first_site(self, config_dir, capfd):
         logging.info("TEST RETURN FIRST SITE WITH STATEFUL SERVICES")
-        # Run activate
+        # Run return
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "return", "site_1"])
 
-        # Check status after move to another site
+        # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                  "mode": "disable" if "site_2" == site else "standby"})
 
     def test_return_second_site(self, config_dir, capfd):
         logging.info("TEST RETURN SECOND SITE WITH STATEFUL SERVICES")
-        # Run activate
+        # Run return
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "return", "site_2"])
 
-        # Check status after move to another site
+        # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                  "mode": "standby"})
+
+    def test_maintenance_custom_module_service(self, config_dir, capfd):
+        logging.info("TEST MAINTENANCE CUSTOM MODULE SERVICE")
+        # Run maintenance
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+             "--run-services", "custom_module_service", "mntc", "site_2"])
+
+        # Check status
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+            {"healthz": "up", "status": "done", "message": "",
+             "mode": "standby" if ("site_1" == site) or ("stateful_service" == service) else "disable"})
+
+    def test_return_custom_module_service(self, config_dir, capfd):
+        logging.info("TEST RETURN CUSTOM MODULE SERVICE")
+        # Run return
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+             "--run-services", "custom_module_service", "return", "site_2"])
+
+        # Check status
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+            {"healthz": "up", "status": "done", "message": "",
+             "mode": "standby"})
+
+    def test_maintenance_stateful_service(self, config_dir, capfd):
+        logging.info("TEST MAINTENANCE STATEFUL SERVICE")
+        # Run maintenance
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+             "--skip-services", "custom_module_service", "mntc", "site_2"])
+
+        # Check status
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        {"healthz": "up", "status": "done", "message": "",
+         "mode": "standby" if ("site_1" == site) or ("custom_module_service" == service) else "disable"})
+
+    def test_return_stateful_service(self, config_dir, capfd):
+        logging.info("TEST RETURN STATEFUL SERVICE")
+        # Run return
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+             "--skip-services", "custom_module_service", "return", "site_2"])
+
+        # Check status
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        {"healthz": "up", "status": "done", "message": "",
+         "mode": "standby"})

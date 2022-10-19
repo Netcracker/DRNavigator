@@ -149,20 +149,20 @@ def init_and_check_config(args) -> bool:
     SERVICE_DEFAULT_TIMEOUT = conf_parsed.get("sm-client", {}).get("service_default_timeout", 200)
 
     global ignored_services
-    ignored_services = []
+    ignored_services.clear()
 
     global run_services
     # Check services for running
     if args.run_services != '':
         run_services = args.run_services.replace(',', ' ').replace('  ', ' ').split(' ')
     else:
-        run_services = []
+        run_services.clear()
 
     global skip_services
     if args.skip_services != '':
         skip_services = args.skip_services.replace(',', ' ').replace('  ', ' ').split(' ')
     else:
-        skip_services = []
+        skip_services.clear()
 
     global module_flow
     module_flow = conf_parsed.get("flow", [{'stateful': None}])
@@ -414,9 +414,10 @@ def run(services:[] = None, cmd="", site=""):
             module = list(_mod.keys())[0]
             if module not in default_module and sm_dict.get_module_services(sm_dict.get_available_sites()[0], module):
                 services_name = sm_dict.get_module_services(sm_dict.get_available_sites()[0], module)[0]
-                if (services_name in services if services else True) and services_name not in service_dep_ordered:
+                if (services_name in services if services else True) and services_name not in service_dep_ordered and \
+                        services_name not in ignored_services:
                     service_dep_ordered.insert(0, services_name)
-        logging.debug(service_dep_ordered)
+        logging.debug(f"Service order {service_dep_ordered}")
     except NotValid:
         exit(1)
 
