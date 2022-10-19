@@ -63,7 +63,6 @@ class SwitchoverFailoverWithCustomModuleTestCase:
                                 {"healthz": "up", "status": "done", "message": "",
                                 "mode": "active" if "site_2" == site else "standby"})
 
-
     def test_stop_site(self, config_dir, capfd):
         logging.info("TEST STOP WITH CUSTOM MODULE SERVICES")
         # Run move to another site
@@ -74,3 +73,52 @@ class SwitchoverFailoverWithCustomModuleTestCase:
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                 "mode": "standby" if "site_2" == site else "active"})
+
+
+    def test_move_only_custom_module_service(self, config_dir, capfd):
+        logging.info("TEST MOVE CUSTOM MODULE SERVICE TO ANOTHER SITE")
+        # Run move to another site
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+                "--run-services", "custom_module_service", "move", "site_2"])
+
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+                {"healthz": "up", "status": "done", "message": "",
+                 "mode": "active" if ("site_1" == site) != ("custom_module_service" == service) else "standby"})
+
+
+    def test_move_only_first_service(self, config_dir, capfd):
+        logging.info("TEST MOVE STATEFUL SERVICE TO ANOTHER SITE")
+        # Run move to another site
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+                "--skip-services", "custom_module_service", "move", "site_2"])
+
+        # Check status after move to another site
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+            {"healthz": "up", "status": "done", "message": "",
+             "mode": "active" if "site_2" == site else "standby"})
+
+
+    def test_stop_only_custom_module_service(self, config_dir, capfd):
+        logging.info("TEST STOP CUSTOM MODULE SERVICE TO ANOTHER SITE")
+        # Run move to another site
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+             "--run-services", "custom_module_service", "stop", "site_2"])
+
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+            {"healthz": "up", "status": "done", "message": "",
+             "mode": "active" if ("site_2" == site) != ("custom_module_service" == service) else "standby"})
+
+    def test_stop_only_first_service(self, config_dir, capfd):
+        logging.info("TEST STOP STATEFUL SERVICE TO ANOTHER SITE")
+        # Run move to another site
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+                "--skip-services", "custom_module_service", "stop", "site_2"])
+
+        # Check status after move to another site
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        {"healthz": "up", "status": "done", "message": "",
+         "mode": "active" if "site_1" == site else "standby"})

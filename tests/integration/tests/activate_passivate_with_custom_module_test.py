@@ -58,7 +58,7 @@ class ActivatePassivateWithCustomModuleTestCase:
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "active", "site_2"])
 
-        # Check status after move to another site
+        # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "", "mode": "active"})
 
@@ -68,7 +68,7 @@ class ActivatePassivateWithCustomModuleTestCase:
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "standby", "site_2"])
 
-        # Check status after move to another site
+        # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                  "mode": "standby" if "site_2" == site else "active"})
@@ -79,7 +79,7 @@ class ActivatePassivateWithCustomModuleTestCase:
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "standby", "site_1"])
 
-        # Check status after move to another site
+        # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "","mode": "standby"})
 
@@ -89,8 +89,55 @@ class ActivatePassivateWithCustomModuleTestCase:
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "active", "site_1"])
 
-        # Check status after move to another site
+        # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                  "mode": "active" if "site_1" == site else "standby"})
 
+    def test_activate_second_service(self, config_dir, capfd):
+        logging.info("TEST ACTIVATE CUSTOM MODULE SERVICE")
+        # Run activate
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+             "--run-services", "custom_module_service", "active", "site_2"])
+
+        # Check status
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+                {"healthz": "up", "status": "done", "message": "",
+                 "mode": "active" if ("site_1" == site) or ("custom_module_service" == service) else "standby"})
+
+    def test_passivate_second_service(self, config_dir, capfd):
+        logging.info("TEST PASSIVATE CUSTOM MODULE SERVICE")
+        # Run passivate
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+             "--run-services", "custom_module_service", "standby", "site_2"])
+
+        # Check status
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+                {"healthz": "up", "status": "done", "message": "",
+                 "mode": "active" if "site_1" == site else "standby"})
+
+    def test_activate_first_service(self, config_dir, capfd):
+        logging.info("TEST ACTIVATE STATEFUL SERVICE")
+        # Run activate
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+             "--skip-services", "custom_module_service", "active", "site_2"])
+
+        # Check status
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+                            {"healthz": "up", "status": "done", "message": "",
+                            "mode": "active" if ("site_1" == site) or ("stateful_service" == service) else "standby"})
+
+    def test_passivate_first_service(self, config_dir, capfd):
+        logging.info("TEST PASSIVATE STATEFUL SERVICE")
+        # Run passivate
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+             "--skip-services", "custom_module_service", "standby", "site_2"])
+
+        # Check status
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+                            {"healthz": "up", "status": "done", "message": "",
+                             "mode": "active" if "site_1" == site else "standby"})

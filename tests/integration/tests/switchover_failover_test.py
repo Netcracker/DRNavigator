@@ -73,3 +73,41 @@ class SwitchoverFailoverTestCase:
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                 "mode": "standby" if "site_2" == site else "active"})
+
+    def test_move_only_second_service(self, config_dir, capfd):
+        logging.info("TEST MOVE SECOND SERVICE TO ANOTHER SITE")
+        # Run move to another site
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+                "--run-services", "serviceB", "move", "site_2"], expected_exit_code=1)
+
+    def test_move_only_first_service(self, config_dir, capfd):
+        logging.info("TEST MOVE FIRST SERVICE TO ANOTHER SITE")
+        # Run move to another site
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+                "--skip-services", "serviceB", "move", "site_2"])
+
+        # Check status after move to another site
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+                {"healthz": "up", "status": "done", "message": "",
+                 "mode": "active" if ("site_1" == site) != ("serviceA" == service) else "standby"})
+
+    def test_stop_only_second_service(self, config_dir, capfd):
+        logging.info("TEST STOP SECOND SERVICE TO ANOTHER SITE")
+        # Run move to another site
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+                "--run-services", "serviceB", "stop", "site_2"], expected_exit_code=1)
+
+    def test_stop_only_first_service(self, config_dir, capfd):
+        logging.info("TEST STOP FIRST SERVICE TO ANOTHER SITE")
+        # Run move to another site
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+                "--skip-services", "serviceB", "stop", "site_2"])
+
+        # Check status after move to another site
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+                {"healthz": "up", "status": "done", "message": "",
+                 "mode": "active" if "site_1" == site else "standby"})
