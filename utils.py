@@ -143,8 +143,6 @@ def send_get(url):
     return {}
 
 
-
-
 def get_token(api_watch=False):
     """
     Method to get token of sm-auth-sa from kubernetes. Method rewrites global var SM_CLIENT_TOKEN with actual token value

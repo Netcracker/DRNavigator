@@ -1,0 +1,30 @@
+{{- if .Values.siteManager.installCR }}
+---
+apiVersion: netcracker.com/v2
+kind: SiteManager
+metadata:
+  name: {{ .Values.name }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ .Values.name }}
+spec:
+  sitemanager:
+    module: {{ .Values.siteManager.module }}
+    before: 
+{{ toYaml .Values.siteManager.before | indent 6 }}
+    after:
+{{ toYaml .Values.siteManager.after | indent 6 }}
+    sequence: 
+{{ toYaml .Values.siteManager.sequence | indent 6 }}
+    allowedStandbyStateList:
+{{ toYaml .Values.siteManager.allowedStandbyStateList | indent 6 }}
+    timeout: {{ .Values.siteManager.timeout }}
+    parameters:
+      {{- if .Values.siteManager.useDefaultParams }}
+      serviceEndpoint: {{ .Values.name }}.{{ .Release.Namespace }}:80/sitemanager
+      healthzEndpoint: {{ .Values.name }}.{{ .Release.Namespace }}:80/healthz
+     {{- end }}
+    {{- if .Values.siteManager.additionalParams }}
+{{ toYaml .Values.siteManager.additionalParams | indent 6 }}
+    {{- end }}
+{{- end }}

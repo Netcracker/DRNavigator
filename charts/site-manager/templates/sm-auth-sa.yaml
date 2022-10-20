@@ -3,3 +3,16 @@ kind: ServiceAccount
 metadata:
   name: sm-auth-sa
   namespace: {{ .Release.Namespace }}
+{{- if ge (int .Capabilities.KubeVersion.Minor) 24 }}
+secrets:
+- name: sm-auth-sa-token
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  annotations:
+    kubernetes.io/service-account.name: sm-auth-sa
+  name: sm-auth-sa-token
+  namespace: {{ .Release.Namespace }}
+type: kubernetes.io/service-account-token
+{{- end }}

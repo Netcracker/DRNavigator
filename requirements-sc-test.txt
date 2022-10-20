@@ -1,0 +1,4 @@
+pytest
+pytest-depends
+pytest-mock
+jinja2

@@ -2,8 +2,8 @@
 """
 Company:     NetCracker
 Author:      Core PaaS Group
-Version:     0.5
-Date:        2021-05-26
+Version:     0.7
+Date:        2021-11-19
 Description: Service for management of microservices in active-standby scheme of kubernetes cluster
 """
 
@@ -16,7 +16,7 @@ import copy
 import utils
 from flask import Flask, request, jsonify, make_response
 from kubernetes import client, config
-from prometheus_flask_exporter import PrometheusMetrics
+from prometheus_flask_exporter.multiprocess import GunicornInternalPrometheusMetrics
 from prometheus_client import Gauge
 
 
@@ -27,7 +27,7 @@ app = Flask(__name__)
 
 app.config['DEBUG'] = utils.SM_DEBUG
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
-metrics = PrometheusMetrics(app)
+metrics = GunicornInternalPrometheusMetrics(app)
 
 site_manager_health = Gauge('site_manager_health', 'SM pod health')
 
@@ -81,9 +81,7 @@ def get_sitemanagers_dict():
     output = dict()
     output['services'] = {}
     for item in response["items"]:
-        module_name = item['spec']['sitemanager'].get('module', '')
-        module = import_module(module_name)
-        output['services'][item['metadata'].get('name')] = module.get_module_specific_cr(item)
+        output['services'][item['metadata'].get('name')] = get_module_specific_cr(item)
 
     return output
 
@@ -143,18 +141,65 @@ def json_response(code, body):
     return response
 
 
-def import_module(services_module):
+def get_status(service, *args, **kwargs):
     """
-    Method for importing a module
+    Method that collects complete information about the state of the service
 
-    :param string services_module: module name
+    :param dict service: service's CR
     """
 
-    logging.info("loading module: %s" % services_module)
-    spec = importlib.util.spec_from_file_location(services_module, "modules/" + services_module + ".py")
-    module = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(module)
-    return module
+    output = dict()
+    status = utils.send_get(service['parameters']["serviceEndpoint"])
+    output["mode"] = status.get("mode", "--")
+    output["status"] = status.get("status", "--")
+    output["message"] = status.get("message", "")
+    if service['parameters'].get("healthzEndpoint", "") != "":
+        healthz = utils.send_get(service['parameters']["healthzEndpoint"])
+        output["healthz"] = healthz.get("status", "--")
+    else:
+        output["healthz"] = "--"
+
+    return output
+
+
+def get_module_specific_cr(item):
+    """
+    Method preparing dictionary based on the service's CR
+
+    :param dict item: service's CR
+    """
+
+    if item['spec']['sitemanager']['parameters'].get('serviceEndpoint', '') != '':
+
+        if item["spec"]["sitemanager"]['parameters']["serviceEndpoint"].startswith("http://") or \
+                item["spec"]["sitemanager"]['parameters']["serviceEndpoint"].startswith("https://"):
+            service_endpoint = item["spec"]["sitemanager"]['parameters']["serviceEndpoint"]
+        else:
+            service_endpoint = utils.HTTP_SCHEME + item["spec"]["sitemanager"]['parameters']["serviceEndpoint"]
+    else:
+        service_endpoint = ''
+
+    if item['spec']['sitemanager']['parameters'].get('healthzEndpoint', '') != '':
+
+        if item['spec']['sitemanager']['parameters']['healthzEndpoint'].startswith("http://") or \
+                item['spec']['sitemanager']['parameters']['healthzEndpoint'].startswith("https://"):
+            healthz_endpoint = item['spec']['sitemanager']['parameters']['healthzEndpoint']
+        else:
+            healthz_endpoint = utils.HTTP_SCHEME + item['spec']['sitemanager']['parameters']['healthzEndpoint']
+    else:
+        healthz_endpoint = ''
+    allowed_standby_state_list = [i.lower() for i in item['spec']['sitemanager'].get('allowedStandbyStateList', ["up"])]
+
+    return {"namespace": item["metadata"]["namespace"],
+            "module": item['spec']['sitemanager'].get('module', ''),
+            "after": item['spec']['sitemanager'].get('after', []),
+            "before": item['spec']['sitemanager'].get('before', []),
+            "sequence": item['spec']['sitemanager'].get('sequence', []),
+            "allowedStandbyStateList": allowed_standby_state_list,
+            "timeout": item['spec']['sitemanager'].get('timeout', utils.SERVICE_DEFAULT_TIMEOUT),
+            "parameters":
+                {"serviceEndpoint": service_endpoint,
+                 "healthzEndpoint": healthz_endpoint}}
 
 
 @app.route('/', methods=['GET'])
@@ -273,73 +318,45 @@ def sitemanager_post():
 
         return json_response(400, {"message": f"You should define procedure from list: {command_list}"})
 
-    force = True if data.get("force", "") in (1, "1", True, "true", "True") else False
     no_wait = True if data.get("no-wait", "") in (1, "1", True, "true", "True") else False
-
-    # Check services for running
-    if data.get("run-services", "") != "":
-
-        if type(data["run-services"]) == type([]) and hasattr(data["run-services"], "__iter__"):
-            run_services = data["run-services"]
-        else:
-            run_services = data["run-services"].replace(',', ' ').replace('  ', ' ').split(' ')
-    else:
-        run_services = []
-
-    # Check services for skipping
-    if data.get("skip-services", "") != "" and len(run_services) == 0:
-
-        if type(data["skip-services"]) == type([]) and hasattr(data["skip-services"], "__iter__"):
-            skip_services = data["skip-services"]
-        else:
-            skip_services = data["skip-services"].replace(',', ' ').replace('  ', ' ').split(' ')
-    else:
-        skip_services = []
 
     sm_dict = get_sitemanagers_dict()
     all_services = get_all_services(sm_dict)
 
-    # Check for service what does not exist in cluster
-    wrong_services = [elem for elem in (run_services + skip_services) if elem not in all_services]
-
-    if len(wrong_services) > 0:
-
-        return json_response(400, {"message": f"You defined service that does not exist in cluster",
-                                   "wrong-services": wrong_services})
-
-    services_to_run = get_services_to_run(run_services, skip_services, all_services)
-    logging.info(f"Following services will be processed: {services_to_run}")
-
     if data["procedure"] == "list":
+        return json_response(200, {"all-services": all_services})
 
-        return json_response(200, {"all-services": all_services,
-                                   "running-services": services_to_run})
+    # Check services for running
+    if isinstance(data.get("run-service", None), str):
+        run_service = data["run-service"]
+    else:
+        return json_response(400, {"message": f"run-service value should be defined and have String type"})
+
+    # Check for service what does not exist in cluster
+    if run_service not in all_services:
+
+        return json_response(400, {"message": f"Service doesn't exist",
+                                   "wrong-service": run_service})
+
+    logging.info(f"Following service will be processed: {run_service}")
 
     if data["procedure"] == "status":
         output = dict()
         output["services"] = {}
-        for item in services_to_run:
-            module = import_module(sm_dict["services"][item]["module"])
-            output["services"][item] = module.get_status(sm_dict["services"][item], **data)
+        output["services"][run_service] = get_status(sm_dict["services"][run_service], **data)
         return json_response(200, output)
 
-    logging.info(f"Start process services: {services_to_run}")
-
-    failed_services = []
-    for service in services_to_run:
-            module = import_module(sm_dict["services"][service]["module"])
-            result = module.run_service(service, sm_dict["services"][service], data["procedure"], no_wait)
-            if result == "fatal":
-                failed_services.append(service)
-
-    if failed_services:
+    mode = data["procedure"]
+    url = sm_dict["services"][run_service]['parameters']['serviceEndpoint']
+    logging.info(f"Service: {run_service}. Set mode {mode}. serviceEndpoint = {url}. No-wait {no_wait}")
+    resp = utils.send_post(url=url, mode=mode, no_wait=no_wait) 
+    if resp.get("bad_response") or resp.get("fatal"):
         return json_response(500, {"message": f"Procedure {data['procedure']} failed",
-                                   "services-failed": failed_services,
-                                   "services": services_to_run,
+                                   "service": run_service,
                                    "procedure": data['procedure']})
     else:
         return json_response(200, {"message": f"Procedure {data['procedure']} is started",
-                                   "services": services_to_run,
+                                   "service": run_service,
                                    "procedure": data['procedure']})
 
 
