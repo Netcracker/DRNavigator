@@ -16,6 +16,7 @@ Description: Client util to communicate with site-manager in kubernetes based cl
 import argparse
 import copy
 import logging
+import pathlib
 import ssl
 import threading
 import time
@@ -124,7 +125,18 @@ def init_and_check_config(args) -> bool:
         logging_level = logging.INFO
         logging_format = "%(asctime)s [%(levelname)s] %(filename)s: %(message)s"
 
-    logging.basicConfig(format=logging_format, level=logging_level)
+    log_output = None
+    if args.output:
+        if pathlib.Path(args.output).is_file():
+            log_output = args.output if os.access(args.output, os.W_OK) else None
+        elif os.access(pathlib.Path(args.output).expanduser().parent.resolve(), os.W_OK) and \
+                not pathlib.Path(args.output).expanduser().is_dir(): # do not take into account provided dirs
+            log_output = args.output
+
+        if not log_output:
+            logging.critical(f"Cannot write to {args.output} file. Printing stdout ...")
+
+    logging.basicConfig(filename=log_output, format=logging_format, level=logging_level)
 
     logging.debug(f"Script arguments: {args}")
 
@@ -870,6 +882,8 @@ def parse_command_line(command_args) -> argparse.Namespace:
     parser.add_argument('-c', '--config', default="", help='define the path to configuration file')
     parser.add_argument('-f', '--force', default=False, action='store_true', help='force apply DR action and ignore healthz')
     parser.add_argument('-k', '--insecure', default=False, action='store_true', help='enable self-signed certificates')
+    parser.add_argument('-o', '--output', default="", help='define the filename for logging output')
+
     parser.add_argument('--run-services', default='', help='define the list of services to apply DR action, by default all services participate')
     parser.add_argument('--skip-services',  default='', help='define the list of services what will not participate in DR action')
 
