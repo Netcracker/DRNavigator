@@ -1,0 +1,86 @@
+package app
+
+import (
+	"fmt"
+	"github.com/labstack/echo/v4"
+	"github.com/labstack/echo/v4/middleware"
+	"github.com/netcracker/drnavigator/paas-geo-monitor/pkg/client"
+	"github.com/netcracker/drnavigator/paas-geo-monitor/pkg/resources"
+	"gopkg.in/yaml.v3"
+	"net"
+	"net/http"
+	"os"
+)
+
+type Config struct {
+	Port  int
+	Peers []resources.Peer
+}
+
+func Serve(cfg *Config) error {
+	e := echo.New()
+	e.Use(middleware.Logger())
+
+	pingIp := os.Getenv("PING_IP")
+	if net.ParseIP(pingIp) == nil {
+		return fmt.Errorf("incorrect or empty PING_IP: '%s'", pingIp)
+	}
+
+	e.GET("/ping", pingHandler(pingIp))
+	e.GET("/peers/status", getPeersStatusHandler(cfg.Peers))
+
+	// todo: support TLS
+	return e.Start(fmt.Sprintf(":%d", cfg.Port))
+}
+
+func GetConfig(cfgPath string) (*Config, error) {
+	file, err := os.Open(cfgPath)
+	if err != nil {
+		return nil, err
+	}
+
+	cfg := &Config{}
+	decoder := yaml.NewDecoder(file)
+	err = decoder.Decode(cfg)
+	if err != nil {
+		return nil, err
+	}
+
+	for i := range cfg.Peers {
+		err := cfg.Peers[i].Init(&client.HttpClient{})
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if cfg.Port == 0 {
+		cfg.Port = 8080
+	}
+
+	return cfg, nil
+}
+
+func pingHandler(pingIp string) func(c echo.Context) error {
+	return func(c echo.Context) error {
+		return c.String(http.StatusOK, pingIp)
+	}
+}
+
+func getPeersStatusHandler(peers []resources.Peer) func(c echo.Context) error {
+	return func(c echo.Context) error {
+		statuses := make([]*resources.PeerStatus, len(peers))
+		for i := range peers {
+			s, err := peers[i].Status()
+			if err != nil {
+				return fmt.Errorf("failed to collect statuses: %s", err)
+			}
+			statuses[i] = s
+		}
+
+		resp, err := yaml.Marshal(statuses)
+		if err != nil {
+			return fmt.Errorf("failed to marshal response: %s", err)
+		}
+		return c.String(http.StatusOK, fmt.Sprintf("%v", string(resp)))
+	}
+}

@@ -1,0 +1,16 @@
+{{ if .Values.paasGeoMonitor.install }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: paas-geo-monitor
+  labels:
+    app: paas-geo-monitor
+spec:
+  ports:
+    - name: web
+      protocol: TCP
+      port: {{ include "paas-geo-monitor.port" . }}
+      targetPort:  {{ include "paas-geo-monitor.port" . }}
+  selector:
+    app: paas-geo-monitor
+{{ end }}

@@ -55,3 +55,9 @@ tls:
       additionalIpAddresses: []
 
 paas_platform: kubernetes
+
+paasGeoMonitor:
+  image: ghcr.io/netcracker/paas-geo-monitor:0.9.0
+  install: false
+  config:
+    peers: []

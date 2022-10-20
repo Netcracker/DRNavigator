@@ -1,0 +1,64 @@
+{{ if .Values.paasGeoMonitor.install }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: paas-geo-monitor
+spec:
+  selector:
+    matchLabels:
+      app: paas-geo-monitor
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: paas-geo-monitor
+    spec:
+      securityContext:
+        fsGroup: 1001
+      containers:
+      - name: paas-geo-monitor
+        securityContext:
+          runAsUser: 1001
+        image: {{ .Values.paasGeoMonitor.image}}
+        imagePullPolicy: Always
+        args:
+          - "--config=/config/config.yaml"
+        env:
+          - name: PING_IP
+            valueFrom:
+              fieldRef:
+                fieldPath: status.podIP
+        ports:
+          - containerPort: {{ include "paas-geo-monitor.port" . }}
+            protocol: TCP
+        volumeMounts:
+          - mountPath: /config
+            name: config
+        resources:
+          limits:
+              cpu: "300m"
+              memory: "150Mi"
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: {{ include "paas-geo-monitor.port" . }}
+            scheme: HTTP
+          initialDelaySeconds: 5
+          timeoutSeconds: 1
+          periodSeconds: 2
+          successThreshold: 1
+          failureThreshold: 5
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: {{ include "paas-geo-monitor.port" . }}
+            scheme: HTTP
+          timeoutSeconds: 2
+          periodSeconds: 20
+          successThreshold: 1
+          failureThreshold: 5
+      volumes:
+        - name: config
+          configMap:
+            name: paas-geo-monitor-cfg
+{{ end }}
