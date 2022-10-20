@@ -29,3 +29,8 @@ IP addresses used to generate SSL certificate with "Subject Alternative Name" fi
   {{- $ipAddresses = concat $ipAddresses .Values.tls.generateCerts.subjectAlternativeName.additionalIpAddresses -}}
   {{- $ipAddresses | toYaml -}}
 {{- end -}}
+
+{{- define "paas-geo-monitor.port" -}}
+  {{- print ( default 8080 .Values.paasGeoMonitor.config.port ) -}}
+{{- end -}}
+

@@ -1,0 +1,9 @@
+{{ if .Values.paasGeoMonitor.install }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: paas-geo-monitor-cfg
+data:
+  config.yaml: |
+{{- toYaml .Values.paasGeoMonitor.config | nindent 4 }}
+{{ end }}
