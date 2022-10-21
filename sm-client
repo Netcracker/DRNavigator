@@ -118,25 +118,35 @@ def init_and_check_config(args) -> bool:
     #@todo python version check; version print
 
     # Set verbosity for logging
-    if args.verbose:
-        logging_level = logging.DEBUG
-        logging_format = "%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
-    else:
-        logging_level = logging.INFO
-        logging_format = "%(asctime)s [%(levelname)s] %(filename)s: %(message)s"
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
 
-    log_output = None
+    ch = logging.StreamHandler()
+    if args.verbose:
+        ch.setLevel(logging.DEBUG)
+        ch.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"))
+    else:
+        ch.setLevel(logging.INFO)
+        ch.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s: %(message)s"))
+
+    logger.addHandler(ch)
+
     if args.output:
+        log_output = None
         if pathlib.Path(args.output).is_file():
-            log_output = args.output if os.access(args.output, os.W_OK) else None
+            log_output = pathlib.Path(args.output).expanduser() if os.access(args.output, os.W_OK) else None
         elif os.access(pathlib.Path(args.output).expanduser().parent.resolve(), os.W_OK) and \
                 not pathlib.Path(args.output).expanduser().is_dir(): # do not take into account provided dirs
-            log_output = args.output
+            log_output = pathlib.Path(args.output).expanduser()
 
         if not log_output:
             logging.critical(f"Cannot write to {args.output} file. Printing stdout ...")
-
-    logging.basicConfig(filename=log_output, format=logging_format, level=logging_level)
+        else:
+            fh = logging.FileHandler(log_output)
+            fh.setLevel(logging.DEBUG)
+            fh.set_name("logfile")
+            fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"))
+            logger.addHandler(fh)
 
     logging.debug(f"Script arguments: {args}")
 
