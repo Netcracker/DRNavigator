@@ -143,7 +143,6 @@ def init_and_check_config(args) -> bool:
         else:
             fh = logging.FileHandler(log_output)
             fh.setLevel(logging.DEBUG)
-            fh.set_name("logfile")
             fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"))
             logger.addHandler(fh)
 
