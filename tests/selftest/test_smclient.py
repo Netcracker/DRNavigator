@@ -30,6 +30,7 @@ def args_init(config=None):
     args.run_services=""
     args.skip_services=""
     args.output=None
+    args.command="version"
     return args
 
 

@@ -18,6 +18,7 @@ import copy
 import logging
 import pathlib
 import ssl
+import sys
 import threading
 import time
 from graphlib import TopologicalSorter, CycleError
@@ -142,6 +143,8 @@ def init_and_check_config(args) -> bool:
             fh = logging.FileHandler(log_output)
             fh.setLevel(logging.DEBUG)
             fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"))
+            fh.emit(logging.LogRecord("",logging.INFO,sys.argv[0], 0, args.command,None,None)) # add delimeter in logfile
+
             logger.addHandler(fh)
 
     logging.debug(f"Script arguments: {args}")
@@ -894,6 +897,7 @@ def parse_command_line(command_args) -> argparse.Namespace:
     parser.add_argument('--skip-services',  default='', help='define the list of services what will not participate in DR action')
 
     subparsers = parser.add_subparsers()
+    subparsers.required=True
 
     parser_1 = subparsers.add_parser('move', help='move Active functionality to Standby site')  # DR switchover
     parser_1.add_argument('site', help=SITE_HELP_SECTION)
