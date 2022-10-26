@@ -749,7 +749,7 @@ The main idea of `sm-client` is control of sequence of DR procedures for every i
 
 ```
 $ ./sm-client --help
-usage: sm-client [-h] [-v] [-c CONFIG] [-f] [--run-services RUN_SERVICES] [--skip-services SKIP_SERVICES] {move,stop,return,mntc,active,standby,list,status,daemon} ...
+usage: sm-client [-h] [-v] [-c CONFIG] [-f] [--run-services RUN_SERVICES] [--skip-services SKIP_SERVICES] {move,stop,return,disable,active,standby,list,status,daemon} ...
 
 Script to manage DR cases in kubernetes Active-Standby scheme
 
@@ -764,15 +764,15 @@ How to use commands:
   | failed       | STANDBY       |  ===>  | stopped      | ACTIVE        |  =  | stop    |
   | stopped      | ACTIVE        |  ===>  | STANDBY      | ACTIVE        |  =  | return  |
   | ACTIVE       | stopped       |  ===>  | ACTIVE       | STANDBY       |  =  | return  |
-  | ACTIVE       | STANDBY       |  ===>  | ACTIVE       | stopped       |  =  | mntc    |
+  | ACTIVE       | STANDBY       |  ===>  | ACTIVE       | stopped       |  =  | disable |
   +--------------+---------------+--------+--------------+---------------+-----+---------+
 
 positional arguments:
-  {move,stop,return,mntc,active,standby,list,status,daemon}
+  {move,stop,return,disable,active,standby,list,status,daemon}
     move                move Active functionality to Standby site
     stop                excludes site from Active-Standby scheme
     return              return stopped kubernetes cluster to Standby role
-    mntc                stop Standby kubernetes cluster for maintenance
+    disable             stop Standby kubernetes cluster for maintenance
     active              set kubernetes cluster services to active mode
     standby             set kubernetes cluster services to standby mode
     list                list all services from Active-Standby scheme managed by site-manager with dependencies
@@ -796,7 +796,7 @@ where:
   - `move site` is the action for switchover. Both sites are working, and you need to switch active site to new. Site in command will be `active` after apply.
   - `stop site` is the action for failover. This commands uses in case of `active` site is failed. Site in command will be `standby` after apply.
   - `return site` is the action for switching on `standby` site after failover. Site in command will be `standby` after apply. This action applied to only one site.
-  - `mntc site` is the action to switch microservices of site to mode `disable`. Site in command will be `disable` after apply. This action applied to only one site.
+  - `disable site` is the action to switch microservices of site to mode `disable`. Site in command will be `disable` after apply. This action applied to only one site.
   - `active site` is the action to switch site to `active` mode. This action applied to only one site.
   - `standby site`  is the action to switch site to `standby` mode. This action applied to only one site.
   - `list` is the action to list all or part of microservices of sites.
@@ -879,7 +879,7 @@ services that ignored: ['paas', 'mongo']
 Stop standby cluster k8s-1 for maintenance:
 
 ```
-./sm-client mntc k8s-1
+./sm-client disable k8s-1
 ```
 
 Check status of services:

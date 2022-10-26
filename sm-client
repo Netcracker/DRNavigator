@@ -46,7 +46,7 @@ How to use commands:
   | failed       | STANDBY       |  ===>  | stopped      | ACTIVE        |  =  | stop    |
   | stopped      | ACTIVE        |  ===>  | STANDBY      | ACTIVE        |  =  | return  |
   | ACTIVE       | stopped       |  ===>  | ACTIVE       | STANDBY       |  =  | return  |
-  | ACTIVE       | STANDBY       |  ===>  | ACTIVE       | stopped       |  =  | mntc    |
+  | ACTIVE       | STANDBY       |  ===>  | ACTIVE       | stopped       |  =  | disable |
   +--------------+---------------+--------+--------------+---------------+-----+---------+
 """
 SITE_HELP_SECTION = """define the cluster name.
@@ -54,7 +54,7 @@ This site:
   will be active in case of move 
   will be standby in case of stop
   will be standby in case of return
-  will be disable to maintenance in case of mntc
+  will be disable to maintenance in case of disable
 """
 
 done_services = []
@@ -72,7 +72,7 @@ thread_result_queue = Queue(maxsize=-1)
 
 readonly_cmd = ("status", "list")
 dr_procedures =("move", "stop") + readonly_cmd  # DR procedures: switchover, failover
-site_cmds =("active", "standby", "return", "mntc") + readonly_cmd  # per site commands
+site_cmds =("active", "standby", "return", "disable") + readonly_cmd  # per site commands
 
 run_services = []
 skip_services = []
@@ -83,7 +83,7 @@ class SMConf(dict): # global config.yaml and some RO config parameters and args,
     def get_active_site(self, cmd, site):
         if cmd in ["active", "move"]:
             return site
-        elif cmd in ["stop", "standby", 'mntc']:
+        elif cmd in ["stop", "standby", 'disable']:
             return self.get_opposite_site(site)
         else:
             return None
@@ -101,9 +101,7 @@ class SMConf(dict): # global config.yaml and some RO config parameters and args,
     def convert_sitecmd_to_dr_mode(self,site_cmd):
         """ Converts <site_cmd>  into DR mode ["active","standby","disable"]
         """
-        if site_cmd == "mntc":
-            return "disable"
-        elif site_cmd == "return":
+        if site_cmd == "return":
             return "standby"
         else:  # "active","standby" are modes.
             return site_cmd
@@ -370,7 +368,7 @@ def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
                 force = args.force
 
             if sm_dict[site_to_process]['status']: # to process only available sites
-                sm_process_service(site_to_process, service, mode) # todo skip next site in case previous site failed ??
+                sm_process_service(site_to_process, service, mode) # todo[0] skip next in case previous site failed ??
                 service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force)
 
         thread_result_queue.put(service_response)
@@ -522,7 +520,7 @@ def run(services:[] = None, cmd="", site=""):
                         if i in service_dep_ordered:
                             ServiceDRStatus({'services':{i:{'status':'failed'}}}).sortout_service_results()
                     break
-                if cmd in ['standby', 'mntc', 'return'] and (states and states == ['active']):
+                if cmd in ['standby', 'disable', 'return'] and (states and states == ['active']):
                     break
                 if cmd in 'active' and (states and set(states) == {'standby', 'disable'}):
                     continue
@@ -533,8 +531,8 @@ def run(services:[] = None, cmd="", site=""):
 
                     if cmd in ['move', 'stop']:
                         return states[0]
-                    elif cmd in 'mntc':
-                        return 'mntc'
+                    elif cmd in ['disable']:
+                        return 'disable'
                     else:
                         return states[0]
                 run_module(module, get_state(cmd,states))
@@ -909,9 +907,9 @@ def parse_command_line(command_args) -> argparse.Namespace:
     parser_3.add_argument('site', help=SITE_HELP_SECTION)
     parser_3.set_defaults(command='return')
 
-    parser_4 = subparsers.add_parser('mntc', help='stop Standby kubernetes cluster for maintenance')
+    parser_4 = subparsers.add_parser('disable', help='stop Standby kubernetes cluster for maintenance')
     parser_4.add_argument('site', help=SITE_HELP_SECTION)
-    parser_4.set_defaults(command='mntc')
+    parser_4.set_defaults(command='disable')
 
     parser_5 = subparsers.add_parser('active', help='set kubernetes cluster services to active mode')
     parser_5.add_argument('site', help=SITE_HELP_SECTION)

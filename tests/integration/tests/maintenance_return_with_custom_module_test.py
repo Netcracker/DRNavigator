@@ -56,7 +56,7 @@ class MaintenanceReturnWihCustomModuleTestCase:
         logging.info("TEST MAINTENANCE ACTIVE SITE WITH CUSTOM MODULE SERVICES")
         # Run maintenance
         test_utils.run_sm_client_command_with_exit(
-            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "mntc", "site_1"])
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "disable", "site_1"])
 
         # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
@@ -67,7 +67,7 @@ class MaintenanceReturnWihCustomModuleTestCase:
         logging.info("TEST MAINTENANCE STANDBY SITE WITH CUSTOM MODULE SERVICES")
         # Run maintenance
         test_utils.run_sm_client_command_with_exit(
-            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "mntc", "site_2"])
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "disable", "site_2"])
 
         # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
@@ -101,7 +101,7 @@ class MaintenanceReturnWihCustomModuleTestCase:
         # Run maintenance
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
-             "--run-services", "custom_module_service", "mntc", "site_2"])
+             "--run-services", "custom_module_service", "disable", "site_2"])
 
         # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
@@ -125,7 +125,7 @@ class MaintenanceReturnWihCustomModuleTestCase:
         # Run maintenance
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
-             "--skip-services", "custom_module_service", "mntc", "site_2"])
+             "--skip-services", "custom_module_service", "disable", "site_2"])
 
         # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
