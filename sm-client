@@ -371,7 +371,8 @@ def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
                 force = args.force
 
             if sm_dict[site_to_process]['status']: # to process only available sites
-                sm_process_service(site_to_process, service, mode) # todo[0] skip next in case previous site failed ??
+                sm_process_service(site_to_process, service, mode, False if 'move' in cmd else True)
+                # todo[0] skip next in case previous site failed ??
                 service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force)
 
         thread_result_queue.put(service_response)
@@ -747,7 +748,7 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
     return service_dep_ordered,ts
 
 
-def sm_process_service(site, service, site_cmd: str, no_wait=False, force=False) -> Tuple[Dict, bool, int]:
+def sm_process_service(site, service, site_cmd: str, no_wait=True, force=False) -> Tuple[Dict, bool, int]:
     """ Processes the service with specific site cmd """
     global sm_conf
 
