@@ -487,7 +487,7 @@ def run(services:[] = None, cmd="", site=""):
                 service_to_run = sm_dict.get_module_services(sm_dict.get_available_sites()[0], module)[0]
                 if service_to_run in service_dep_ordered and sm_dict[site_to_run]['status']:
                     logging.debug(f"on site {site_to_run}. Services {service_to_run}  ")
-                    sm_process_service(site_to_run, service_to_run, state)
+                    sm_process_service(site_to_run, service_to_run, state, False if 'move' in cmd else True)
                     response=sm_poll_service_required_status(site_to_run, service_to_run,
                                                              sm_conf.convert_sitecmd_to_dr_mode(state), sm_dict)
                     response.sortout_service_results()
