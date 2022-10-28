@@ -144,17 +144,16 @@ def json_response(code, body):
 def get_status(service, *args, **kwargs):
     """
     Method that collects complete information about the state of the service
-
-    :param dict service: service's CR
+    @param dict service: service's CR
     """
 
     output = dict()
-    status = utils.send_get(service['parameters']["serviceEndpoint"])
+    _, status, _ = utils.io_make_http_json_request(service['parameters']["serviceEndpoint"],token=utils.SM_AUTH_TOKEN)
     output["mode"] = status.get("mode", "--")
     output["status"] = status.get("status", "--")
     output["message"] = status.get("message", "")
     if service['parameters'].get("healthzEndpoint", "") != "":
-        healthz = utils.send_get(service['parameters']["healthzEndpoint"])
+        _, healthz, _ = utils.io_make_http_json_request(service['parameters']["healthzEndpoint"],token=utils.SM_AUTH_TOKEN)
         output["healthz"] = healthz.get("status", "--")
     else:
         output["healthz"] = "--"
@@ -349,7 +348,7 @@ def sitemanager_post():
     mode = data["procedure"]
     url = sm_dict["services"][run_service]['parameters']['serviceEndpoint']
     logging.info(f"Service: {run_service}. Set mode {mode}. serviceEndpoint = {url}. No-wait {no_wait}")
-    resp = utils.send_post(url=url, mode=mode, no_wait=no_wait) 
+    resp = utils.send_post(url=url, mode=mode, no_wait=no_wait)
     if resp.get("bad_response") or resp.get("fatal"):
         return json_response(500, {"message": f"Procedure {data['procedure']} failed",
                                    "service": run_service,

@@ -16,7 +16,9 @@ Description: Client util to communicate with site-manager in kubernetes based cl
 import argparse
 import copy
 import logging
+import pathlib
 import ssl
+import sys
 import threading
 import time
 from graphlib import TopologicalSorter, CycleError
@@ -24,15 +26,13 @@ from http import HTTPStatus
 from queue import Queue
 
 import yaml
-import requests.packages
 import os
 
-from requests.adapters import HTTPAdapter
 from prettytable import PrettyTable
 from typing import Tuple, Dict, Optional
-from urllib3 import Retry
-from urllib3.exceptions import InsecureRequestWarning
 
+
+from utils import  io_make_http_json_request
 MAIN_HELP_SECTION = """
 Script to manage DR cases in kubernetes Active-Standby scheme
 
@@ -47,7 +47,7 @@ How to use commands:
   | failed       | STANDBY       |  ===>  | stopped      | ACTIVE        |  =  | stop    |
   | stopped      | ACTIVE        |  ===>  | STANDBY      | ACTIVE        |  =  | return  |
   | ACTIVE       | stopped       |  ===>  | ACTIVE       | STANDBY       |  =  | return  |
-  | ACTIVE       | STANDBY       |  ===>  | ACTIVE       | stopped       |  =  | mntc    |
+  | ACTIVE       | STANDBY       |  ===>  | ACTIVE       | stopped       |  =  | disable |
   +--------------+---------------+--------+--------------+---------------+-----+---------+
 """
 SITE_HELP_SECTION = """define the cluster name.
@@ -55,7 +55,7 @@ This site:
   will be active in case of move 
   will be standby in case of stop
   will be standby in case of return
-  will be disable to maintenance in case of mntc
+  will be disable to maintenance in case of disable
 """
 
 done_services = []
@@ -73,7 +73,7 @@ thread_result_queue = Queue(maxsize=-1)
 
 readonly_cmd = ("status", "list")
 dr_procedures =("move", "stop") + readonly_cmd  # DR procedures: switchover, failover
-site_cmds =("active", "standby", "return", "mntc") + readonly_cmd  # per site commands
+site_cmds =("active", "standby", "return", "disable") + readonly_cmd  # per site commands
 
 run_services = []
 skip_services = []
@@ -84,7 +84,7 @@ class SMConf(dict): # global config.yaml and some RO config parameters and args,
     def get_active_site(self, cmd, site):
         if cmd in ["active", "move"]:
             return site
-        elif cmd in ["stop", "standby", 'mntc']:
+        elif cmd in ["stop", "standby", 'disable']:
             return self.get_opposite_site(site)
         else:
             return None
@@ -102,9 +102,7 @@ class SMConf(dict): # global config.yaml and some RO config parameters and args,
     def convert_sitecmd_to_dr_mode(self,site_cmd):
         """ Converts <site_cmd>  into DR mode ["active","standby","disable"]
         """
-        if site_cmd == "mntc":
-            return "disable"
-        elif site_cmd == "return":
+        if site_cmd == "return":
             return "standby"
         else:  # "active","standby" are modes.
             return site_cmd
@@ -119,14 +117,35 @@ def init_and_check_config(args) -> bool:
     #@todo python version check; version print
 
     # Set verbosity for logging
-    if args.verbose:
-        logging_level = logging.DEBUG
-        logging_format = "%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
-    else:
-        logging_level = logging.INFO
-        logging_format = "%(asctime)s [%(levelname)s] %(filename)s: %(message)s"
+    logger = logging.getLogger()
+    logger.setLevel(logging.DEBUG)
 
-    logging.basicConfig(format=logging_format, level=logging_level)
+    ch = logging.StreamHandler()
+    if args.verbose:
+        ch.setLevel(logging.DEBUG)
+        ch.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"))
+    else:
+        ch.setLevel(logging.INFO)
+        ch.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s: %(message)s"))
+
+    logging.basicConfig(handlers=[ch])
+    if args.output:
+        log_output = None
+        if pathlib.Path(args.output).is_file():
+            log_output = pathlib.Path(args.output).expanduser() if os.access(args.output, os.W_OK) else None
+        elif os.access(pathlib.Path(args.output).expanduser().parent.resolve(), os.W_OK) and \
+                not pathlib.Path(args.output).expanduser().is_dir(): # do not take into account provided dirs
+            log_output = pathlib.Path(args.output).expanduser()
+
+        if not log_output:
+            logging.critical(f"Cannot write to {args.output} file. Printing stdout ...")
+        else:
+            fh = logging.FileHandler(log_output)
+            fh.setLevel(logging.DEBUG)
+            fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"))
+            fh.emit(logging.LogRecord("",logging.INFO,sys.argv[0], 0, args.command,None,None)) # add delimeter in logfile
+
+            logger.addHandler(fh)
 
     logging.debug(f"Script arguments: {args}")
 
@@ -352,7 +371,8 @@ def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
                 force = args.force
 
             if sm_dict[site_to_process]['status']: # to process only available sites
-                sm_process_service(site_to_process, service, mode) # todo skip next site in case previous site failed ??
+                sm_process_service(site_to_process, service, mode, False if 'move' in cmd else True)
+                # todo[0] skip next in case previous site failed ??
                 service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force)
 
         thread_result_queue.put(service_response)
@@ -467,7 +487,7 @@ def run(services:[] = None, cmd="", site=""):
                 service_to_run = sm_dict.get_module_services(sm_dict.get_available_sites()[0], module)[0]
                 if service_to_run in service_dep_ordered and sm_dict[site_to_run]['status']:
                     logging.debug(f"on site {site_to_run}. Services {service_to_run}  ")
-                    sm_process_service(site_to_run, service_to_run, state)
+                    sm_process_service(site_to_run, service_to_run, state, False if 'move' in cmd else True)
                     response=sm_poll_service_required_status(site_to_run, service_to_run,
                                                              sm_conf.convert_sitecmd_to_dr_mode(state), sm_dict)
                     response.sortout_service_results()
@@ -504,7 +524,7 @@ def run(services:[] = None, cmd="", site=""):
                         if i in service_dep_ordered:
                             ServiceDRStatus({'services':{i:{'status':'failed'}}}).sortout_service_results()
                     break
-                if cmd in ['standby', 'mntc', 'return'] and (states and states == ['active']):
+                if cmd in ['standby', 'disable', 'return'] and (states and states == ['active']):
                     break
                 if cmd in 'active' and (states and set(states) == {'standby', 'disable'}):
                     continue
@@ -515,8 +535,8 @@ def run(services:[] = None, cmd="", site=""):
 
                     if cmd in ['move', 'stop']:
                         return states[0]
-                    elif cmd in 'mntc':
-                        return 'mntc'
+                    elif cmd in ['disable']:
+                        return 'disable'
                     else:
                         return states[0]
                 run_module(module, get_state(cmd,states))
@@ -728,63 +748,7 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
     return service_dep_ordered,ts
 
 
-def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None, retry=3) -> Tuple[bool, Dict, int]:
-    """ Sends GET/POST request to service
-    @param string url: the URL to service operator
-    @param token: Bearer token
-    @param verify: Server side SSL verification
-    @param retry: the number of retries
-    @param http_body: the dictionary with procedure and list of services
-    @returns: True/False, Dict with not empty json body in case Ok/{}, HTTP_CODE/
-    IO SSL codes: ssl.SSLErrorNumber.SSL_ERROR_SSL/SSLErrorNumber.SSL_ERROR_EOF
-    """
-    if(not os.getenv("DEBUG")):
-        # Disable warnings about self-signed certificates from requests library
-        requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
-
-    if token != "" and FRONT_HTTP_AUTH:
-        headers = {"Authorization": f"Bearer {token}"}
-    else:
-        headers = {}
-    if not http_body:
-        http_body = {}
-    logging.debug(f"REST url: {url}")
-    logging.debug(f"REST data: {http_body}")
-
-    session = requests.Session()
-    retries = Retry(total=retry)
-    session.mount('https://', HTTPAdapter(max_retries=retries))
-    session.mount('http://', HTTPAdapter(max_retries=retries))
-
-    logging.getLogger("urllib3").setLevel(logging.CRITICAL)
-
-    try:
-        if any(http_body):
-            resp = session.post(url, json=http_body, timeout=30, headers=headers, verify=verify)
-        else:
-            resp = session.get(url, timeout=5, headers=headers, verify=verify)
-        logging.debug(f"REST response: {resp.json()}")
-        return True, resp.json() if resp.json() else {}, resp.status_code # return ANY content with HTTP code
-
-    except requests.exceptions.SSLError as e:
-        logging.error("SSL certificate verify failed")
-        #TODO in more accurate manner error handling manner
-        if "SSLCertVerificationError" in str(e.args): ## SSL Verification fails ; SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)')
-            return False, {}, ssl.SSLErrorNumber.SSL_ERROR_SSL.__int__() # - 1
-        elif "SSLEOFError" in str(e.args): # SSL connect error, SSL resource is not accessible vi ha-proxy  ; SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
-            #TODO need a test for this case
-            return False, {}, ssl.SSLErrorNumber.SSL_ERROR_EOF.__int__() # - 8
-    except requests.exceptions.JSONDecodeError:
-        logging.error("Wrong JSON data received")
-    except requests.exceptions.RequestException as e:
-        logging.error("General request error %s",e.__doc__)
-    except Exception as e :
-        logging.error("General error %s",e.__doc__)
-
-    return False,{},False
-
-
-def sm_process_service(site, service, site_cmd: str, no_wait=False, force=False) -> Tuple[Dict, bool, int]:
+def sm_process_service(site, service, site_cmd: str, no_wait=True, force=False) -> Tuple[Dict, bool, int]:
     """ Processes the service with specific site cmd """
     global sm_conf
 
@@ -796,7 +760,8 @@ def sm_process_service(site, service, site_cmd: str, no_wait=False, force=False)
     ret, response, return_code = io_make_http_json_request(sm_conf[site]["url"],
                                                            sm_conf[site]["token"],
                                                            sm_conf[site]["cacert"],
-                                                           body)
+                                                           body,
+                                                           use_auth=FRONT_HTTP_AUTH)
     return response,True if return_code == HTTPStatus.OK else False, return_code
 
 
@@ -927,10 +892,13 @@ def parse_command_line(command_args) -> argparse.Namespace:
     parser.add_argument('-c', '--config', default="", help='define the path to configuration file')
     parser.add_argument('-f', '--force', default=False, action='store_true', help='force apply DR action and ignore healthz')
     parser.add_argument('-k', '--insecure', default=False, action='store_true', help='enable self-signed certificates')
+    parser.add_argument('-o', '--output', default="", help='define the filename for logging output')
+
     parser.add_argument('--run-services', default='', help='define the list of services to apply DR action, by default all services participate')
     parser.add_argument('--skip-services',  default='', help='define the list of services what will not participate in DR action')
 
     subparsers = parser.add_subparsers()
+    subparsers.required=True
 
     parser_1 = subparsers.add_parser('move', help='move Active functionality to Standby site')  # DR switchover
     parser_1.add_argument('site', help=SITE_HELP_SECTION)
@@ -944,9 +912,9 @@ def parse_command_line(command_args) -> argparse.Namespace:
     parser_3.add_argument('site', help=SITE_HELP_SECTION)
     parser_3.set_defaults(command='return')
 
-    parser_4 = subparsers.add_parser('mntc', help='stop Standby kubernetes cluster for maintenance')
+    parser_4 = subparsers.add_parser('disable', help='stop Standby kubernetes cluster for maintenance')
     parser_4.add_argument('site', help=SITE_HELP_SECTION)
-    parser_4.set_defaults(command='mntc')
+    parser_4.set_defaults(command='disable')
 
     parser_5 = subparsers.add_parser('active', help='set kubernetes cluster services to active mode')
     parser_5.add_argument('site', help=SITE_HELP_SECTION)

@@ -4,6 +4,8 @@ pytest based unit test
 python3  -m pytest -o log_cli=true -s -v tests/selftest/test_smclient.py <-k  test_name*>
 """
 import json
+import logging
+
 import pytest
 from smclient import *
 from http import HTTPStatus
@@ -12,9 +14,9 @@ import ssl
 import threading
 import os
 
+test_config_path=os.path.abspath("tests/selftest/resources/config_test.yaml")
+test_wrong_config_path=os.path.abspath("tests/selftest/resources/config_test_wrong.yaml")
 
-test_config_path = os.path.abspath("tests/selftest/resources/config_test.yaml")
-test_wrong_config_path = os.path.abspath("tests/selftest/resources/config_test_wrong.yaml")
 
 def pytest_namespace():
     return {'site_name':None}
@@ -27,19 +29,20 @@ def args_init(config=None):
     args.config=config if config else test_config_path
     args.run_services=""
     args.skip_services=""
-    init_and_check_config(args)
+    args.output=None
+    args.command="version"
     return args
 
 
 def test_sm_process_service(mocker, caplog):
-    args_init()
+    init_and_check_config(args_init())
     test_resp={'services':{'test1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
     caplog.set_level(logging.DEBUG)
     fake_resp=mocker.Mock()
     fake_resp.json=mocker.Mock(return_value=test_resp)
     fake_resp.status_code=HTTPStatus.OK
 
-    mocker.patch("smclient.requests.Session.post", return_value=fake_resp)
+    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
 
     json_body_s, ret, code=sm_process_service("k8s-1", "test1", "active")
 
@@ -139,7 +142,6 @@ def test_io_http_json_request():
            json.loads('"' + str(json_body) + '"') and \
            len(record) > 1, "Returned: 200 OK, dict, JSON, SSL warning "
 
-
     """ FAIL in case not JSON returned with 200 OK """
     ret, json_body, http_code=io_make_http_json_request("https://www.github.com", verify=True)
 
@@ -171,7 +173,7 @@ def test_io_http_json_request():
 
 
 def test_validate_operation(caplog):
-    args_init()
+    init_and_check_config(args_init())
 
     sm_dict=SMClusterState("k8s-1")
     sm_dict["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
@@ -186,7 +188,7 @@ def test_validate_operation(caplog):
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict_site_not_available, "active", "k8s-1")
 
-    args_init()
+    init_and_check_config(args_init())
     sm_dict_status=SMClusterState()
     sm_dict_status["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
                              "ts":TopologicalSorter2}
@@ -219,7 +221,7 @@ def test_validate_operation(caplog):
 
 
 def test_get_available_sites(caplog):
-    args_init()
+    init_and_check_config(args_init())
     sm_dict=SMClusterState()
     sm_dict["k8s-1"]={"status":True}
     sm_dict["k8s-2"]={"status":True}
@@ -236,7 +238,7 @@ def test_get_available_sites(caplog):
 
 
 def test_SMClusterState_init():
-    args_init()
+    init_and_check_config(args_init())
 
     assert SMClusterState()
     assert SMClusterState("k8s-1")
@@ -247,39 +249,39 @@ def test_SMClusterState_init():
     assert "services" and "dep_issue" in SMClusterState({"k8s-3":{"services":{"serv1":{}},
                                                                   "status":False},
                                                          "k8s-1":{}})["k8s-3"]
-    sm_dict = SMClusterState()
+    sm_dict=SMClusterState()
     sm_dict["k8s-1"]={"services":{
         "serv1":{"module":'stateful'},
         "serv2":{"module":'stateful'},
         "serv3":{"module":'notstateful'}}}
-    assert sm_dict.get_module_services('k8s-1','stateful') == ['serv1','serv2'] and \
-            sm_dict.get_module_services('k8s-1','notstateful') == ['serv3']
+    assert sm_dict.get_module_services('k8s-1', 'stateful') == ['serv1', 'serv2'] and \
+           sm_dict.get_module_services('k8s-1', 'notstateful') == ['serv3']
 
-    args_init(test_wrong_config_path)
+
+    init_and_check_config(args_init(test_wrong_config_path))
     with pytest.raises(ValueError) as e:
         SMClusterState()
     assert str(e.value) in "Only two sites in clusters are supported"
 
 
 def test_unexist_config_file_init():
-    args_init()
+    init_and_check_config(args_init())
 
     with pytest.raises(SystemExit) as pytest_wrapped_e:
-        args_init("config_test_fake.yaml")
+        init_and_check_config(args_init("config_test_fake.yaml"))
         assert pytest_wrapped_e.type == SystemExit
         assert pytest_wrapped_e.value.code == 1
 
 
 def test_ServiceDRStatus_init():
-
-    stat = ServiceDRStatus({'services': {'test':{'healthz':'up', 'mode':'disable', 'status':'done'}}})
+    stat=ServiceDRStatus({'services':{'test':{'healthz':'up', 'mode':'disable', 'status':'done'}}})
     assert stat.status in "done" and stat.healthz in 'up' and stat.mode in 'disable'
 
-    assert not ServiceDRStatus({'services': {'test':{'healthz':'up'}}}).healthz in "degraded"
+    assert not ServiceDRStatus({'services':{'test':{'healthz':'up'}}}).healthz in "degraded"
 
-    assert ServiceDRStatus({'services': {'test':{'mode':'disable'}}})['mode'] in "disable"
+    assert ServiceDRStatus({'services':{'test':{'mode':'disable'}}})['mode'] in "disable"
 
-    assert ServiceDRStatus({'services': {'test':{}}})['mode'] in "--"
+    assert ServiceDRStatus({'services':{'test':{}}})['mode'] in "--"
 
     assert ServiceDRStatus({'services':{'test':{}}}).service in "test"
 
@@ -290,26 +292,27 @@ def test_ServiceDRStatus_init():
         assert ServiceDRStatus()
         assert ServiceDRStatus({'services':{}})
 
-    stat = ServiceDRStatus({'message': 'You defined service that does not exist in cluster',
-                            'wrong-service': 'absent-service'})
+    stat=ServiceDRStatus({'message':'You defined service that does not exist in cluster',
+                          'wrong-service':'absent-service'})
     assert stat.service in 'absent-service' and stat.message and not stat.is_ok()
 
 
 def test_runservise_engine(caplog):
     def process_node(node):
-        node = ServiceDRStatus({'services':{node:{}}})
+        node=ServiceDRStatus({'services':{node:{}}})
         if node.service in test_failed_services:
-            node.healthz = 'down'
+            node.healthz='down'
         else:
-            node.healthz = 'up'
+            node.healthz='up'
         thread_result_queue.put(node)
 
     caplog.set_level(logging.INFO)
     thread_pool=[]
-    ts = TopologicalSorter2()
+    ts=TopologicalSorter2()
     ts.add("aa")
     ts.add("bb1", "bb")
-    ts.add("cc") ; ts.add("cc1","cc")
+    ts.add("cc")
+    ts.add("cc1", "cc")
     test_failed_services=['bb']
     ts.prepare()
     """ ------------ """
@@ -327,9 +330,9 @@ def test_runservise_engine(caplog):
             thread.name=f"Thread: {serv}"
             thread_pool.append(thread)
             thread.start()
-        service_response = thread_result_queue.get()
+        service_response=thread_result_queue.get()
 
-        if not service_response.is_ok() :  # mark failed and skip successors of serv_done
+        if not service_response.is_ok():  # mark failed and skip successors of serv_done
             for s in ts.successors(service_response.service):
                 logging.debug(f"Found successor {s} for failed {service_response.service} ")
                 failed_successors.append(s)
@@ -340,13 +343,13 @@ def test_runservise_engine(caplog):
 
     logging.info(f"failed_services: {failed_services}")
     logging.info(f"done_services: {done_services}")
-    assert done_services == ['aa', 'cc', 'cc1'] and failed_services == ['bb','bb1']
+    assert done_services == ['aa', 'cc', 'cc1'] and failed_services == ['bb', 'bb1']
 
 
 def test_get_dr_operation_sequence():
     """ DR commands sequence calculation check
       """
-    args_init()
+    init_and_check_config(args_init())
     sm_dict=SMClusterState()
     sm_dict["k8s-1"]={"services":{
         "serv1":{"sequence":["standby", "active"]},
@@ -373,4 +376,15 @@ def test_get_dr_operation_sequence():
     assert [['k8s-2', 'active'], ['k8s-1', 'standby']] == sm_dict2.get_dr_operation_sequence('serv1', 'move', 'k8s-2')
 
 
+def test_init_and_check_config(caplog):
+    """ Test file logging capabilities, -o file.log """
+    args = args_init()
+    for args.output in [ "output.log","not_exist_file","/tmp/not_exist_file","~/not_exist_file"]:
+        with caplog.at_level(logging.CRITICAL):
+            init_and_check_config(args)
+            assert f"Cannot write to {args.output }" not in caplog.text
 
+    for args.output in [ "/","/not_exist_file","/etc/passwd","~/", "./"]:
+        with caplog.at_level(logging.CRITICAL):
+            init_and_check_config(args)
+            assert f"Cannot write to {args.output }" in caplog.text
