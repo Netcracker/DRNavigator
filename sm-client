@@ -331,7 +331,7 @@ def sm_get_cluster_state(site=None) -> SMClusterState:
     return sm_dict
 
 
-def sm_process_service_with_polling(site, service, cmd, sm_dict) -> None:
+def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
     global thread_result_queue
 
     service_response = ServiceDRStatus({'services':{service:{}}})
@@ -392,6 +392,40 @@ def print_service_order(ts: TopologicalSorter2, sm_dict: SMClusterState):
             logging.debug(f"{serv}")
             ts.done(serv)
     logging.debug("Done. ----------------")
+
+
+def process_ts_services(ts:TopologicalSorter2, process_func, *run_args:()) -> None:
+    """ Runs services in ts object one-by-one on both sites using process_func method.
+    process_func have to put  ServiceDRStatus result in thread_result_queue  queue
+    @param ts: TopologicalSorter2
+    @param process_func: method with 1 mandatory param - service name from ts
+    @param run_args: list of additional params  passed to process_func
+    """
+    failed_successors=[]
+    serv_thread_pool=[]
+    global thread_result_queue
+
+    while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
+        for serv in ts.get_ready():
+            if serv in failed_successors:
+                logging.info(f"Service {serv} marked as failed due to dependencies")
+                thread_result_queue.put(ServiceDRStatus({'services':{serv:{}}}))
+                break
+            thread=threading.Thread(target=process_func,
+                                    args=(serv,) + run_args)
+            thread.name=f"Thread: {serv}"
+            serv_thread_pool.append(thread)
+            thread.start()
+        service_response = thread_result_queue.get()
+
+        if not service_response.is_ok() :  # mark failed and skip successors of serv_done
+            for s in ts.successors(service_response.service):
+                logging.debug(f"Found successor {s} for failed {service_response.service} ")
+                failed_successors.append(s)
+        ts.done(service_response.service)
+        service_response.sortout_service_results()
+    for thread in serv_thread_pool:
+        thread.join()
 
 
 def run(services:[] = None, cmd="", site=""):
@@ -472,30 +506,8 @@ def run(services:[] = None, cmd="", site=""):
                                                              sm_conf.convert_sitecmd_to_dr_mode(state), sm_dict)
                     response.sortout_service_results()
             else:  # stateful module
-                failed_successors=[]
-                while ts and ts.is_active():  # process all services one by one  sorted by dependency
-                    for serv in ts.get_ready():
-                        if serv in failed_successors:
-                            logging.info(f"Service {serv} marked as failed due to dependencies")
-                            thread_result_queue.put(ServiceDRStatus({'services':{serv:{}}}))
-                            break
-                        thread=threading.Thread(target=sm_process_service_with_polling,
-                                                args=(site, serv, cmd, sm_dict))
-                        thread.name=f"Thread: {serv}"
-                        thread_pool.append(thread)
-                        thread.start()
-                    service_response=thread_result_queue.get()
-                    if not service_response.is_ok():  # mark failed and skip successors of serv_done
-                        for s in ts.successors(service_response.service):
-                            logging.debug(f"Found successor {s} for failed {service_response.service} ")
-                            failed_successors.append(s)
-                    ts.done(service_response.service)
-                    service_response.sortout_service_results()
+                process_ts_services(ts, sm_process_service_with_polling, site, cmd, sm_dict)
 
-                    logging.info(f"failed_services: {failed_services}")
-                    logging.info(f"done_services: {done_services}")
-                for thread in thread_pool:
-                    thread.join()
         dr_status = True
         for elem in module_flow:
             for module, states in elem.items():

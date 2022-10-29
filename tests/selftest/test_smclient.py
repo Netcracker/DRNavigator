@@ -305,7 +305,7 @@ def test_runservise_engine(caplog):
         thread_result_queue.put(node)
 
     caplog.set_level(logging.INFO)
-    thread_pool=[]
+
     ts = TopologicalSorter2()
     ts.add("aa")
     ts.add("bb1", "bb")
@@ -313,30 +313,8 @@ def test_runservise_engine(caplog):
     test_failed_services=['bb']
     ts.prepare()
     """ ------------ """
-    failed_successors=[]
-    global thread_result_queue
 
-    while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
-        for serv in ts.get_ready():
-            if serv in failed_successors:
-                logging.info(f"Service {serv} marked as failed due to dependencies")
-                thread_result_queue.put(ServiceDRStatus({'services':{serv:{}}}))
-                break
-            thread=threading.Thread(target=process_node,
-                                    args=(serv,))
-            thread.name=f"Thread: {serv}"
-            thread_pool.append(thread)
-            thread.start()
-        service_response = thread_result_queue.get()
-
-        if not service_response.is_ok() :  # mark failed and skip successors of serv_done
-            for s in ts.successors(service_response.service):
-                logging.debug(f"Found successor {s} for failed {service_response.service} ")
-                failed_successors.append(s)
-        ts.done(service_response.service)
-        service_response.sortout_service_results()
-    for thread in thread_pool:
-        thread.join()
+    process_ts_services(ts, process_node)
 
     logging.info(f"failed_services: {failed_services}")
     logging.info(f"done_services: {done_services}")
