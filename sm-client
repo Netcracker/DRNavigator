@@ -267,25 +267,25 @@ class SMClusterState:
 
     def get_dr_operation_sequence(self, serv, procedure, site) -> [[], []]:  # move active, stop standby
         """ Get DR operation(cmd) site sequence in the correct order for specific service for provided DR procedure
-        @returns: [['site1','standby'],['site2','active']]
+        @returns: [['site1','standby'],['site2','active']] - default in case sequence is empty
         @todo to rework when sm_dict[site|opposite]['services'][serv] serv is not present on one site
         """
         opposite_site = sm_conf.get_opposite_site(site)
         site_sequence=[]
         if procedure == 'move':  # switchover
-            mode=self.sm[site]['services'][serv]['sequence'][0]
+            mode, = self.sm[site]['services'][serv]['sequence'][0:1] or ['standby']
             if mode == 'standby':
                 site_sequence=[[opposite_site, 'standby'], [site, 'active']]
             elif mode == 'active':
                 site_sequence=[[site, 'active'], [opposite_site, 'standby']]
         elif procedure == 'stop':  # failover
-            mode=self.sm[opposite_site]['services'][serv]['sequence'][0]
+            mode, = self.sm[opposite_site]['services'][serv]['sequence'][0:1] or ['standby']
             if mode == 'standby':
                 site_sequence=[[site, 'standby'], [opposite_site, 'active']]
             elif mode == 'active':
                 site_sequence=[[opposite_site, 'active'], [site, 'standby']]
         else:
-            return False
+            raise Exception("Wrong command")
 
         return site_sequence
 

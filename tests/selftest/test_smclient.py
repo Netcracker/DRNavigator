@@ -350,5 +350,23 @@ def test_get_dr_operation_sequence():
     # switchover to site2
     assert [['k8s-2', 'active'], ['k8s-1', 'standby']] == sm_dict2.get_dr_operation_sequence('serv1', 'move', 'k8s-2')
 
+    # empty sequence, default is used
+    sm_dict3=SMClusterState()
+    sm_dict3["k8s-1"]={"services":{
+        "serv1":{"sequence":[]}}}
+    sm_dict3["k8s-2"]={"services":{
+        "serv1":{"sequence":[]}}}
+
+    assert [['k8s-2', 'standby'], ['k8s-1', 'active']] == sm_dict3.get_dr_operation_sequence('serv1','move','k8s-1')
+
+    # wrong command
+    sm_dict4=SMClusterState()
+    sm_dict4["k8s-1"]={"services":{
+        "serv1":{"sequence":[]}}}
+
+    with pytest.raises(Exception):
+        sm_dict4.get_dr_operation_sequence('serv1','wrong_command','k8s-1')
+
+
 
 

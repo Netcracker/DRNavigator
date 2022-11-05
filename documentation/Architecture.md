@@ -83,7 +83,7 @@ where:
   - `module` is the name of the module through which the service should be controlled. 
   - `after` is the list of services, that should be done before service start. In case of `after` is empty or absent the service will start among the first services if no service with name of this service in section `before`.
   - `before` is the list of services, that should wait until service in running. May be empty or absent.
-  - `sequence` is the order of starting service sides. In case sequence is absent ot empty services on both clusters will start at the same time.
+  - `sequence` is the order of starting service sides. In case sequence is empty default `["standby","active"]` is used.
   - `timeout` is the timeout in seconds for polling operation. If `timeout` is empty or absent the default timeout 600 seconds will be used.
   - `allowedStandbyStateList` - is the list of possible healthz statuses for standby site. By default `["up"]`.
   - `serviceEndpoint` is the URL to access the operator inside kubernetes cluster.
