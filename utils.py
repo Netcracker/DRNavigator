@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 import logging
 import json
-import requests
+import ssl
+from typing import Tuple, Dict
+
+import requests.packages
 import time
 import os
 import yaml
 import base64
 from kubernetes import client, config, watch
+from requests.adapters import HTTPAdapter, Retry
+from urllib3.exceptions import InsecureRequestWarning
 
 SM_CONFIG_FILE = os.environ.get("SM_CONFIG_FILE", "")
 if SM_CONFIG_FILE != "":
@@ -47,35 +52,34 @@ SM_CACERT = os.environ.get("SM_CACERT", True)
 if SM_CACERT in ("Yes", "yes", "No", "no", "True", "true", "False", "false"):
     SM_CACERT = SM_CACERT in ("Yes", "yes", "True", "true")
 
-def send_post(url, mode, no_wait):
-    """
-    Method to send POST requests to services
 
-    :param string url: the URL to service operator
-    :param string mode: is the role of cluster part
-    :param bool no_wait: special flag for microservice to show type of replication between of parts of database cluster
+def send_post(url, mode, no_wait):
+    """ Method to send POST requests to services
+    @param string url: the URL to service operator
+    @param string mode: is the role of cluster part
+    @param bool no_wait: special flag for microservice to show type of replication between of parts of database cluster
     """
     
-    obj = json.dumps({"mode": mode, "no-wait": no_wait})
+    obj = {"mode": mode, "no-wait": no_wait}
     headers = {
         'Content-type': 'application/json',
         'Accept': 'application/json'
     }
 
-    if BACK_HTTP_AUTH:
+    if SM_AUTH_TOKEN:
         headers["Authorization"] = f"Bearer {SM_AUTH_TOKEN}"
 
     logging.debug(f"REST url: {url}")
     logging.debug(f"REST data: {obj}")
 
-    response = _send_post(url, obj, headers)
+    _, response, _ = io_make_http_json_request(url, http_body=obj,token=SM_AUTH_TOKEN,use_auth=BACK_HTTP_AUTH)
     if response:
         return response
 
     for _ in range(4):
-        status = send_get(url)
+        _, status, _ = io_make_http_json_request(url)
         if status.get("mode", "") != mode:
-            response = _send_post(url, obj, headers)
+            _, response, _ = io_make_http_json_request(url, http_body=obj,token=SM_AUTH_TOKEN,use_auth=BACK_HTTP_AUTH)
             if response:
                 return response
         time.sleep(2)
@@ -84,63 +88,60 @@ def send_post(url, mode, no_wait):
     return dict.fromkeys(['fatal'], True)
 
 
-def _send_post(url, obj, headers):
+def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None, retry=3, use_auth=FRONT_HTTP_AUTH) -> Tuple[bool, Dict, int]:
+    """ Sends GET/POST request to service
+    @param string url: the URL to service operator
+    @param token: Bearer token
+    @param verify: Server side SSL verification
+    @param retry: the number of retries
+    @param http_body: the dictionary with procedure and list of services
+    @returns: True/False, Dict with not empty json body in case Ok/{}, HTTP_CODE/
+    IO SSL codes: ssl.SSLErrorNumber.SSL_ERROR_SSL/SSLErrorNumber.SSL_ERROR_EOF
+    """
+    if not os.getenv("DEBUG"):
+        # Disable warnings about self-signed certificates from requests library
+        requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+
+    if token != "" and use_auth:
+        headers = {"Authorization": f"Bearer {token}"}
+    else:
+        headers = {}
+    if not http_body:
+        http_body = {}
+    logging.debug(f"REST url: {url}")
+    logging.debug(f"REST data: {http_body}")
+
+    session = requests.Session()
+    retries = Retry(total=retry)
+    session.mount('https://', HTTPAdapter(max_retries=retries))
+    session.mount('http://', HTTPAdapter(max_retries=retries))
+
+    logging.getLogger("urllib3").setLevel(logging.CRITICAL)
+
     try:
-        resp = requests.post(url, timeout=20, data=obj, headers=headers, verify=SM_CACERT)
-        logging.debug(f"REST response: {resp} and return code: {resp.status_code}")
-        response = resp.json()
-        ret_code = resp.status_code
-        if ret_code == 200:
-            if response.get("message", ""):
-                logging.info(f"Code: {ret_code}. Message: {response['message']}")
-        if ret_code != 200:
-            if response.get("message", ""):
-                logging.error(f"Code: {ret_code}. Message: {response['message']}")
-                response["bad_response"] = ret_code
-        return response
-    except requests.exceptions.SSLError:
+        if any(http_body):
+            resp = session.post(url, json=http_body, timeout=30, headers=headers, verify=verify)
+        else:
+            resp = session.get(url, timeout=5, headers=headers, verify=verify)
+        logging.debug(f"REST response: {resp.json()}")
+        return True, resp.json() if resp.json() else {}, resp.status_code # return ANY content with HTTP code
+
+    except requests.exceptions.SSLError as e:
         logging.error("SSL certificate verify failed")
-        raise # re-raise SSL exception to handle in the calling code TBD in more general manner
-        # SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
-        # SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)'))
-    except requests.exceptions.JSONDecodeError as e:
-        logging.error("Wrong JSON data received: \n %s" % str(e))
+        #TODO in more accurate manner error handling manner
+        if "SSLCertVerificationError" in str(e.args): ## SSL Verification fails ; SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)')
+            return False, {}, ssl.SSLErrorNumber.SSL_ERROR_SSL.__int__() # - 1
+        elif "SSLEOFError" in str(e.args): # SSL connect error, SSL resource is not accessible vi ha-proxy  ; SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
+            #TODO need a test for this case
+            return False, {}, ssl.SSLErrorNumber.SSL_ERROR_EOF.__int__() # - 8
+    except requests.exceptions.JSONDecodeError:
+        logging.error("Wrong JSON data received")
     except requests.exceptions.RequestException as e:
         logging.error("General request error %s",e.__doc__)
-    except Exception as e:
-        logging.error("General error\n %s" % str(e))
-    return None
+    except Exception as e :
+        logging.error("General error %s",e.__doc__)
 
-
-def send_get(url):
-    """
-    Method to send GET requests to services
-
-    :param string url: the URL to service operator
-    """
-    headers = dict()
-    if BACK_HTTP_AUTH:
-        headers["Authorization"] = f"Bearer {SM_AUTH_TOKEN}"
-
-    logging.debug(f"REST url: {url}")
-
-    for _ in range(5):
-        try:
-            resp = requests.get(url, timeout=10, headers=headers, verify=SM_CACERT)
-            return resp.json()
-        except requests.exceptions.SSLError:
-            logging.error("SSL certificate verify failed")
-            raise # re-raise SSL exception to handle in the calling code TBD in more general manner
-            # SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
-            # SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)'))
-        except requests.exceptions.JSONDecodeError as e:
-            logging.error("Wrong JSON data received: \n %s" % str(e))
-        except requests.exceptions.RequestException as e:
-            logging.error("General request error %s",e.__doc__)
-        except Exception as e:
-            logging.error("General error\n %s" % str(e))
-
-    return {}
+    return False,{},False
 
 
 def get_token(api_watch=False):
