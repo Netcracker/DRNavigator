@@ -6,6 +6,8 @@ python3  -m pytest -o log_cli=true -s -v tests/selftest/test_smclient.py <-k  te
 import json
 
 import pytest
+
+import smclient
 from smclient import *
 from http import HTTPStatus
 import http.server
@@ -32,8 +34,8 @@ def args_init(config=None):
     args.command="version"
     return args
 
-
 def test_sm_process_service(mocker, caplog):
+
     init_and_check_config(args_init())
     test_resp={'services':{'test1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
     caplog.set_level(logging.DEBUG)
@@ -256,7 +258,6 @@ def test_SMClusterState_init():
     assert sm_dict.get_module_services('k8s-1', 'stateful') == ['serv1', 'serv2'] and \
            sm_dict.get_module_services('k8s-1', 'notstateful') == ['serv3']
 
-
     init_and_check_config(args_init(test_wrong_config_path))
     with pytest.raises(ValueError) as e:
         SMClusterState()
@@ -306,7 +307,7 @@ def test_runservise_engine(caplog):
         thread_result_queue.put(node)
 
     caplog.set_level(logging.INFO)
-    ts = TopologicalSorter2()
+    ts=TopologicalSorter2()
     ts.add("aa")
     ts.add("bb1", "bb")
     ts.add("cc")
@@ -358,7 +359,7 @@ def test_get_dr_operation_sequence():
     sm_dict3["k8s-2"]={"services":{
         "serv1":{"sequence":[]}}}
 
-    assert [['k8s-2', 'standby'], ['k8s-1', 'active']] == sm_dict3.get_dr_operation_sequence('serv1','move','k8s-1')
+    assert [['k8s-2', 'standby'], ['k8s-1', 'active']] == sm_dict3.get_dr_operation_sequence('serv1', 'move', 'k8s-1')
 
     # wrong command
     sm_dict4=SMClusterState()
@@ -366,19 +367,51 @@ def test_get_dr_operation_sequence():
         "serv1":{"sequence":[]}}}
 
     with pytest.raises(Exception):
-        sm_dict4.get_dr_operation_sequence('serv1','wrong_command','k8s-1')
-
+        sm_dict4.get_dr_operation_sequence('serv1', 'wrong_command', 'k8s-1')
 
 
 def test_init_and_check_config(caplog):
     """ Test file logging capabilities, -o file.log """
-    args = args_init()
-    for args.output in [ "output.log","not_exist_file","/tmp/not_exist_file","~/not_exist_file"]:
+    args=args_init()
+    for args.output in ["output.log", "not_exist_file", "/tmp/not_exist_file", "~/not_exist_file"]:
         with caplog.at_level(logging.CRITICAL):
             init_and_check_config(args)
-            assert f"Cannot write to {args.output }" not in caplog.text
+            assert f"Cannot write to {args.output}" not in caplog.text
 
-    for args.output in [ "/","/not_exist_file","/etc/passwd","~/", "./"]:
+    for args.output in ["/", "/not_exist_file", "/etc/passwd", "~/", "./"]:
         with caplog.at_level(logging.CRITICAL):
             init_and_check_config(args)
-            assert f"Cannot write to {args.output }" in caplog.text
+            assert f"Cannot write to {args.output}" in caplog.text
+
+
+def test_sm_poll_service_required_status(mocker,caplog):
+    init_and_check_config(args_init())
+
+    test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
+    caplog.set_level(logging.DEBUG)
+    fake_resp=mocker.Mock()
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    fake_resp.status_code=HTTPStatus.OK
+
+    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+
+    # default timeout
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={"services":{
+        "serv1":{"timeout":None}}}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        dr_status = sm_poll_service_required_status("k8s-1", "serv1", "active",sm_dict)
+        assert f"{smclient.SERVICE_DEFAULT_TIMEOUT} seconds left until timeout" in caplog.text
+        assert dr_status.is_ok()
+
+    #service specific timeout
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={"services":{
+        "serv1":{"timeout":100}}}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        dr_status = sm_poll_service_required_status("k8s-1", "serv1", "active",sm_dict)
+        assert "100 seconds left until timeout" in caplog.text
+
+
