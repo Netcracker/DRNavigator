@@ -34,6 +34,7 @@ def args_init(config=None):
     args.command="version"
     return args
 
+
 def test_sm_process_service(mocker, caplog):
 
     init_and_check_config(args_init())
@@ -171,6 +172,11 @@ def test_io_http_json_request():
     assert ret is False and \
            code is ssl.SSLErrorNumber.SSL_ERROR_SSL.__int__() and \
            not bool(body), "empty body with specific SSL error"
+
+    ret, json_body, http_code=io_make_http_json_request("https://absent-site", verify=True)
+    assert http_code is False and \
+           json_body == {} and \
+           ret is False
 
 
 def test_validate_operation(caplog):
@@ -411,7 +417,5 @@ def test_sm_poll_service_required_status(mocker,caplog):
         "serv1":{"timeout":100}}}
     with caplog.at_level(logging.INFO):
         caplog.clear()
-        dr_status = sm_poll_service_required_status("k8s-1", "serv1", "active",sm_dict)
+        sm_poll_service_required_status("k8s-1", "serv1", "active",sm_dict)
         assert "100 seconds left until timeout" in caplog.text
-
-
