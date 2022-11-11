@@ -103,7 +103,7 @@ To support ability of services be managed by `site-manager` you should prepare f
 
     ```
     $ kubectl annotate crds sitemanagers.netcracker.com cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
-    $ kubectl annotate validatingwebhookconfigurations site-manager-crd-validating-webhook-configuration test-annotation=value
+    $ kubectl annotate validatingwebhookconfigurations site-manager-crd-validating-webhook-configuration cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
     ```
     
     3.2. In other case generate base64 string from ca.crt certificate:
