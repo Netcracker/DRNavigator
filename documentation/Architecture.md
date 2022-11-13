@@ -2,28 +2,27 @@
 
 <!-- TOC -->
 * [Overview](#overview)
-* [Interaction with Services](#interaction-with-services)
+* [Managing Services](#managing-services)
   * [Service sequence](#service-sequence)
   * [DR procedures flow](#dr-procedures-flow)
-  * [Possible schemes for sm-client and site-manager](#possible-schemes-for-sm-client-and-site-manager)
+  * [Possible schemes for sm-client and Site-Manager](#possible-schemes-for-sm-client-and-site-manager)
 * [Security. Authorization](#security-authorization)
 * [Monitoring](#monitoring)
-* [Site Manager Contract](#site-manager-contract)
-  * [SiteManager Custom Resource for stateful](#sitemanager-custom-resource-for-stateful)
-  * [Contract for communication with infra service](#contract-for-communication-with-infra-service)
-* [Site Manager API](#site-manager-api)
+* [SiteManager Contract](#sitemanager-contract)
+  * [Custom Resource for stateful](#custom-resource-for-stateful)
+  * [REST API definition](#rest-api-definition)
+* [SiteManager API](#sitemanager-api)
 * [sm-client](#sm-client)
 * [Installation procedure](#installation-procedure)
-  * [Site Manager](#site-manager)
+  * [SiteManager](#sitemanager)
   * [smclient](#smclient)
 
 <!-- TOC -->
-
 # Overview
 
-The main purpose of DRNavigator is to manage Cloud Services  in 2-cluster (Kubernetes or OpenShift) environment in Active-StandBy scheme.  
+The main purpose of DRNavigator is to manage Services  in 2-cluster (Kubernetes or OpenShift) environment in Active-StandBy scheme.  
 
-The Cloud Services are might be any microservice which implements special [contract](#site-manager-service-development).
+The Services are might be any microservice which implements special [contract](#sitemanager-contract).
 
 There are several DR (Disaster Recovery) procedures that might be used. The basic are: 
 * **Switchover** - swap Active and StandBy roles   
@@ -41,34 +40,34 @@ Common scheme:
 
 In scheme with two clusters there are `site-manager` operates in each cluster and `sm-client` - client tool to manage the DR procedures.
 
-# Interaction with Services
+# Managing Services
 
 The modular system is implemented that allows different behavior to be applied for different microservices. 
 
-The `stateful` module is supported by default. It is intended for services that will be fully managed by the service's operators. This module expands the functionality of operators. Operator is the internal microservice that monitors the state of infra service and listens HTTP port to receive REST API for managing infra service DR mode (active or standby). The most of infra services have operators to manage its state, and we propose to expand functionality for DR cases.
+The `stateful` module is supported and by default. It is intended for services that will be fully managed by the service's operators. This module expands the functionality of operators. Operator is the internal microservice that monitors the state of service and listens HTTP port to receive REST API for managing service DR mode (active or standby). The most of the services have operators to manage its state, and we propose to expand functionality for DR cases.
 
 ![](/documentation/images/site-manager-PG-service-with-CR-new.png)
 
 where:
-  - `operator` - service that manages life-cycle of infra service, such as `postgresql`, `rabbit` or `kafka`
-  - `SiteManager CR` - is the custom resource with description of DR behavior for infra service, specific for stateful module
-  - `site-manager` - is the dedicated service in a separate project. It can set new state `active` or `standby` to other infra services and knows about all infra services in current kubernetes cluster.
+  - `operator` - service that manages life-cycle of service, such as `postgresql`, `rabbit` or `kafka`
+  - `SiteManager CR` - is the custom resource with description of DR behavior for service, specific for stateful module
+  - `site-manager` - is the dedicated service in a separate project. It can set new state `active` or `standby` to other  services and knows about all services in current kubernetes cluster.
 
 
 ## Service sequence
 
-In case when infra service should be reconfigured on one kubernetes cluster before the second kubernetes cluster (for 
+In case when service should be reconfigured on one kubernetes cluster before the second kubernetes cluster (for 
 example postgresql cluster, when `standby`  should be performed first and after `active` part:
 
 ![](/documentation/images/site-manager-PG-service-with-CR-2clusters-new.png)
 
-Some services need different order. In case of infra service does not need to follow the sequence of execution parameter `sequence` in SiteManager CR can be omitted.
+Some services need different order. In case of service does not need to follow the sequence of execution parameter `sequence` in SiteManager CR can be omitted.
 
 ### Service dependency
 
-Often services depend on the sequence of starting another services. For example `airflow` depends on running `postgresql` cluster. To comply with dependencies of infra services you can use `after` and `before` parameters. These parameters are lists and can contain the names of CRs SiteManager of another infra services. It is impotent to understand that we do not use names of infra services, we should use names of CRs.
+Often services depend on the sequence of starting another services. For example `airflow` depends on running `postgresql` cluster. To comply with dependencies of services you can use `after` and `before` parameters. These parameters are lists and can contain the names of CRs SiteManager of another services. It is impotent to understand that we do not use names of services, we should use names of CRs.
 
-When all dependencies of two or more infra services are fulfilled `site-manager` can maintain all these services at the same time.
+When all dependencies of two or more services are fulfilled `site-manager` can maintain all these services at the same time.
 
 For one kubernetes cluster:
 
@@ -86,7 +85,8 @@ where:
 
 To start DR procedures `site-manager` should send REST request to operator. You should use `serviceEndpoint` to define URL for operator.  
 
-To check current infra service health status `site-manager` checks URL from `healthzEndpoint`.
+To check current service health status `site-manager` checks URL from `healthzEndpoint`.
+
 ## DR procedures flow
 ### Switchover
 
@@ -107,9 +107,8 @@ Example for two services. The first service with defined `sequence` and the seco
 
 ![](/documentation/images/site-manager_diagram_failover.png)
 
-Working with services looks like in switchover procedure. We have only one assumption - standby kubernetes cluster may be unavailable. In this case we should not wait for correct status. We can omit statuses of all infra services of standby kubernetes cluster.
-
-## Possible schemes for sm-client and site-manager
+Working with services looks like in switchover procedure. We have only one assumption - standby kubernetes cluster may be unavailable. In this case we should not wait for correct status. We can omit statuses of all services of standby kubernetes cluster.
+## Possible schemes for sm-client and Site-Manager
 
 1. Run `sm-client` as cli util on any Linux host with access to both kubernetes clusters:
 
@@ -123,15 +122,9 @@ Working with services looks like in switchover procedure. We have only one assum
 
     `sm-client` is running as service in Docker container and can receive REST queries with commands. All procedures occur in runtime. `sm-client` does not exit after all DR procedures finished and continues to listen for new REST queries. `sm-client` can be started on DVM or on Operation portal VM. To achieve HA the `sm-client` can be started on few nodes but only one should launch DR procedures at a time.
 
-3. Run `sm-client` as a service in docker container inside kubernetes cluster
+`site-manager` is the service always started inside kubernetes cluster, and it has information only about services inside the same kubernetes cluster.
 
-    ![](/documentation/images/site-manager-SM-new-arch-3.png)
-
-    `sm-client` is running as a pod in kubernetes cluster. In this case `sm-client` can communicate with `site-manager` by servicename. Configuration file `config.yml` should be mounted from configmap.
-
-`site-manager` is the service always started inside kubernetes cluster, and it has information only about infra services inside the same kubernetes cluster.
-
-`sm-client` is the util to manage DR procedures by sending REST requests to `site-manager` microservices in few kubernetes clusters and respects dependencies and sequences between all infra services of kubernetes clusters.
+`sm-client` is the util to manage DR procedures by sending REST requests to `site-manager` microservices in few kubernetes clusters and respects dependencies and sequences between all services of kubernetes clusters.
 # Security. Authorization
 
 To restrict access to `site-manager` from `sm-client` there is the scheme with using authorization by Bearer Token:
@@ -142,7 +135,7 @@ To restrict access to `site-manager` from `sm-client` there is the scheme with u
 4. Operator fills config.yml for `sm-client` with the same token and set env parameter `FRONT_HTTP_AUTH` with value "True" or "Yes"
 5. All REST operations between `sm-client` and `site-manager` will contain header "Authorization: Bearer <TOKEN>" where `TOKEN` is the token from serviceaccount `sm-auth-sa`
 
-To secure access to manageable services from `Site-Manager` also added same scheme with using authorization by Bearer Token:
+To secure access to manageable services from `site-manager` also added same scheme with using authorization by Bearer Token:
 
 1. The value of env variable `BACK_HTTP_AUTH` means whether the token from serviceaccount `sm-auth-sa` will be sent to manageable services in header.
 2. More about this scheme at [API Security model](#api-security-model) part.
@@ -157,12 +150,12 @@ curl   --silent \
        --request GET \
        https://site-manager.example.com/metrics
 ```
-# Site Manager Contract
-The following API should be implemented by Cloud Service to be operated by Site Manager:
+# SiteManager Contract
+The following API should be implemented by Cloud Service to be operated by SiteManager:
 * Custom Resource 
 * REST API
 
-## SiteManager Custom Resource for stateful
+##  Custom Resource for stateful
 
 CR SiteManager description:
 
@@ -225,27 +218,26 @@ spec:
       healthzEndpoint: postgres-operator.postgres-service.svc.cluster.local:8080/health
 ```
 
-**Important**: you must not read CRs as `v1` version, only `v2` read (default) is supported.  
+**Important**: you must not read CRs as `v1` version, only `v2` read (default) is supported.
+## REST API definition
 
-## Contract for communication with infra service
+This part describes which contract must implement the service so that the SiteManager can correctly interact with them.
 
-This part describes which contract must implement the service so that the Site-manager can correctly interact with them.
-
-- [`serviceEndpoint` GET](#check-infra-service-mode-and-status-of-dr-procedure)
-- [`serviceEndpoint` POST](#set-new-mode-for-infra-service)
-- [`healthzEndpoint` GET](#check-infra-service-healthz-of-service)
+- [`serviceEndpoint` GET](#check-service-mode-and-status-of-dr-procedure)
+- [`serviceEndpoint` POST](#set-new-mode-for-service)
+- [`healthzEndpoint` GET](#check-service-healthz-of-service)
 
 ### API Security model
 
 **Note:** This functionality is enabled by default: `BACK_HTTP_AUTH: "Yes"` in the Helm chart, later this value can be changed in the SM deployment.
 
-To implement secure access between Site-Manager and services, the special header is added to POST and GET requests coming from Site-Manager:
+To implement secure access between SiteManager and services, the special header is added to POST and GET requests coming from SiteManager:
 
 ```
 "Authorization": "Bearer <TOKEN>"
 ```
 
-In order for the service to make sure that the request is secure, on the service side it is necessary to organize the verification of this token for authenticity and belonging to Site-Manager. This is done as follows:
+In order for the service to make sure that the request is secure, on the service side it is necessary to organize the verification of this token for authenticity and belonging to SiteManager. This is done as follows:
 
 1) You need to make a request to verify the received token (`TokenReview`) through the `Kubernetes-client` or `Kubectl` of the following format:
 
@@ -256,7 +248,7 @@ spec:
   token: <TOKEN>
 ```
 
-Where: `<TOKEN>` is a Bearer received from Site-Manager `Authorization` request header.
+Where: `<TOKEN>` is a Bearer received from SiteManager `Authorization` request header.
 
 [Kubernetes-client TokenReview Api for Go](https://github.com/kubernetes-client/go/blob/master/kubernetes/docs/AuthenticationV1Api.md)
 
@@ -287,15 +279,15 @@ status:
   - status.user.username = system:serviceaccount:site-manager:sm-auth-sa
 ```
 
-Where `site-manager` is Site-Manager's Namespace name and `sm-auth-sa` is SA name.
+Where `site-manager` is SiteManager's Namespace name and `sm-auth-sa` is SA name.
 
 ![](/documentation/images/site-manager-http-auth.png)
 
-More information about token can be found at [site-manager authorization](#security-authorization) part.
+More information about token can be found at [SiteManager authorization](#security-authorization) part.
 
 What might be required to implement this approach:
 
-1. The operator which processing requests from Site-Manager must have a `serviceaccount`.
+1. The operator which processing requests from SiteManager must have a `serviceaccount`.
 
 2. The operator's `serviceaccount` must be wrapped in a `ClusterRoleBinding` with the `system:auth-delegator` cluster role:
 
@@ -316,7 +308,7 @@ roleRef:
 
 3. Adding a handler in the operator that checks the token for GET and POST requests using `TokenReview` described earlier.
 
-### Check infra service mode and status of DR procedure:
+### Check service mode and status of DR procedure:
 
 **URL**: `<service>.<namespace>.svc.cluster.local/sitemanager`
 
@@ -355,9 +347,9 @@ Output:
 {"mode":"active","status": "running", "message": "Activation process"}
 ```
 
-### Set new mode for infra service:
+### Set new mode for service:
 
-**Important**: The contract between the Site-Manager and manageable services for changing the mode implies that the Rest API of the service has the property of [idempotency](https://restfulapi.net/idempotent-rest-apis/), which means that changing the mode of the service to an already existing mode does not bring the service into an inconsistent state. If the service is already moving to the required mode, the response should contain the corresponding mode and the status equal to `running`.
+**Important**: The contract between the SiteManager and manageable services for changing the mode implies that the Rest API of the service has the property of [idempotency](https://restfulapi.net/idempotent-rest-apis/), which means that changing the mode of the service to an already existing mode does not bring the service into an inconsistent state. If the service is already moving to the required mode, the response should contain the corresponding mode and the status equal to `running`.
 
 **URL**: `<service>.<namespace>.svc.cluster.local/sitemanager`
 
@@ -390,7 +382,7 @@ Output:
 {"mode":"active","status": "running"}
 ```
 
-### Check infra service healthz of service:
+### Check service healthz of service:
 
 **URL**: `<service>.<namespace>.svc.cluster.local/healthz`
 
@@ -421,14 +413,14 @@ Output:
 {"status":"up"}
 ```
 
-# Site Manager API
+# SiteManager API
 
-This part describes what requests a Site-manager can respond to on both kubernetes clusters.
+This part describes what requests a SiteManager can respond to on both kubernetes clusters.
 
-- [Site-manager GET](#get-dict-with-all-services-and-settings)
-- [Site-manager POST `{"procedure": "status"}`](#check-infra-services-mode-and-status-of-dr-procedure)
-- [Site-manager POST `{"procedure": "list"}`](#show-list-of-infra-services)
-- [Site-manager POST `{"procedure": "active|standby|disable"}`](#start-dr-procedure-active-standby-or-disable)
+- [SiteManager GET](#get-dict-with-all-services-and-settings)
+- [SiteManager POST `{"procedure": "status"}`](#check-services-mode-and-status-of-dr-procedure)
+- [SiteManager POST `{"procedure": "list"}`](#show-list-of-services)
+- [SiteManager POST `{"procedure": "active|standby|disable"}`](#start-dr-procedure-active-standby-or-disable)
 - [Possible errors](#possible-errors)
 
 ### Get dict with all services and settings:
@@ -545,7 +537,7 @@ Output:
 }
 ```
 
-### Check infra services mode and status of DR procedure:
+### Check services mode and status of DR procedure:
 
 **URL**: `site-manager.example.com/sitemanager`
 
@@ -585,7 +577,7 @@ Output:
 }
 ```
 
-### Show list of infra services:
+### Show list of services:
 
 **URL**: `site-manager.example.com/sitemanager`
 
@@ -740,9 +732,9 @@ Output:
 HTTP Code: 400
 # sm-client
 
-`sm-client` is the cli tool to manage DR procedures between infra services that deployed in two kubernetes clusters. It can be started on any Linux host with installed python dependencies: on DVM host or operation portal. Another option is start `sm-client` in docker container. In this case `sm-client` can work even in kubernetes cluster if needed.
+`sm-client` is the cli tool to manage DR procedures between services that deployed in two kubernetes clusters. It can be started on any Linux host with installed python dependencies: on DVM host or operation portal. Another option is start `sm-client` in docker container. In this case `sm-client` can work even in kubernetes cluster if needed.
 
-The main idea of `sm-client` is control of sequence of DR procedures for every infra service for both kubernetes clusters. It reads CRs with type sitemanager in kubernetes clusters and creates tree with correct order of infra services. `sm-client` waits for successful finish of every DR procedures and starts next.
+The main idea of `sm-client` is control of sequence of DR procedures for every  service for both kubernetes clusters. It reads CRs with type SiteManager in kubernetes clusters and creates tree with correct order of services. `sm-client` waits for successful finish of every DR procedures and starts next.
 
 `sm-client` help section:
 
@@ -766,16 +758,15 @@ How to use commands:
   +--------------+---------------+--------+--------------+---------------+-----+---------+
 
 positional arguments:
-  {move,stop,return,disable,active,standby,list,status,daemon}
+  {move,stop,return,disable,active,standby,list,status}
     move                move Active functionality to Standby site
     stop                excludes site from Active-Standby scheme
     return              return stopped kubernetes cluster to Standby role
     disable             stop Standby kubernetes cluster for maintenance
     active              set kubernetes cluster services to active mode
     standby             set kubernetes cluster services to standby mode
-    list                list all services from Active-Standby scheme managed by site-manager with dependencies
+    list                list all services from Active-Standby scheme managed by SiteManager with dependencies
     status              show current status of clusters and all services
-    daemon              run site-manager as a service
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -896,7 +887,7 @@ $ ./sm-client status
 +---------------------------------+--------------------------------------+--------------------------------------+
 ```
 
-Show list of services in kubernetes clusters with CR sitemanager:
+Show list of services in kubernetes clusters with CR SiteManager:
 
 ```
 ./sm-client list
@@ -907,7 +898,7 @@ kubernetes services that will be processed: ['postgres', 'sm-test', 'mongo', 'pa
 ---------------------------------------------------------------------
 ```
 ## Custom modules support
-It is possible to make custom DR flow (Switchover/Failover; Active/Standby/Disable) sequence based on [module of DR service](#stateful-module-concept)
+It is possible to make custom DR flow (Switchover/Failover; Active/Standby/Disable) sequence based on [module of DR service](#managing-services)
 
 ```yaml
 spec:
@@ -939,7 +930,7 @@ flow:
 The above example implies the following DR sequences:
 * Switchover
 1. Standby all `custom_module` services
-2. Standby, Active for all `stateful` services , according to [DR sequence](#sitemanager-custom-resource-for-stateful)
+2. Standby, Active for all `stateful` services , according to [DR sequence](#dr-procedures-flow)
 3. Active all `custom_module` services
 * Failover
 1. Standby, Active`stateful` services 
@@ -957,7 +948,7 @@ The above example implies the following DR sequences:
 Note: the `stateful` module is default. It should not be specified in config in case no custom modules.
 # Installation procedure
 
-## Site Manager
+## SiteManager
 
 ### Requirements 
 Before installation be aware, that you have enough resources for DRNavigator.
