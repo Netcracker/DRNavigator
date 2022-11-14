@@ -2,7 +2,6 @@
 
 Contents:
 * [Issue](#issue)
-* [Considered Options](#considered-options)
 * [Proposal](#proposal)
   * [Example](#example)
   * [Positive Consequences](#positive-consequences)
