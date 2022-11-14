@@ -29,7 +29,6 @@ SM_PLURAL = os.environ.get("SM_PLURAL", "sitemanagers")
 SM_VERSION = os.environ.get("SM_VERSION", "v2")
 
 # Define services default parameters
-SERVICE_DEFAULT_TIMEOUT = os.environ.get("SERVICE_DEFAULT_TIMEOUT", 200)
 HTTP_SCHEME = os.environ.get("HTTP_SCHEME", "http://")
 
 # site-manager WEB server parameters
@@ -44,14 +43,14 @@ SM_DEBUG = os.environ.get("SM_DEBUG", False) in (1, True, "Yes", "yes", "True", 
 
 SM_KUBECONFIG_FILE = os.environ.get("SM_KUBECONFIG_FILE", "")
 
-DEPLOYMENT_ADDITIONAL_DELAY = 30
-
 SM_AUTH_TOKEN = ""
 
 SM_CACERT = os.environ.get("SM_CACERT", True)
 if SM_CACERT in ("Yes", "yes", "No", "no", "True", "true", "False", "false"):
     SM_CACERT = SM_CACERT in ("Yes", "yes", "True", "true")
 
+SM_GET_REQUEST_TIMEOUT = int(os.environ.get("SM_GET_REQUEST_TIMEOUT", 5))
+SM_POST_REQUEST_TIMEOUT = int(os.environ.get("SM_POST_REQUEST_TIMEOUT", 30))
 
 def send_post(url, mode, no_wait):
     """ Method to send POST requests to services
@@ -120,9 +119,9 @@ def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None
 
     try:
         if any(http_body):
-            resp = session.post(url, json=http_body, timeout=30, headers=headers, verify=verify)
+            resp = session.post(url, json=http_body, timeout=SM_POST_REQUEST_TIMEOUT, headers=headers, verify=verify)
         else:
-            resp = session.get(url, timeout=5, headers=headers, verify=verify)
+            resp = session.get(url, timeout=SM_GET_REQUEST_TIMEOUT, headers=headers, verify=verify)
         logging.debug(f"REST response: {resp.json()}")
         return True, resp.json() if resp.json() else {}, resp.status_code # return ANY content with HTTP code
 
@@ -134,12 +133,12 @@ def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None
         elif "SSLEOFError" in str(e.args): # SSL connect error, SSL resource is not accessible vi ha-proxy  ; SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
             #TODO need a test for this case
             return False, {}, ssl.SSLErrorNumber.SSL_ERROR_EOF.__int__() # - 8
-    except requests.exceptions.JSONDecodeError:
-        logging.error("Wrong JSON data received")
+    except requests.exceptions.JSONDecodeError as e:
+        logging.error("Wrong JSON data received %s", e)
     except requests.exceptions.RequestException as e:
-        logging.error("General request error %s",e.__doc__)
-    except Exception as e :
-        logging.error("General error %s",e.__doc__)
+        logging.error("General request error %s", e)
+    except Exception as e:
+        logging.error("General error %s",e)
 
     return False,{},False
 

@@ -47,12 +47,14 @@ spec:
             value: "{{ .Values.env.SM_PLURAL }}"
           - name: SM_VERSION
             value: "{{ .Values.env.SM_VERSION }}"
-          - name: SERVICE_DEFAULT_TIMEOUT
-            value: "{{ .Values.env.SERVICE_DEFAULT_TIMEOUT }}"
           - name: HTTP_SCHEME
             value: "{{ .Values.env.HTTP_SCHEME }}"
           - name: SM_CACERT
             value: "{{ .Values.env.SM_CACERT }}"
+          - name: SM_GET_REQUEST_TIMEOUT
+            value: "{{ .Values.env.SM_GET_REQUEST_TIMEOUT }}"
+          - name: SM_POST_REQUEST_TIMEOUT
+            value: "{{ .Values.env.SM_POST_REQUEST_TIMEOUT }}"
         ports:
           - containerPort: 8443
             protocol: TCP

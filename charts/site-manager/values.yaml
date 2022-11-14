@@ -17,14 +17,14 @@ env:
   SM_PLURAL: "sitemanagers"
   SM_VERSION: "v2"
 
-  # set default timeout for managed microservices
-  SERVICE_DEFAULT_TIMEOUT: 200
-
   # set HTTP scheme for microservices
   HTTP_SCHEME: "http://"
 
   # TLS verification in operators (True, False or path to CA file)
   SM_CACERT: "True"
+
+  SM_GET_REQUEST_TIMEOUT: 5
+  SM_POST_REQUEST_TIMEOUT: 30
 
 workerCount: 2
 
