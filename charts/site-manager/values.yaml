@@ -26,7 +26,7 @@ env:
   # TLS verification in operators (True, False or path to CA file)
   SM_CACERT: "True"
 
-  SM_GET_REQUEST_TIMEOUT: 5
+  SM_GET_REQUEST_TIMEOUT: 10
   SM_POST_REQUEST_TIMEOUT: 30
 
 workerCount: 2

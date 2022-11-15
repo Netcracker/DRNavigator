@@ -50,7 +50,7 @@ SM_CACERT = os.environ.get("SM_CACERT", True)
 if SM_CACERT in ("Yes", "yes", "No", "no", "True", "true", "False", "false"):
     SM_CACERT = SM_CACERT in ("Yes", "yes", "True", "true")
 
-SM_GET_REQUEST_TIMEOUT = int(os.environ.get("SM_GET_REQUEST_TIMEOUT", 5))
+SM_GET_REQUEST_TIMEOUT = int(os.environ.get("SM_GET_REQUEST_TIMEOUT", 10))
 SM_POST_REQUEST_TIMEOUT = int(os.environ.get("SM_POST_REQUEST_TIMEOUT", 30))
 
 def send_post(url, mode, no_wait):
