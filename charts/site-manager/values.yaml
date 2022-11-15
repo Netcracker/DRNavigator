@@ -17,6 +17,9 @@ env:
   SM_PLURAL: "sitemanagers"
   SM_VERSION: "v2"
 
+  # set default timeout for managed microservices
+  SERVICE_DEFAULT_TIMEOUT: 200
+
   # set HTTP scheme for microservices
   HTTP_SCHEME: "http://"
 

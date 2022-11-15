@@ -47,6 +47,8 @@ spec:
             value: "{{ .Values.env.SM_PLURAL }}"
           - name: SM_VERSION
             value: "{{ .Values.env.SM_VERSION }}"
+          - name: SERVICE_DEFAULT_TIMEOUT
+            value: "{{ .Values.env.SERVICE_DEFAULT_TIMEOUT }}"
           - name: HTTP_SCHEME
             value: "{{ .Values.env.HTTP_SCHEME }}"
           - name: SM_CACERT
