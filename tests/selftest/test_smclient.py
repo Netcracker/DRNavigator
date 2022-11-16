@@ -420,7 +420,6 @@ def test_sm_poll_service_required_status(mocker, caplog):
         sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict)
         assert "100 seconds left until timeout" in caplog.text
 
-from unittest.mock import MagicMock
 def test_sm_process_service_with_polling(mocker, caplog):
     smclient.args=args_init()
     init_and_check_config(args_init())
