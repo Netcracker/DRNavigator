@@ -3,55 +3,55 @@
 <!-- TOC -->
 * [Overview](#overview)
 * [Managing Services](#managing-services)
-  * [Service sequence](#service-sequence)
-  * [DR procedures flow](#dr-procedures-flow)
-  * [Possible schemes for sm-client and Site-Manager](#possible-schemes-for-sm-client-and-site-manager)
+  * [Service Sequence](#service-sequence)
+  * [DR Procedures Flow](#dr-procedures-flow)
+  * [Possible Schemes for sm-client and Site-Manager](#possible-schemes-for-sm-client-and-site-manager)
 * [Security. Authorization](#security-authorization)
 * [Monitoring](#monitoring)
 * [SiteManager Contract](#sitemanager-contract)
-  * [Custom Resource for stateful](#custom-resource-for-stateful)
-  * [REST API definition](#rest-api-definition)
+  * [Custom Resource for Stateful](#custom-resource-for-stateful)
+  * [REST API Definition](#rest-api-definition)
 * [SiteManager API](#sitemanager-api)
 * [sm-client](#sm-client)
-* [Installation procedure](#installation-procedure)
+* [Installation Procedure](#installation-procedure)
   * [SiteManager](#sitemanager)
   * [smclient](#smclient)
 
 <!-- TOC -->
 # Overview
 
-The main purpose of DRNavigator is to manage Services  in 2-cluster (Kubernetes or OpenShift) environment in Active-StandBy scheme.  
+The main purpose of DRNavigator is to manage services in a 2-cluster (Kubernetes or OpenShift) environment in the Active-StandBy scheme.  
 
-The Services are might be any microservice which implements special [contract](#sitemanager-contract).
+The services can be any microservices that implement a special [contract](#sitemanager-contract).
 
-There are several DR (Disaster Recovery) procedures that might be used. The basic are: 
+There are several DR (Disaster Recovery) procedures that can be used. The basic are: 
 * **Switchover** - swap Active and StandBy roles   
 * **Failover** - move Active role to StandBy cluster 
 
 The DRNavigator contains two components:
-* `site-manager` is the management service to control DR  procedure flow on one cluster
-* `sm-client` - client for management of DR procedures in two clusters. It can be launched as container or as cli util.
+* `site-manager` - It is the management service to control the DR procedure flow on one cluster.
+* `sm-client` - It is the client for management of DR procedures in two clusters. It can be launched as a container or as a cli util.
 
-More info: [DR operations](#sm-client)
+For more information, see [DR Operations](#sm-client).
 
-Common scheme:
+**Common Scheme**
 
 ![](/documentation/images/site-manager-SM-common-scheme.png)
 
-In scheme with two clusters there are `site-manager` operates in each cluster and `sm-client` - client tool to manage the DR procedures.
+In a scheme with two clusters, there is `site-manager` that operates in each cluster and `sm-client` that is a client tool to manage the DR procedures.
 
 # Managing Services
 
-The modular system is implemented that allows different behavior to be applied for different microservices. 
+A modular system is implemented that allows different behavior to be applied for different microservices. 
 
-The `stateful` module is supported and by default. It is intended for services that will be fully managed by the service's operators. This module expands the functionality of operators. Operator is the internal microservice that monitors the state of service and listens HTTP port to receive REST API for managing service DR mode (active or standby). The most of the services have operators to manage its state, and we propose to expand functionality for DR cases.
+The `stateful` module is supported by default. It is intended for services that are fully managed by the service's operators. This module expands the functionality of operators. An operator is an internal microservice that monitors the state of the service and listens to the HTTP port to receive a REST API for managing the service DR mode (active or standby). Most of the services have operators to manage their state, and it is proposed to expand the functionality for DR cases.
 
 ![](/documentation/images/site-manager-PG-service-with-CR-new.png)
 
-where:
-  - `operator` - service that manages life-cycle of service, such as `postgresql`, `rabbit` or `kafka`
-  - `SiteManager CR` - is the custom resource with description of DR behavior for service, specific for stateful module
-  - `site-manager` - is the dedicated service in a separate project. It can set new state `active` or `standby` to other  services and knows about all services in current kubernetes cluster.
+Where:
+  - `operator` is a service that manages the life-cycle of a service, such as `postgresql`, `rabbit`, or `kafka`.
+  - `SiteManager CR` is the custom resource with description of the DR behavior for a service, specific for the stateful module.
+  - `site-manager` is a dedicated service in a separate project. It can set a new state `active` or `standby` to other services and contains information about all services in the current Kubernetes cluster.
 
 
 ## Service sequence
