@@ -56,7 +56,7 @@ Where:
 ## Service Sequence
 
 Service sequence is applied when a service should be reconfigured on one Kubernetes cluster before the second Kubernetes cluster (for 
-example postgresql cluster), and when `standby` should be performed before `active`.
+example Postgresql cluster), and when `standby` should be performed before `active`.
 
 ![](/documentation/images/site-manager-PG-service-with-CR-2clusters-new.png)
 
@@ -146,7 +146,7 @@ To secure access to manageable services from `site-manager`, the same scheme is 
 
 # Monitoring
 
-Metrics can be checked by running `site-manager` and using the `/metrics` endpoint. The output has prometheus specific format and is intended for an external monitoring system.
+Metrics can be checked by running `site-manager` and using the `/metrics` endpoint. The output has Prometheus specific format and is intended for an external monitoring system.
 
 ```
 curl   --silent \
@@ -656,7 +656,7 @@ Output:
 
 ### Possible Errors
 
-1. Wrong json
+1. Incorrect json
 
 ```
 $ curl -XPOST \
