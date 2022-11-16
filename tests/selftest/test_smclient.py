@@ -31,12 +31,12 @@ def args_init(config=None):
     args.run_services=""
     args.skip_services=""
     args.output=None
+    args.force = False
     args.command="version"
     return args
 
 
 def test_sm_process_service(mocker, caplog):
-
     init_and_check_config(args_init())
     test_resp={'services':{'test1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
     caplog.set_level(logging.DEBUG)
@@ -390,7 +390,7 @@ def test_init_and_check_config(caplog):
             assert f"Cannot write to {args.output}" in caplog.text
 
 
-def test_sm_poll_service_required_status(mocker,caplog):
+def test_sm_poll_service_required_status(mocker, caplog):
     init_and_check_config(args_init())
 
     test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
@@ -407,15 +407,42 @@ def test_sm_poll_service_required_status(mocker,caplog):
         "serv1":{"timeout":None}}}
     with caplog.at_level(logging.INFO):
         caplog.clear()
-        dr_status = sm_poll_service_required_status("k8s-1", "serv1", "active",sm_dict)
+        dr_status = sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict)
         assert f"{smclient.SERVICE_DEFAULT_TIMEOUT} seconds left until timeout" in caplog.text
         assert dr_status.is_ok()
 
-    #service specific timeout
+    # service specific timeout
     sm_dict=SMClusterState()
     sm_dict["k8s-1"]={"services":{
         "serv1":{"timeout":100}}}
     with caplog.at_level(logging.INFO):
         caplog.clear()
-        sm_poll_service_required_status("k8s-1", "serv1", "active",sm_dict)
+        sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict)
         assert "100 seconds left until timeout" in caplog.text
+
+from unittest.mock import MagicMock
+def test_sm_process_service_with_polling(mocker, caplog):
+    smclient.args=args_init()
+    init_and_check_config(args_init())
+    test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'running'}}}
+    caplog.set_level(logging.DEBUG)
+    fake_resp=mocker.Mock()
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    fake_resp.status_code=HTTPStatus.OK
+
+    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+
+    # custom timeout
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={
+        "services":{
+            "serv1":{"timeout":1,
+                 "sequence":['active','standby']}},
+        "status": True}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        sm_process_service_with_polling("serv1", "k8s-1",  "move", sm_dict)
+        service_response = thread_result_queue.get()
+        service_response.sortout_service_results()
+        assert 'serv1' in failed_services
+        assert "Service serv1 failed on k8s-1, skipping it on another site" in caplog.text

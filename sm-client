@@ -231,7 +231,7 @@ class ServiceDRStatus:
 
     def is_ok(self):
         """ @todo wrong-service ?"""
-        if self.healthz in ['down','degraded','--'] or self.status in ['failed']:
+        if self.healthz in ['down','degraded','--'] or self.status in ['failed','running']:
             return False
         return True
 
@@ -372,8 +372,10 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
 
             if sm_dict[site_to_process]['status']: # to process only available sites
                 sm_process_service(site_to_process, service, mode, False if 'move' in cmd else True)
-                # todo[0] skip next in case previous site failed ??
                 service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force)
+                if cmd in 'move' and not service_response.is_ok():
+                    logging.info(f"Service {service} failed on {site_to_process}, skipping it on another site...")
+                    break
 
         thread_result_queue.put(service_response)
 
@@ -786,7 +788,8 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
         @param state:  expected dict state from site-manager service status command. {"status": ["up"]}
         @param error_state: optional error state which should be processed immediately. {"status": ["failed"]}
         """
-        timeout = sm_dict[site]["services"][service]["timeout"] if sm_dict[site]["services"][service]["timeout"] else \
+        timeout = sm_dict[site]["services"][service]["timeout"] if sm_dict[site]["services"].get(service) and \
+                                                                   sm_dict[site]["services"][service]["timeout"] else \
             SERVICE_DEFAULT_TIMEOUT
 
         key = list(state.keys())[0]
