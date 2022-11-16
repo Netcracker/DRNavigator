@@ -53,94 +53,97 @@ Where:
   - `SiteManager CR` is the custom resource with description of the DR behavior for a service, specific for the stateful module.
   - `site-manager` is a dedicated service in a separate project. It can set a new state `active` or `standby` to other services and contains information about all services in the current Kubernetes cluster.
 
+## Service Sequence
 
-## Service sequence
-
-In case when service should be reconfigured on one kubernetes cluster before the second kubernetes cluster (for 
-example postgresql cluster, when `standby`  should be performed first and after `active` part:
+Service sequence is applied when a service should be reconfigured on one Kubernetes cluster before the second Kubernetes cluster (for 
+example postgresql cluster), and when `standby` should be performed before `active`.
 
 ![](/documentation/images/site-manager-PG-service-with-CR-2clusters-new.png)
 
-Some services need different order. In case of service does not need to follow the sequence of execution parameter `sequence` in SiteManager CR can be omitted.
+Some services need a different order. In case of a service does not need to follow the sequence of execution, the `sequence` parameter in the SiteManager CR can be omitted.
 
-### Service dependency
+### Service Dependency
 
-Often services depend on the sequence of starting another services. For example `airflow` depends on running `postgresql` cluster. To comply with dependencies of services you can use `after` and `before` parameters. These parameters are lists and can contain the names of CRs SiteManager of another services. It is impotent to understand that we do not use names of services, we should use names of CRs.
+Often services depend on the sequence of starting other services. For example, `airflow` depends on running the `postgresql` cluster. To comply with dependencies of services, you can use `after` and `before` parameters. These parameters are lists and can contain the names of SiteManager CRs of other services. It is important to understand that we do not use names of services, we should use names of CRs.
 
-When all dependencies of two or more services are fulfilled `site-manager` can maintain all these services at the same time.
+When all dependencies of two or more services are fulfilled, `site-manager` can maintain all these services at the same time.
 
-For one kubernetes cluster:
+For one Kubernetes cluster:
 
 ![](/documentation/images/site-manager-SM-dependency-1.png)
 
-For two kubernetes clusters:
+For two Kubernetes clusters:
 
 ![](/documentation/images/site-manager-SM-dependency-2.png)
 
-where:
-  - `1` is the first set of services
-  - `2` is the second set of services. It means that services of that set depend on services of set `1`
+Where:
+  - `1` is the first set of services.
+  - `2` is the second set of services. It specifies that the services of that set depend on the services of set `1`.
 
-### Service endpoint
+### Service Endpoint
 
-To start DR procedures `site-manager` should send REST request to operator. You should use `serviceEndpoint` to define URL for operator.  
+To start DR procedures, `site-manager` should send a REST request to the operator. You should use `serviceEndpoint` to define the URL for the operator.  
 
-To check current service health status `site-manager` checks URL from `healthzEndpoint`.
+To check the health status of the current service, `site-manager` checks the URL from `healthzEndpoint`.
 
-## DR procedures flow
+## DR Procedures Flow
 ### Switchover
 
-Example for service with `sequence` parameter as ["standby", "active"]:
+Example for a service with the `sequence` parameter as ["standby", "active"]:
 
 ![](/documentation/images/site-manager_diagram_with_PG.png)
 
-Postgres is the service with defined sequence. It means that we need to send new mode to the standby cluster and only in case of procedure successful finished we can send new mode to active site.
+Postgres is the service with a defined sequence. It specifies that we have to send a new mode to the standby cluster and only when a procedure has successfully finished, we can send a new mode to the active site.
 
-Example for service without `sequence` parameter:
+Example for a service without the `sequence` parameter:
 
 ![](/documentation/images/site-manager_diagram_with_Mongo.png)
 
-For this example we consider Mongo as an example of service without sequence. For this case we send new mode to both clusters and wait for status `done` also for both clusters.
+For this example, Mongo is assumed as a service without a sequence. For this case, we send a new mode to both clusters and wait for the `done` status for both clusters.
+
 ### Failover
 
-Example for two services. The first service with defined `sequence` and the second without sequence:
+The following image is an example for two services, where the first service is with `sequence` and the second is without a sequence:
 
 ![](/documentation/images/site-manager_diagram_failover.png)
 
-Working with services looks like in switchover procedure. We have only one assumption - standby kubernetes cluster may be unavailable. In this case we should not wait for correct status. We can omit statuses of all services of standby kubernetes cluster.
-## Possible schemes for sm-client and Site-Manager
+Working with services is similar to the switchover procedure. We have only one assumption - standby Kubernetes cluster can be unavailable. In this case, we should not wait for the correct status. We can omit statuses of all services of the standby Kubernetes cluster.
 
-1. Run `sm-client` as cli util on any Linux host with access to both kubernetes clusters:
+## Possible Schemes for sm-client and Site-Manager
+
+1. Run `sm-client` as a cli util on any Linux host with access to both Kubernetes clusters:
 
     ![](/documentation/images/site-manager-SM-new-arch-1.png)
 
-    `sm-client` starts as cli util by operator and prepare DR procedure for kubernetes clusters. All logs are in stdout and `sm-client` shows all operations in runtime. After `sm-client` finished DR procedure it exits.
+    `sm-client` starts as a cli util by an operator and prepares the DR procedure for Kubernetes clusters. All logs are in stdout and `sm-client` shows all operations in runtime. The `sm-client` exits after finishing the DR procedure.
 
-2. Run `sm-client` as a service in docker container on any container environment and send commands by REST:
+2. Run `sm-client` as a service in the docker container on any container environment and send commands by REST:
 
     ![](/documentation/images/site-manager-SM-new-arch-2.png)
 
-    `sm-client` is running as service in Docker container and can receive REST queries with commands. All procedures occur in runtime. `sm-client` does not exit after all DR procedures finished and continues to listen for new REST queries. `sm-client` can be started on DVM or on Operation portal VM. To achieve HA the `sm-client` can be started on few nodes but only one should launch DR procedures at a time.
+    `sm-client` runs as a service in the Docker container and can receive REST queries with commands. All procedures occur in runtime. `sm-client` does not exit after all DR procedures are finished and continues to listen for new REST queries. `sm-client` can be started on DVM or on the Operation portal VM. To achieve HA, the `sm-client` can be started on few nodes, but only one should launch DR procedures at a time.
 
-`site-manager` is the service always started inside kubernetes cluster, and it has information only about services inside the same kubernetes cluster.
+`site-manager` is a service that is always started inside the Kubernetes cluster, and it has information only about services inside the same Kubernetes cluster.
 
-`sm-client` is the util to manage DR procedures by sending REST requests to `site-manager` microservices in few kubernetes clusters and respects dependencies and sequences between all services of kubernetes clusters.
+`sm-client` is the util to manage DR procedures by sending REST requests to `site-manager` microservices in few Kubernetes clusters and respects dependencies and sequences between all services of Kubernetes clusters.
+
 # Security. Authorization
 
-To restrict access to `site-manager` from `sm-client` there is the scheme with using authorization by Bearer Token:
+To restrict access to `site-manager` from `sm-client`, there is a scheme for using authorization by Bearer Token:
 
-1. In kubernetes cluster there is the serviceaccount `sm-auth-sa` without any grants in the same namespace as `site-manager`
-2. `site-manager` is started with env parameter `FRONT_HTTP_AUTH` with value "True" or "Yes"
-3. `site-manager` reads secret created by kubernetes for serviceaccount `sm-auth-sa` and store token in memory. Also `site-manager` uses watch mode and wait for any updates of secret. If secret was updated the `site-manager` also updates token in memory
-4. Operator fills config.yml for `sm-client` with the same token and set env parameter `FRONT_HTTP_AUTH` with value "True" or "Yes"
-5. All REST operations between `sm-client` and `site-manager` will contain header "Authorization: Bearer <TOKEN>" where `TOKEN` is the token from serviceaccount `sm-auth-sa`
+1. In the Kubernetes cluster, the `sm-auth-sa` serviceaccount is available without any grants in the same namespace as `site-manager`.
+2. `site-manager` is started with the `FRONT_HTTP_AUTH` env parameter  with value "True" or "Yes".
+3. `site-manager` reads the secret created by Kubernetes for the `sm-auth-sa` serviceaccount and stores the token in memory. Also, `site-manager` uses the watch mode and waits for any updates of the secret. If the secret is updated, the `site-manager` also updates the token in the memory.
+4. The operator fills config.yml for `sm-client` with the same token and sets the `FRONT_HTTP_AUTH` env parameter with value "True" or "Yes".
+5. All REST operations between `sm-client` and `site-manager` contain the "Authorization: Bearer <TOKEN>" header, where, `TOKEN` is the token from serviceaccount `sm-auth-sa`.
 
-To secure access to manageable services from `site-manager` also added same scheme with using authorization by Bearer Token:
+To secure access to manageable services from `site-manager`, the same scheme is also added for using authorization by Bearer Token:
 
-1. The value of env variable `BACK_HTTP_AUTH` means whether the token from serviceaccount `sm-auth-sa` will be sent to manageable services in header.
-2. More about this scheme at [API Security model](#api-security-model) part.
+1. The value of the `BACK_HTTP_AUTH` env variable specifies whether the token from the `sm-auth-sa` serviceaccount is sent to manageable services in the header.
+2. For more information about this scheme, see [API Security Model](#api-security-model).
 
-**Note:** `site-manager` installed by default with `FRONT_HTTP_AUTH` "Yes" and `BACK_HTTP_AUTH` "Yes" which means that authorization enab
+**Note**: `site-manager` is installed by default with `FRONT_HTTP_AUTH` "Yes" and `BACK_HTTP_AUTH` "Yes", which means that authorization is enabled.
+
 # Monitoring
 
 To check metrics from running `site-manager` can be used `/metrics` endpoint. Output has prometheus specific format and intended for external monitoring system.
