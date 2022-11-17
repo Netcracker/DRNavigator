@@ -53,6 +53,17 @@ if SM_CACERT in ("Yes", "yes", "No", "no", "True", "true", "False", "false"):
 SM_GET_REQUEST_TIMEOUT = int(os.environ.get("SM_GET_REQUEST_TIMEOUT", 10))
 SM_POST_REQUEST_TIMEOUT = int(os.environ.get("SM_POST_REQUEST_TIMEOUT", 30))
 
+
+class ProcedureException(Exception):
+    """
+    Raised when something went wrong during procedure
+    @param dict output: output that should be returned if problem appears
+    """
+
+    def __init__(self, output):
+        self.output = output
+
+
 def send_post(url, mode, no_wait):
     """ Method to send POST requests to services
     @param string url: the URL to service operator

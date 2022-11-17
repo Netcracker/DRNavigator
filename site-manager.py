@@ -42,7 +42,6 @@ logging.basicConfig(format=logging_format, level=logging_level)
 
 lock = threading.Lock()
 
-
 if utils.FRONT_HTTP_AUTH or utils.BACK_HTTP_AUTH:
     utils.get_token(False)
 
@@ -159,6 +158,53 @@ def get_status(service, *args, **kwargs):
         output["healthz"] = "--"
 
     return output
+
+
+def get_status_with_deps(service, sm_dict, *args, **kwargs):
+    """
+    Method that collects complete information about the state of the service with dependencies if needed
+    @param str service: name of needed service
+    @param dict sm_dict: services' CRs
+    """
+    visited_services_stack = []
+    with_deps = kwargs.get('with-deps', False)
+
+    def collect_statuses_tree_for_services(services):
+        output = dict()
+        for service_name in services:
+            # Check ot service name is not defined in CRs
+            if service_name not in sm_dict['services']:
+                logging.error(f"Found not exist dependency: {service_name} in {visited_services_stack[-1]} CR")
+                raise utils.ProcedureException(output={
+                    "message": "Dependency defined in CR doesn't exist",
+                    "wrong-service": service_name,
+                    "problem-cr": visited_services_stack[-1]
+                })
+
+            # Check if service's already been visited
+            visited_services_stack.append(service_name)
+            if visited_services_stack.count(service_name) > 1:
+                logging.error(f"Found cycle in service dependencies: {visited_services_stack}")
+                raise utils.ProcedureException(output={
+                    "message": "Found cycle in service dependencies",
+                    "wrong-service": service_name,
+                    "cycled-services": visited_services_stack
+                })
+
+            # Get status for service
+            cr = sm_dict['services'][service_name]
+            output[service_name] = get_status(cr, args, kwargs)
+
+            # Get dependencies if needed
+            if with_deps:
+                output[service_name]['deps'] = {
+                    'before': collect_statuses_tree_for_services(cr['before']),
+                    'after': collect_statuses_tree_for_services(cr['after'])
+                }
+            visited_services_stack.pop()
+        return output
+
+    return collect_statuses_tree_for_services([service])
 
 
 def get_module_specific_cr(item):
@@ -340,10 +386,13 @@ def sitemanager_post():
     logging.info(f"Following service will be processed: {run_service}")
 
     if data["procedure"] == "status":
-        output = dict()
-        output["services"] = {}
-        output["services"][run_service] = get_status(sm_dict["services"][run_service], **data)
-        return json_response(200, output)
+        try:
+            output = dict()
+            output["services"] = {}
+            output["services"] = get_status_with_deps(run_service, sm_dict, **data)
+            return json_response(200, output)
+        except utils.ProcedureException as e:
+            return json_response(400, e.output)
 
     mode = data["procedure"]
     url = sm_dict["services"][run_service]['parameters']['serviceEndpoint']
