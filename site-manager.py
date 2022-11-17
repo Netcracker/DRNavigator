@@ -214,13 +214,31 @@ def root_get():
 
 @app.route('/validate', methods=['POST'])
 def cr_validate():
-    pass
+    cr = request.json["request"]
+    logging.debug(f"Initial object from API for validating: {cr}")
+    allowed = True
+    message = "All checks passed"
+    uid = cr["uid"]
+
+    # Check name for unique
+    sm_dict = get_sitemanagers_dict()
+    if cr["name"] in sm_dict['services'].keys():
+        allowed = False
+        message = f"CR with name {cr['name']} has already existed in cluster"
+        logging.debug(f"CR validation fails: {message}")
+
+    return jsonify({"apiVersion": "admission.k8s.io/v1",
+                    "kind": "AdmissionReview",
+                    "response": {
+                        "allowed": allowed,
+                        "uid": uid,
+                        "status": {"message": message}}})
 
 
 @app.route('/convert', methods=['POST'])
 def cr_convert():
 
-    logging.debug(f"Initial object from API: {request.json['request']}")
+    logging.debug(f"Initial object from API for converting: {request.json['request']}")
 
     spec = request.json["request"]["objects"]
     modified_spec = copy.deepcopy(spec)

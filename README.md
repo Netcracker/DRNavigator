@@ -1020,29 +1020,38 @@ To support the ability of services to be managed by `site-manager`, implement th
       openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
     ```
 
-3. Create CRD `sitemanagers.netcracker.com`
+3. Create CRD `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration`:
 
-    3.1. In case of integration with cert-manager, add the following annotation in CRD, which helps to update caBundle in its webhook:
+    3.1. In case of integration with cert-manager, add the following annotation in CRD and ValidatingWebhookConfiguration, which helps to update caBundle in theirs webhook:
 
-    ```
+    ```yaml
     apiVersion: apiextensions.k8s.io/v1
-        kind: CustomResourceDefinition
-        metadata:
-            name: sitemanagers.netcracker.com
-            annotations:
-                cert-manager.io/inject-ca-from: <NAMESPACE>/site-manager-tls-certificate
+    kind: CustomResourceDefinition
+    metadata:
+        name: sitemanagers.netcracker.com
+        annotations:
+            cert-manager.io/inject-ca-from: <NAMESPACE>/site-manager-tls-certificate
+    ```
+    ```yaml
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingWebhookConfiguration
+    metadata:
+        name: "site-manager-crd-validating-webhook-configuration"
+        annotations:
+            cert-manager.io/inject-ca-from: <NAMESPACE>/site-manager-tls-certificate
     ```
 
-     Create CRD `sitemanagers.netcracker.com` without caBundle field:
+     Create CRD `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` without caBundle field:
 
     ```
     $ cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
     ```
 
-    If you already had site-manager CRD in your cloud and want to migrate to cert-manager integration, it is enough to annotate it:
+    If you already had site-manager CRD or ValidatingWebhookConfiguration in your cloud and want to migrate to cert-manager integration, it is enough to annotate it:
 
     ```
     $ kubectl annotate crds sitemanagers.netcracker.com cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
+    $ kubectl annotate validatingwebhookconfigurations site-manager-crd-validating-webhook-configuration cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
     ```
     
     3.2. In other case, generate base64 string from ca.crt certificate:
@@ -1051,7 +1060,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     $ CA_BUNDLE=$(cat ca.crt | base64 - | tr -d '\n')
     ```
 
-    Create CRD `sitemanagers.netcracker.com`:
+    Create CRD `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration`:
 
     ```
     $ cat manifests/crd-sitemanager.yaml | sed "s/<base-64-encoded-ca-bundle>/${CA_BUNDLE}/" | kubectl apply -f -

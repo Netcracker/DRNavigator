@@ -158,3 +158,24 @@ spec:
           name: site-manager
           path: /convert
         caBundle: "<base-64-encoded-ca-bundle>"
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: "site-manager-crd-validating-webhook-configuration"
+webhooks:
+- name: "site-manager-crd-validating-webhook.netcracker.com"
+  admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      namespace: site-manager
+      name: site-manager
+      path: /validate
+    caBundle: "<base-64-encoded-ca-bundle>"
+  rules:
+  - apiGroups:   ["netcracker.com"]
+    apiVersions: ["*"]
+    operations:  ["CREATE", "UPDATE"]
+    resources:   ["sitemanagers"]
+    scope:       "Namespaced"
+  sideEffects: None
