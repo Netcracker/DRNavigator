@@ -3,10 +3,13 @@
 Contents:
 * [Issue](#issue)
 * [Considered Options](#considered-options)
-* [Proposal](#proposal)
+* [Proposal for multiply services](#proposal-for-multiply-services)
   * [Example](#example)
   * [Positive Consequences](#positive-consequences)
   * [Negative Consequences](#negative-consequences)
+* [Proposal for dns names](#proposal-for-dns-names)
+  * [Positive Consequences](#positive-consequences)
+  * [Negative Consequences](#negative-consequences) 
 * [Summary](#summary)
 
 ## Issue
@@ -16,12 +19,14 @@ In our consept this name is unique, because we provide operations on this servic
 
 But this way is followed with the problem, because site can consist several identical services in different namespaces 
 (e.g. some postgres DB, some kafka instances and so on). 
-If user deploy such services, they will be deployed successfully, but site-manager will operate only with one of this services and another one will be invisible.
+If user deploy such services, they will be deployed successfully, but site-manager will operate only with one of those services and another one will be invisible.
 [Issue on it](https://github.com/Netcracker/DRNavigator/issues/49)
 
 Now uniqueness of name is the concern of the user and requires to take account of the number of services, that should be deployed in site. 
 If it can be more than one, user has to provide an opportunity to redefine CR name in helm chart or create automatic algorithm for it. 
 And as practice shows, for most services there is no limit on their number in a cluster. Therefore, this issue is relevant.
+
+Also, we have requirements to use dns name of operated service as service name in site-manager. 
 
 ## Considered Options
 
@@ -29,17 +34,19 @@ And as practice shows, for most services there is no limit on their number in a 
 This option means that we fully restrict creation CR with name, that is already exist in cluster. It requires to validate created/modified CRs and should be noticed in site-manager guides.
 * **To modify the naming process in site-manager to ensure that it is unique across the cluster**  
 This option involves algorithmically selecting the name of the service to work through the site-manager. Moreover, this option requires backward compatibility with the current approach.
+* **To add additional field in CR to be able to customize service name regardless real CR name**
+This option means, that we add only mechanism to customize service name in site-manager, but real implementation continue to
+be dependent from users.
 
-## Proposal
+## Proposal for multiply services
 
 It is proposed to make the following rules for service name:
 ```
-<namespace>/<cr-name>
+<cr-name>.<namespace>
 ```
 
 * **Namespace** is userful because CR name is unique per them (our CR is namespaced for this reason it's restricted by kubernetes).  
-* **Slash symbol** can't be used in kubernetes names but is not special symbol in yaml and json format, that we use inside site-manager. 
-As result, it can't appear like part of cr name or namespace and the same time we don't have to additionally escape it.
+* **dot** makes the service name similar with the dns name, which partially fulfills the relevant requirement.
 
 We have site-manager server as proxy server, for this reason we can override service names here during getting `sm-dict` with all services. 
 In that case those names automatically will be used in interaction between sm-client and site-manager.   
@@ -55,7 +62,7 @@ compatibility, i.e. it should be possible to use only the CR name (without names
 Therefore, it is suggested to use the following rule:  
 * If only the CR name is specified, this means that this rule/request applies to all services with the given name on the cluster.
 For example, if CR of service contain line like ```after: [cassandra]```, it means, that this service is dependent from all cassandras on site.
-If you want to specify concrete cassandra you should specify namespace, like ```after: [devops-tools-ns/cassandra]```
+If you want to specify concrete cassandra you should specify namespace, like ```after: [cassandra.devops-tools-ns]```
 
 This way can be simply implemented in `sm-dict` calculation for `after`/`before` because this place is the most critical. 
 Also, it can be extended to an additional feature if we additionally implement it in `run-service` and `--run-services`/`--skip-services`.
@@ -126,7 +133,7 @@ spec:
 ```json
 {
     "services": {
-        "ns1/serviceA": {
+        "serviceA.ns1": {
             "after": [],
             "allowedStandbyStateList": ["up"],
             "before": [],
@@ -143,7 +150,7 @@ spec:
             ],
             "timeout": 360
         },
-        "ns2/serviceA": {
+        "serviceA.ns2": {
             "after": [],
             "allowedStandbyStateList": ["up"],
             "before": [],
@@ -160,8 +167,8 @@ spec:
             ],
             "timeout": 360
         },
-        "ns3/serviceB": {
-            "after": ["ns1/serviceA", "ns2/serviceA"],
+        "serviceB.ns3": {
+            "after": ["serviceA.ns1", "serviceA.ns2"],
             "allowedStandbyStateList": ["up"],
             "before": [],
             "module": "stateful",
@@ -188,9 +195,9 @@ sm-client status table will look like:
 +----------------------------+--------------------------------------+--------------------------------------+
 |                            | mode | DR status | healthz | message | mode | DR status | healthz | message |
 | -------------------------- | ------------------------------------ | ------------------------------------ |
-| ns1/serviceA               |        active / done / up /          |        standby / done / up /         |
-| ns2/serviceA               |        active / done / up /          |        standby / done / up /         |
-| ns3/serviceB               |        active / done / up /          |        standby / done / up /         |
+| serviceA.ns1               |        active / done / up /          |        standby / done / up /         |
+| serviceA.ns2               |        active / done / up /          |        standby / done / up /         |
+| serviceB.ns3               |        active / done / up /          |        standby / done / up /         |
 +----------------------------+--------------------------------------+--------------------------------------+
 ```
 
@@ -211,6 +218,40 @@ sm-client status table will look like:
 into account in all dependencies where it does not have a namespace specified.
 * Users feedback is needed, because maybe not all cases are taken into account.
 * Additional test cases are required;
+
+## Proposal for dns names
+
+Taking into account the fact that we do not directly know about the real name of the service or its dns name, we can't
+implement the requirement to use the dns name as the service name only by the site-manager. For this reason it's proposed 
+to add additional field like `name` in CRs, that helps to customize service names in site-manager:
+
+```
+apiVersion: netcracker.com/v3
+kind: SiteManager
+metadata:
+  name: some-service-site-manager
+spec:
+  sitemanager:
+    name: customized-service-name
+    after: []
+    before: []
+    ...
+```
+
+For backward compatibility it's proposed to make this field optional and take CR name as service name, if this parameter 
+doesn't exist.
+
+
+### Positive Consequences
+* It lets service names be independent of CR name;
+* It is intuitive to the user;
+* Backward compatibility;
+* Can be combined with [Proposal for multiply services](#proposal-for-multiply-services), because `name` can be used
+instead of `cr-name` in service name;
+* Can resolve requirement about dns names, if name of operated service or its dns name will be specified in `name` field;
+
+### Negative Consequences
+* Requires to update CRD;
 
 ## Summary
 
