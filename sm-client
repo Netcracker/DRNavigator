@@ -231,7 +231,7 @@ class ServiceDRStatus:
 
     def is_ok(self):
         """ @todo wrong-service ?"""
-        if self.healthz in ['down','degraded','--'] or self.status in ['failed','running']:
+        if self.healthz in ['down','degraded','--'] or self.status in ['failed']:
             return False
         return True
 
