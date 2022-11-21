@@ -14,6 +14,8 @@ import http.server
 import ssl
 import threading
 import os
+import pwd
+import warnings
 
 test_config_path=os.path.abspath("tests/selftest/resources/config_test.yaml")
 test_wrong_config_path=os.path.abspath("tests/selftest/resources/config_test_wrong.yaml")
@@ -383,8 +385,15 @@ def test_init_and_check_config(caplog):
         with caplog.at_level(logging.CRITICAL):
             init_and_check_config(args)
             assert f"Cannot write to {args.output}" not in caplog.text
+        os.remove(os.path.expanduser(args.output))
 
-    for args.output in ["/", "/not_exist_file", "/etc/passwd", "~/", "./"]:
+    wrong_log_path = ["/", "~/", "./"]
+    if pwd.getpwuid(os.getuid())[0] == 'root':
+        warnings.warn(UserWarning("You use root user, can't check some test cases"))
+    else:
+        wrong_log_path.extend(["/not_exist_file", "/etc/passwd"])
+
+    for args.output in wrong_log_path:
         with caplog.at_level(logging.CRITICAL):
             init_and_check_config(args)
             assert f"Cannot write to {args.output}" in caplog.text
