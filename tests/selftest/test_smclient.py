@@ -423,7 +423,7 @@ def test_sm_poll_service_required_status(mocker, caplog):
 def test_sm_process_service_with_polling(mocker, caplog):
     smclient.args=args_init()
     init_and_check_config(args_init())
-    test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'running'}}}
+    test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'failed'}}}
     caplog.set_level(logging.DEBUG)
     fake_resp=mocker.Mock()
     fake_resp.json=mocker.Mock(return_value=test_resp)
