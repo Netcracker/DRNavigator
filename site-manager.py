@@ -222,7 +222,8 @@ def cr_validate():
 
     # Check name for unique
     sm_dict = get_sitemanagers_dict()
-    if cr["name"] in sm_dict['services'].keys():
+    existed_cr = sm_dict['services'].get(cr['name'], None)
+    if existed_cr is not None and existed_cr['namespace'] != cr['namespace']:
         allowed = False
         message = f"CR with name {cr['name']} has already existed in cluster"
         logging.debug(f"CR validation fails: {message}")
