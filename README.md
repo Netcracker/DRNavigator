@@ -1,4 +1,4 @@
-![Kubemarine_1280х640_3_JPEG](https://user-images.githubusercontent.com/5212888/162978291-63d55f19-7dc0-4126-ad39-cd69191e7e19.jpg)
+![DR Navigator_1280х640_3](https://user-images.githubusercontent.com/5212888/162979551-96cf5038-2015-4b45-9e02-94ed1a8cbd3f.png)
 
 <!-- TOC -->
 * [Overview](#overview)
@@ -145,7 +145,7 @@ To secure access to manageable services from `site-manager`, the same scheme is 
 **Note**: `site-manager` is installed by default with `FRONT_HTTP_AUTH` "Yes" and `BACK_HTTP_AUTH` "Yes", which means that authorization is enabled.
 
 # Monitoring
-
+## SiteManager metrics
 Metrics can be checked by running `site-manager` and using the `/metrics` endpoint. The output has Prometheus specific format and is intended for an external monitoring system.
 
 ```
@@ -153,7 +153,9 @@ curl   --silent \
        --request GET \
        https://site-manager.example.com/metrics
 ```
- 
+## PaaS Geo Monitor
+[Service for monitoring connectivity between geographically distributed clusters](paas-geo-monitor/README.md)
+
 # SiteManager Contract
  
 The following API should be implemented by Cloud Service to be operated by SiteManager:
