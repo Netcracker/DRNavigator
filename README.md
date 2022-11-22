@@ -813,6 +813,7 @@ sites:
 
 sm-client:
   http_auth: True
+  service_default_timeout: 360
 ```
 
 Where:
@@ -821,6 +822,8 @@ Where:
  - `token` is the token to have access to `site-manager` in a Kubernetes cluster.
  - `cacert` is the path to the CA certificate for `site-manager` with a self-signed certificate.
  - `http_auth` specifies to use a token for `site-manager` authorization.
+ - `service_default_timeout` is optional parameter, that specifies default timeout for polling services in seconds. 
+Default value is 200.
 
 ## Examples of using sm-client
 
@@ -1092,7 +1095,6 @@ To support the ability of services to be managed by `site-manager`, implement th
 | env.SM_GROUP                                                  | Define API group for CRD.                                              | "netcracker.com"                |
 | env.SM_PLURAL                                                 | Define object of API group.                                            | "sitemanagers"                  |
 | env.SM_VERSION                                                | Define API group version for CRD.                                      | "v2"                            |
-| env.SERVICE_DEFAULT_TIMEOUT                                   | Set the default timeout for every microservice DR procedure.               | 200                             |
 | env.HTTP_SCHEME                                               | Define the HTTP scheme for connection to microservice operator.            | "http://"                       |
 | env.SM_CACERT                                                 | TLS verification in operators (True, False or path to trusted CA file). | "True"                          |
 | workerCount                                                   | The count of parallel workers that handle requests.                       | 2                               |

@@ -789,7 +789,7 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
         @param error_state: optional error state which should be processed immediately. {"status": ["failed"]}
         """
         timeout = sm_dict[site]["services"][service]["timeout"] if sm_dict[site]["services"].get(service) and \
-                                                                   sm_dict[site]["services"][service]["timeout"] else \
+                                                                   "timeout" in sm_dict[site]["services"][service] else \
             SERVICE_DEFAULT_TIMEOUT
 
         key = list(state.keys())[0]

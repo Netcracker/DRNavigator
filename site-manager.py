@@ -189,16 +189,18 @@ def get_module_specific_cr(item):
         healthz_endpoint = ''
     allowed_standby_state_list = [i.lower() for i in item['spec']['sitemanager'].get('allowedStandbyStateList', ["up"])]
 
-    return {"namespace": item["metadata"]["namespace"],
+    result = {"namespace": item["metadata"]["namespace"],
             "module": item['spec']['sitemanager'].get('module', ''),
             "after": item['spec']['sitemanager'].get('after', []),
             "before": item['spec']['sitemanager'].get('before', []),
             "sequence": item['spec']['sitemanager'].get('sequence', []),
             "allowedStandbyStateList": allowed_standby_state_list,
-            "timeout": item['spec']['sitemanager'].get('timeout', utils.SERVICE_DEFAULT_TIMEOUT),
             "parameters":
                 {"serviceEndpoint": service_endpoint,
                  "healthzEndpoint": healthz_endpoint}}
+    if 'timeout' in item['spec']['sitemanager']:
+        result['timeout'] = item['spec']['sitemanager']['timeout']
+    return result
 
 
 @app.route('/', methods=['GET'])
