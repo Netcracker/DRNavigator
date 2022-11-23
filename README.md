@@ -194,7 +194,7 @@ Where:
   - `sequence` is the order of starting service sides. In case sequence is empty default `["standby","active"]` is used.
   - `timeout` is the timeout in seconds for polling operation. If `timeout` is empty or absent the default timeout 600 seconds will be used.
   - `allowedStandbyStateList` - is the list of possible healthz statuses for standby site. By default `["up"]`.
-  - `serviceEndpoint` is the URL to access the operator inside kubernetes cluster.
+  - `serviceEndpoint` is the URL to access the operator inside the Kubernetes cluster.
   - `healthzEndpoint` is the URL to check cluster status.
 
 Example for `postgres` service:
@@ -963,7 +963,7 @@ The above example implies the following DR sequences:
 ### Requirements 
  
 Before the installation, ensure that you have enough resources for DRNavigator.
-For one pod, it is recommended to use 100m cpu and 80Mi memory limits per worker and by default, DRNavigator uses 2 workers.
+For one pod, it is recommended to use 100m CPU and 80Mi memory limits per worker and by default, DRNavigator uses 2 workers.
 You can override the worker count and cpu/memory limits using helm environments.
 
 ### Prerequisites
