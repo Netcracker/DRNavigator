@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import logging
-import json
 import ssl
 from typing import Tuple, Dict
 
@@ -75,14 +74,6 @@ def send_post(url, mode, no_wait):
     _, response, _ = io_make_http_json_request(url, http_body=obj,token=SM_AUTH_TOKEN,use_auth=BACK_HTTP_AUTH)
     if response:
         return response
-
-    for _ in range(4):
-        _, status, _ = io_make_http_json_request(url)
-        if status.get("mode", "") != mode:
-            _, response, _ = io_make_http_json_request(url, http_body=obj,token=SM_AUTH_TOKEN,use_auth=BACK_HTTP_AUTH)
-            if response:
-                return response
-        time.sleep(2)
 
     logging.fatal(f"Can't successfully send post request to service endpoint {url}")
     return dict.fromkeys(['fatal'], True)

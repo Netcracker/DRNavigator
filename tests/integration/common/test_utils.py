@@ -42,8 +42,14 @@ def parse_status_table(capfd):
 
 
 def check_status_from_service(site_name, service_name, service_url, expected_status):
-    healthz_resp = requests.get(service_url + "/healthz").json()
-    status_resp = requests.get(service_url + "/sitemanager").json()
+    try:
+        healthz_resp = requests.get(service_url + "/healthz", timeout=1).json()
+    except requests.exceptions.RequestException as e:
+        healthz_resp = {}
+    try:
+        status_resp = requests.get(service_url + "/sitemanager", timeout=1).json()
+    except requests.exceptions.RequestException as e:
+        status_resp = {}
     service_status = {"healthz": healthz_resp.get("status", "--"),
                       "mode": status_resp.get("mode", "--"),
                       "status": status_resp.get("status", "--"),
@@ -59,8 +65,11 @@ def check_status_from_site_manager(site_name, service_name, sm_url, token, verif
         "Authorization": f"Bearer {token}"
     }
     data = {"procedure": "status", "run-service": service_name}
-    service_answer = requests.post(sm_url + "/sitemanager", json=data, headers=headers, verify=verify).json()
-    logging.debug(f"Check status from service {service_name} in site {site_name}, received: {expected_answer}")
+    try:
+        service_answer = requests.post(sm_url + "/sitemanager", json=data, headers=headers, verify=verify, timeout=1).json()
+    except requests.exceptions.RequestException as e:
+        service_answer = {"services": {service_name: {"healthz": "--", "mode": "--", "status": "--", "message": ""}}}
+    logging.debug(f"Check status from service {service_name} in site {site_name}, received: {service_answer}")
     assert service_answer == expected_answer
 
 
