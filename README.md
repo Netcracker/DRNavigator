@@ -192,7 +192,7 @@ Where:
   - `after` is the list of services, that should be done before service start. In case of `after` is empty or absent the service will start among the first services if no service with name of this service in section `before`.
   - `before` is the list of services, that should wait until service in running. May be empty or absent.
   - `sequence` is the order of starting service sides. In case sequence is empty default `["standby","active"]` is used.
-  - `timeout` is the timeout in seconds for polling operation. If `timeout` is empty or absent the default timeout 600 seconds will be used.
+  - `timeout` is the timeout in seconds for polling operation. If `timeout` is empty or absent site-manager will use `service_default_timeout` property from sm-client configuration.
   - `allowedStandbyStateList` - is the list of possible healthz statuses for standby site. By default `["up"]`.
   - `serviceEndpoint` is the URL to access the operator inside the Kubernetes cluster.
   - `healthzEndpoint` is the URL to check cluster status.
@@ -815,6 +815,7 @@ sites:
 
 sm-client:
   http_auth: True
+  service_default_timeout: 360
 ```
 
 Where:
@@ -823,6 +824,8 @@ Where:
  - `token` is the token to have access to `site-manager` in a Kubernetes cluster.
  - `cacert` is the path to the CA certificate for `site-manager` with a self-signed certificate.
  - `http_auth` specifies to use a token for `site-manager` authorization.
+ - `service_default_timeout` is optional parameter, that specifies default timeout for polling services in seconds. 
+Default value is 200.
 
 ## Examples of using sm-client
 
@@ -1094,7 +1097,6 @@ To support the ability of services to be managed by `site-manager`, implement th
 | env.SM_GROUP                                                  | Define API group for CRD.                                              | "netcracker.com"                |
 | env.SM_PLURAL                                                 | Define object of API group.                                            | "sitemanagers"                  |
 | env.SM_VERSION                                                | Define API group version for CRD.                                      | "v2"                            |
-| env.SERVICE_DEFAULT_TIMEOUT                                   | Set the default timeout for every microservice DR procedure.               | 200                             |
 | env.HTTP_SCHEME                                               | Define the HTTP scheme for connection to microservice operator.            | "http://"                       |
 | env.SM_CACERT                                                 | TLS verification in operators (True, False or path to trusted CA file). | "True"                          |
 | workerCount                                                   | The count of parallel workers that handle requests.                       | 2                               |

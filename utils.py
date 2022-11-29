@@ -29,7 +29,6 @@ SM_PLURAL = os.environ.get("SM_PLURAL", "sitemanagers")
 SM_VERSION = os.environ.get("SM_VERSION", "v2")
 
 # Define services default parameters
-SERVICE_DEFAULT_TIMEOUT = os.environ.get("SERVICE_DEFAULT_TIMEOUT", 200)
 HTTP_SCHEME = os.environ.get("HTTP_SCHEME", "http://")
 
 # site-manager WEB server parameters
