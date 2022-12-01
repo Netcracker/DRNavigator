@@ -854,7 +854,7 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
             data, ret, _ = sm_process_service(site, service, "status")
             data = {'services':{service:{}}} if not data else data
 
-            logging.debug(f"Service: {service}. Site: {site}. Received data: {data}. Return code: {ret}")
+            logging.info(f"Service: {service}. Site: {site}. Received data: {data}. Return code: {ret}")
 
             if ret and all(data["services"][service][key] in val for key, val in expected_state.items()):
                 return data, ret
