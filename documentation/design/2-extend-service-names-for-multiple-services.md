@@ -3,13 +3,10 @@
 Contents:
 * [Issue](#issue)
 * [Considered Options](#considered-options)
-* [Proposal for multiply services](#proposal-for-multiply-services)
+* [Proposal](#proposal)
   * [Example](#example)
   * [Positive Consequences](#positive-consequences)
   * [Negative Consequences](#negative-consequences)
-* [Proposal for dns names](#proposal-for-dns-names)
-  * [Positive Consequences](#positive-consequences)
-  * [Negative Consequences](#negative-consequences) 
 * [Summary](#summary)
 
 ## Issue
@@ -34,11 +31,8 @@ Also, we have requirements to use dns name of operated service as service name i
 This option means that we fully restrict creation CR with name, that is already exist in cluster. It requires to validate created/modified CRs and should be noticed in site-manager guides.
 * **To modify the naming process in site-manager to ensure that it is unique across the cluster**  
 This option involves algorithmically selecting the name of the service to work through the site-manager. Moreover, this option requires backward compatibility with the current approach.
-* **To add additional field in CR to be able to customize service name regardless real CR name**
-This option means, that we add only mechanism to customize service name in site-manager, but real implementation continue to
-be dependent from users.
 
-## Proposal for multiply services
+## Proposal
 
 It is proposed to make the following rules for service name:
 ```
@@ -57,203 +51,166 @@ Difficulties will only appear in places where service names are hardcoded:
 * `--run-services` and `--skip-services` options in sm-client;
 
 In order for users not to urgently need to edit their CRs, it is required to maintain backward 
-compatibility, i.e. it should be possible to use only the CR name (without namespace).  
+compatibility, i.e. it should be possible to use only the CR name (without namespace) like now.
 
-Therefore, it is suggested to use the following rule:  
-* If only the CR name is specified, this means that this rule/request applies to all services with the given name on the cluster.
-For example, if CR of service contain line like ```after: [cassandra]```, it means, that this service is dependent from all cassandras on site.
-If you want to specify concrete cassandra you should specify namespace, like ```after: [cassandra.devops-tools-ns]```
+For this it's proposed to implement new v3 CR api version to make a difference between current and new approaches.  
+During convertation from v2 to v3 version, site-manager adds namespaces to service names in `after`/`before` sections.  
+After that this CRs can be used for SM procedures.
 
-This way can be simply implemented in `sm-dict` calculation for `after`/`before` because this place is the most critical. 
-Also, it can be extended to an additional feature if we additionally implement it in `run-service` and `--run-services`/`--skip-services`.
+If some service's already had namespace in CR names (e.g. it's dynamically calculated via helm), it should be excluded, CR should be 
+created with new name and old CR should be removed.
+
+Also, if service name is changed, it should be fixed manually in `run-service` and `--run-services`/`--skip-services` places.
+
+As result:
+1. Fresh installation process doesn't change;
+2. After implementation in SM, dependencies are rebuilt for new approach, but namespace will be duplicated, if it's already used in CR name.
+3. After excluding namespace from CR name, it's needed to redeploy not only CR for this service, but also CRs, where this service is dependent.
+4. If service name is hardcoded outside cluster and if it's changed, it should be manually fixed there.
 
 ### Example
 
-Suppose we have 3 services on the site: `serviceA` on namespaces `ns1` and `ns2` and `serviceB` on `ns3`, that is dependent from `serviceA`. 
-Their CRs look like:
+Suppose we have two services `serviceA` and `serviceB`, dependent from `serviceA`.
+#### 0. Before changes
+
+In services helms:
 ```yaml
 apiVersion: netcracker.com/v2
 kind: SiteManager
-name: serviceA
-namespace: ns1
+metadata:
+  name: {{ .Values.namespace }}-serviceA
 spec:
   sitemanager:
     after: []
-    allowedStandbyStateList:
-    - up
     before: []
-    module: stateful
-    parameters:
-    healthzEndpoint: http://serviceA.ns1:8080/healthz
-    serviceEndpoint: http://serviceA.ns1:8080/sitemanager
-    sequence:
-    - standby
-    - active
-    timeout: 360
 ---
 apiVersion: netcracker.com/v2
 kind: SiteManager
-name: serviceA
-namespace: ns2
+metadata:
+  name: {{ .Values.namespace }}-serviceB
 spec:
   sitemanager:
-    after: []
-    allowedStandbyStateList:
-    - up
+    after: 
+      {{ toYaml .Values.sm.after | indent 6 }}
     before: []
-    module: stateful
-    parameters:
-    healthzEndpoint: http://serviceA.ns2:8080/healthz
-    serviceEndpoint: http://serviceA.ns2:8080/sitemanager
-    sequence:
-    - standby
-    - active
-    timeout: 360
----
-apiVersion: netcracker.com/v2
-kind: SiteManager
-name: serviceB
-namespace: ns3
-spec:
-  sitemanager:
-    after: [serviceA]
-    allowedStandbyStateList:
-    - up
-    before: []
-    module: stateful
-    parameters:
-    healthzEndpoint: http://serviceB.ns3:8080/healthz
-    serviceEndpoint: http://serviceB.ns3:8080/sitemanager
-    sequence:
-    - standby
-    - active
-    timeout: 360
-```
-`sm-dict` for them will look like this (pay attention to the names of the services and to the `after` section at the `serviceB`):
-```json
-{
-    "services": {
-        "serviceA.ns1": {
-            "after": [],
-            "allowedStandbyStateList": ["up"],
-            "before": [],
-            "module": "stateful",
-            "name": "serviceA",
-            "namespace": "ns1",
-            "parameters": {
-                "healthzEndpoint": "http://serviceA.ns1:8080/healthz",
-                "serviceEndpoint": "http://serviceA.ns1:8080/sitemanager"
-            },
-            "sequence": [
-                "standby",
-                "active"
-            ],
-            "timeout": 360
-        },
-        "serviceA.ns2": {
-            "after": [],
-            "allowedStandbyStateList": ["up"],
-            "before": [],
-            "module": "stateful",
-            "name": "serviceA",
-            "namespace": "ns2",
-            "parameters": {
-                "healthzEndpoint": "http://serviceA.ns2:8080/healthz",
-                "serviceEndpoint": "http://serviceA.ns2:8080/sitemanager"
-            },
-            "sequence": [
-                "standby",
-                "active"
-            ],
-            "timeout": 360
-        },
-        "serviceB.ns3": {
-            "after": ["serviceA.ns1", "serviceA.ns2"],
-            "allowedStandbyStateList": ["up"],
-            "before": [],
-            "module": "stateful",
-            "name": "serviceB",
-            "namespace": "ns3",
-            "parameters": {
-                "healthzEndpoint": "http://serviceB.ns3:8080/healthz",
-                "serviceEndpoint": "http://serviceB.ns3:8080/sitemanager"
-            },
-            "sequence": [
-                "standby",
-                "active"
-            ],
-            "timeout": 360
-        }
-    }
-}
 ```
 
-sm-client status table will look like:
+In cluster:
+```yaml
+apiVersion: netcracker.com/v2
+kind: SiteManager
+metadata:
+  name: ns1-serviceA
+  namespace: ns1
+spec:
+  sitemanager:
+    after: []
+    before: []
+---
+apiVersion: netcracker.com/v2
+kind: SiteManager
+metadata:
+  name: ns2-serviceB
+  namespace: ns2
+spec:
+  sitemanager:
+    after: 
+      - ns1-serviceA
+    before: []
 ```
-+----------------------------+--------------------------------------+--------------------------------------+
-| Service                    |                site-1                |                site-2                |
-+----------------------------+--------------------------------------+--------------------------------------+
-|                            | mode | DR status | healthz | message | mode | DR status | healthz | message |
-| -------------------------- | ------------------------------------ | ------------------------------------ |
-| serviceA.ns1               |        active / done / up /          |        standby / done / up /         |
-| serviceA.ns2               |        active / done / up /          |        standby / done / up /         |
-| serviceB.ns3               |        active / done / up /          |        standby / done / up /         |
-+----------------------------+--------------------------------------+--------------------------------------+
+
+#### 1. After SM implementation
+In services helms nothing changes;  
+In cluster:
+```yaml
+apiVersion: netcracker.com/v3
+kind: SiteManager
+metadata:
+  name: ns1-serviceA.ns1
+  namespace: ns1
+spec:
+  sitemanager:
+    after: []
+    before: []
+---
+apiVersion: netcracker.com/v3
+kind: SiteManager
+metadata:
+  name: ns2-serviceB.ns2
+  namespace: ns2
+spec:
+  sitemanager:
+    after: 
+      - ns1-serviceA.ns1
+    before: []
+```
+
+#### 2. After changing CR names in services helms and redeploy
+In services helms:
+```yaml
+apiVersion: netcracker.com/v3
+kind: SiteManager
+metadata:
+  name: serviceA
+spec:
+  sitemanager:
+    after: []
+    before: []
+---
+apiVersion: netcracker.com/v2
+kind: SiteManager
+metadata:
+  name: serviceB
+spec:
+  sitemanager:
+    after: 
+      {{ toYaml .Values.sm.after | indent 6 }}
+    before: []
+```
+In cluster:
+```yaml
+apiVersion: netcracker.com/v3
+kind: SiteManager
+metadata:
+  name: serviceA.ns1
+  namespace: ns1
+spec:
+  sitemanager:
+    after: []
+    before: []
+---
+apiVersion: netcracker.com/v3
+kind: SiteManager
+metadata:
+  name: serviceB.ns2
+  namespace: ns2
+spec:
+  sitemanager:
+    after: 
+      - serviceA.ns1
+    before: []
 ```
 
 ### Positive Consequences
 * It solves the problem with the multiplicity of services with the same name;
 * It is intuitive to the user;
 * Not need to change used data structures;
-* CR changes aren't needed;
 * Easy to implement in code;
 * It doesn't break the concept of site-manager;
 * Proposed rules for `after`/`before` don't change the work of already existing DR clusters;
-* Can be implemented like additional site-manager mode (and can be switched on/off);
+* Changes in CRs are not required;
 
 ### Negative Consequences
-* There is a restriction that the same service on different sites must have the same namespace. Otherwise, sm-client will recognise the as different services;
-* It is necessary to notify users of this changes so that new output of the sm-client does not come as a surprise to them.
-* If another service with the same name is deployed on an existing cluster, the user must keep in mind that it will be taken 
-into account in all dependencies where it does not have a namespace specified.
-* Users feedback is needed, because maybe not all cases are taken into account.
+* There is a restriction that the same service on different sites must have the same namespace. Otherwise, sm-client 
+will recognise the as different services;
+* Requires new CR version;
+* Namespace will be duplicated, if it's already defined in cr name: to resolve this situation user has to recreate CR 
+with new name;
+* Requires manually steps outside the cluster;
 * Additional test cases are required;
-
-## Proposal for dns names
-
-Taking into account the fact that we do not directly know about the real name of the service or its dns name, we can't
-implement the requirement to use the dns name as the service name only by the site-manager. For this reason it's proposed 
-to add additional field like `name` in CRs, that helps to customize service names in site-manager:
-
-```
-apiVersion: netcracker.com/v3
-kind: SiteManager
-metadata:
-  name: some-service-site-manager
-spec:
-  sitemanager:
-    name: customized-service-name
-    after: []
-    before: []
-    ...
-```
-
-For backward compatibility it's proposed to make this field optional and take CR name as service name, if this parameter 
-doesn't exist.
-
-
-### Positive Consequences
-* It lets service names be independent of CR name;
-* It is intuitive to the user;
-* Backward compatibility;
-* Can be combined with [Proposal for multiply services](#proposal-for-multiply-services), because `name` can be used
-instead of `cr-name` in service name;
-* Can resolve requirement about dns names, if name of operated service or its dns name will be specified in `name` field;
-
-### Negative Consequences
-* Requires to update CRD;
 
 ## Summary
 
-As fast solution we can restrict CR names and make them unique on site (the second option), but the need to choose a unique CR name is transferred to the user.
-But the first future can be implemented in the future after additional discussion with users and when we will have enough capacity.
+As fast solution we can restrict CR names and make them unique on site (the first option), but the need to choose a unique 
+CR name is transferred to the user.
+But the second option can be implemented in the future after additional discussion with users and when we will have enough capacity.
