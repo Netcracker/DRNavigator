@@ -902,11 +902,11 @@ kubernetes services that will be processed: ['postgres', 'sm-test', 'mongo', 'pa
 ---------------------------------------------------------------------
 ```
 
-## State restrictions
+## State Restrictions
 
-It is possible to mark some DR cluster states as restricted. It means, that such state couldn't be the final state for some 
+It is possible to mark some DR cluster states as restricted. This means that such states cannot be the final state for a 
 service after atomic procedures (`active`, `standby`, `disable`, `return`).  
-State restrictions are configured in sm-client configuration file in special `restrictions` option:
+State restrictions are configured in the sm-client configuration file in a special `restrictions` option:
 
 ```yaml
 ---
@@ -931,11 +931,11 @@ restrictions:
   "*":
     - standby-standby
 ```
-In this section you can describe services and states list for them. Format of state is `<mode in first site>-<mode in second site>`
-Also you can add restricted state for all services. For that use `"*"` instead of service name.  
-Before doing procedure final cluster states are predicted for all services, described in `restrictions`. If predicted state is 
+In this section, you can describe services and states list for them. The format of the state is `<mode in first site>-<mode in second site>`.
+Also, you can add a restricted state for all services by using `"*"` instead of the service name.  
+Before performing the procedure, the final cluster states are predicted for all services described in `restrictions`. If the predicted state is 
 restricted for any of them, sm-client fails.  
-You can run procedure despite restrictions validation result. For that you can use special option `-r` or `--ignore-restrictions`.
+You can run the procedure despite the validation result of restrictions by using a special option `-r` or `--ignore-restrictions`.
 
 ## Custom Modules Support
 
