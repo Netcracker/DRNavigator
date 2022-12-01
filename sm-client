@@ -783,7 +783,7 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
     """ Polls service status command till desired mode is reached
         @param force: True/False --force mode to ignore healthz
     """
-    def service_status_polling(site, service, state, error_state = None, delay=5) -> Tuple[Dict,bool]:
+    def service_status_polling(site, service, expected_state, error_state, delay=5) -> Tuple[Dict,bool]:
         """  Polls "site-manager status" <service> command till <state> dict returns during <timeout> period with <delay>
         @param state:  expected dict state from site-manager service status command. {"status": ["up"]}
         @param error_state: optional error state which should be processed immediately. {"status": ["failed"]}
@@ -792,57 +792,45 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
                                                                        .get("timeout", None) is not None  else \
                                                                         SERVICE_DEFAULT_TIMEOUT
 
-        key = list(state.keys())[0]
-        value = list(state.values())[0]
-        value_error = list(state.values())[0] if error_state else []
-
         init_time = int(time.time())
         count = 0
         data = {'services':{service:{}}}
         while int(time.time()) <= init_time + int(timeout):
             count += 1
 
-            logging.info(f"Service: {service}. Site: {site}. Polling procedure {key} to be {value} Iteration {count}")
+            logging.info(f"Service: {service}. Site: {site}. Polling procedure {expected_state} Iteration {count}")
             logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
 
             data, ret, _ = sm_process_service(site, service, "status")
-            data  = {'services':{service:{}}} if not data else data
+            data = {'services':{service:{}}} if not data else data
 
             logging.debug(f"Service: {service}. Site: {site}. Received data: {data}. Return code: {ret}")
-            if ret and data["services"][service][key] in value:
+
+            if ret and all(data["services"][service][key] in val for key, val in expected_state.items()):
                 return data, ret
-            elif ret and data["services"][service][key] in value_error:
+            elif ret and any(data["services"][service][key] in val for key, val in error_state.items()):
                 return data, False
             else:
                 time.sleep(delay)
                 continue
         return data, False
 
-    data, ret = service_status_polling(site,service,{"status":["done"]},["failed"])
-    if not ret:
-        return ServiceDRStatus(data)
-
-    data, ret = service_status_polling(site,service,{"mode":[mode]})
-    if not ret:
-        return ServiceDRStatus(data)
-
-    if mode == "active":
-        data, ret = service_status_polling(site,service,{"healthz":["up"]})
-    elif mode == "standby":
-        data, ret = service_status_polling(site,service,{"healthz": \
-                                                              sm_dict[site]["services"][service]["allowedStandbyStateList"]})
-    else:
-        data, ret = service_status_polling(site,service,{"healthz": ["up"]})
-
-    if data["services"][service].get("mode","--") == "--" or \
-            data["services"][service].get("status","--") == "--":
-        data, ret = {"services": {service: {"mode": "unknown", "status": "unknown", "healthz": "--"}}},False
+    if mode == "standby":
+        data, ret = service_status_polling(site, service,
+                                           {"status": ["done"], "mode": [mode], "healthz":
+                                               sm_dict[site]["services"][service]["allowedStandbyStateList"]},
+                                           {'status': ['failed'], 'healthz': ['down', 'degraded']})
+    else:  # active and rest commands
+        data, ret = service_status_polling(site, service,
+                                         {"status": ["done"], "mode": [mode], "healthz": ["up"]},
+                                         {'status': ['failed'], 'healthz': ['down', 'degraded']})
 
     if force:
         logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")
         stat = ServiceDRStatus(data)
         stat.healthz = "up"
         return stat
+
 
     return ServiceDRStatus(data)
 
