@@ -37,7 +37,7 @@ testing:
         sequence:
         - standby
         - active
-        timeout: 360
+        timeout: 5
       serviceB:
         after: [serviceA]
         allowedStandbyStateList:
@@ -52,4 +52,4 @@ testing:
         sequence:
         - standby
         - active
-        timeout: 360
+        timeout: 5

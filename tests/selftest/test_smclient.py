@@ -14,11 +14,11 @@ import http.server
 import ssl
 import threading
 import os
-import pwd
 import warnings
 
 test_config_path=os.path.abspath("tests/selftest/resources/config_test.yaml")
 test_wrong_config_path=os.path.abspath("tests/selftest/resources/config_test_wrong.yaml")
+test_restrictions_config_path=os.path.abspath("tests/selftest/resources/config_test_with_restrictions.yaml")
 
 
 def pytest_namespace():
@@ -35,6 +35,7 @@ def args_init(config=None):
     args.output=None
     args.force = False
     args.command="version"
+    args.ignore_restrictions = False
     return args
 
 
@@ -184,35 +185,43 @@ def test_io_http_json_request():
 def test_validate_operation(caplog):
     init_and_check_config(args_init())
 
-    sm_dict=SMClusterState("k8s-1")
-    sm_dict["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+    # Init state
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"] = {"status": True, "return_code": None, "service_dep_ordered": [], "deps_issue": False,
                       "ts":TopologicalSorter2}
+    sm_dict["k8s-2"] = {"status": False, "return_code": None, "service_dep_ordered": [], "deps_issue": False,
+                             "ts": TopologicalSorter2}
 
+    # Check active
     assert validate_operation(sm_dict, "active", "k8s-1")
-
-    sm_dict_site_not_available=SMClusterState("k8s-1")
-    sm_dict_site_not_available["k8s-1"]={"status":False, "return_code":None, "service_dep_ordered":[],
-                                         "deps_issue":False,
-                                         "ts":TopologicalSorter2}
     with pytest.raises(NotValid):
-        assert validate_operation(sm_dict_site_not_available, "active", "k8s-1")
+        assert validate_operation(sm_dict, "active", "k8s-2")
 
-    init_and_check_config(args_init())
-    sm_dict_status=SMClusterState()
-    sm_dict_status["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                             "ts":TopologicalSorter2}
-    sm_dict_status["k8s-2"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                             "ts":TopologicalSorter2}
-    assert validate_operation(sm_dict_status, "status", None)
-
-    sm_dict_move_fail=SMClusterState()
-    sm_dict_move_fail["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                "ts":TopologicalSorter2}
-
-    sm_dict_move_fail["k8s-2"]={"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                "ts":TopologicalSorter2}
+    # Check standby
+    assert validate_operation(sm_dict, "standby", "k8s-1")
     with pytest.raises(NotValid):
-        assert validate_operation(sm_dict_move_fail, "move", "k8s-2")
+        assert validate_operation(sm_dict, "standby", "k8s-2")
+
+    # Check disable
+    assert validate_operation(sm_dict, "disable", "k8s-1")
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "disable", "k8s-2")
+
+    # Check return
+    assert validate_operation(sm_dict, "return", "k8s-1")
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "return", "k8s-2")
+
+    # Check move
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "move", "k8s-1")
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "move", "k8s-1")
+
+    # Check stop
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "stop", "k8s-1")
+    assert validate_operation(sm_dict, "stop", "k8s-2")
 
     sm_dict_run_services=SMClusterState()
 
@@ -227,6 +236,39 @@ def test_validate_operation(caplog):
         caplog.clear()
         validate_operation(sm_dict_run_services, "stop", "k8s-2", ["fake1", "serv1"])
         assert "Service 'fake1' does not exist on 'k8s-1' site" in caplog.text
+
+
+def test_validate_restrictions(mocker, caplog):
+    init_and_check_config(args_init(test_restrictions_config_path))
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {"status": True, "return_code": None, "service_dep_ordered": ["serv1", "serv2"],
+                        "deps_issue": False, "ts": TopologicalSorter2, "services": {"serv1": {}, "serv2": {}}}
+
+    sm_dict["k8s-2"] = {"status": True, "return_code": None, "service_dep_ordered": ["serv1", "serv2"],
+                        "deps_issue": False, "ts": TopologicalSorter2, "services": {"serv1": {}, "serv2": {}}}
+
+    # Test standby-standby restriction for all services
+    test_resp = {'services': {'serv1': {'healthz': 'up', 'mode': 'standby', 'status': 'done'}}}
+    fake_resp = mocker.Mock()
+    fake_resp.json = mocker.Mock(return_value=test_resp)
+    fake_resp.status_code = HTTPStatus.OK
+    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "standby", "k8s-1")
+
+    # Test active-active restriction for specific service
+    test_resp = {'services': {'serv2': {'healthz': 'up', 'mode': 'active', 'status': 'done'}}}
+    fake_resp = mocker.Mock()
+    fake_resp.json = mocker.Mock(return_value=test_resp)
+    fake_resp.status_code = HTTPStatus.OK
+    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    with pytest.raises(NotValid):
+        caplog.clear()
+        assert validate_operation(sm_dict, "active", "k8s-1")
+        assert "final state {'k8s-1': 'active', 'k8s-2': 'active'} for service serv2 is restricted" in caplog.text
+
+    # Test active-active restriction for not restricted service
+    assert validate_operation(sm_dict, "active", "k8s-1", ["serv1"])
 
 
 def test_get_available_sites(caplog):
@@ -386,6 +428,8 @@ def test_init_and_check_config(caplog):
             init_and_check_config(args)
             assert f"Cannot write to {args.output}" not in caplog.text
         os.remove(os.path.expanduser(args.output))
+
+    import pwd  # keep this import here for Windows compatibility
 
     wrong_log_path = ["/", "~/", "./"]
     if pwd.getpwuid(os.getuid())[0] == 'root':

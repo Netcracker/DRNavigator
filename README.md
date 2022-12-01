@@ -907,6 +907,41 @@ kubernetes services that will be processed: ['postgres', 'sm-test', 'mongo', 'pa
 ---------------------------------------------------------------------
 ```
 
+## State Restrictions
+
+It is possible to mark some DR cluster states as restricted. This means that such states cannot be the final state for a 
+service after atomic procedures (`active`, `standby`, `disable`, `return`).  
+State restrictions are configured in the sm-client configuration file in a special `restrictions` option:
+
+```yaml
+---
+sites:
+  - name: k8s-1
+    token: <TOKEN>
+    site-manager: http://site-manager.k8s-1.example.com/sitemanager
+    cacert: <path-to-ca-certificate>
+  - name: k8s-2
+    token: <TOKEN>
+    site-manager: http://site-manager.k8s-2.example.com/sitemanager
+    cacert: <path-to-ca-certificate>
+sm-client:
+  http_auth: True
+  
+restrictions:
+  service-1:
+    - active-active
+  service-2:
+    - disable-standby
+    - standby-disable
+  "*":
+    - standby-standby
+```
+In this section, you can describe services and states list for them. The format of the state is `<mode in first site>-<mode in second site>`.
+Also, you can add a restricted state for all services by using `"*"` instead of the service name.  
+Before performing the procedure, the final cluster states are predicted for all services described in `restrictions`. If the predicted state is 
+restricted for any of them, sm-client fails.  
+You can run the procedure despite the validation result of restrictions by using a special option `-r` or `--ignore-restrictions`.
+
 ## Custom Modules Support
 
  It is possible to make a custom DR flow (Switchover/Failover; Active/Standby/Disable) sequence based on the [module of DR service](#managing-services).
