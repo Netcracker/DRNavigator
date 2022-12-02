@@ -235,16 +235,18 @@ def get_module_specific_cr(item):
         healthz_endpoint = ''
     allowed_standby_state_list = [i.lower() for i in item['spec']['sitemanager'].get('allowedStandbyStateList', ["up"])]
 
-    return {"namespace": item["metadata"]["namespace"],
+    result = {"namespace": item["metadata"]["namespace"],
             "module": item['spec']['sitemanager'].get('module', ''),
             "after": item['spec']['sitemanager'].get('after', []),
             "before": item['spec']['sitemanager'].get('before', []),
             "sequence": item['spec']['sitemanager'].get('sequence', []),
             "allowedStandbyStateList": allowed_standby_state_list,
-            "timeout": item['spec']['sitemanager'].get('timeout', utils.SERVICE_DEFAULT_TIMEOUT),
             "parameters":
                 {"serviceEndpoint": service_endpoint,
                  "healthzEndpoint": healthz_endpoint}}
+    if 'timeout' in item['spec']['sitemanager']:
+        result['timeout'] = item['spec']['sitemanager']['timeout']
+    return result
 
 
 @app.route('/', methods=['GET'])
@@ -260,13 +262,32 @@ def root_get():
 
 @app.route('/validate', methods=['POST'])
 def cr_validate():
-    pass
+    cr = request.json["request"]
+    logging.debug(f"Initial object from API for validating: {cr}")
+    allowed = True
+    message = "All checks passed"
+    uid = cr["uid"]
+
+    # Check name for unique
+    sm_dict = get_sitemanagers_dict()
+    existed_cr = sm_dict['services'].get(cr['name'], None)
+    if existed_cr is not None and existed_cr['namespace'] != cr['namespace']:
+        allowed = False
+        message = f"CR with name {cr['name']} has already existed in cluster"
+        logging.debug(f"CR validation fails: {message}")
+
+    return jsonify({"apiVersion": "admission.k8s.io/v1",
+                    "kind": "AdmissionReview",
+                    "response": {
+                        "allowed": allowed,
+                        "uid": uid,
+                        "status": {"message": message}}})
 
 
 @app.route('/convert', methods=['POST'])
 def cr_convert():
 
-    logging.debug(f"Initial object from API: {request.json['request']}")
+    logging.debug(f"Initial object from API for converting: {request.json['request']}")
 
     spec = request.json["request"]["objects"]
     modified_spec = copy.deepcopy(spec)

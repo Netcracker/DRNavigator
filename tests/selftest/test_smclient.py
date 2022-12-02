@@ -14,9 +14,11 @@ import http.server
 import ssl
 import threading
 import os
+import warnings
 
 test_config_path=os.path.abspath("tests/selftest/resources/config_test.yaml")
 test_wrong_config_path=os.path.abspath("tests/selftest/resources/config_test_wrong.yaml")
+test_restrictions_config_path=os.path.abspath("tests/selftest/resources/config_test_with_restrictions.yaml")
 
 
 def pytest_namespace():
@@ -31,12 +33,13 @@ def args_init(config=None):
     args.run_services=""
     args.skip_services=""
     args.output=None
+    args.force = False
     args.command="version"
+    args.ignore_restrictions = False
     return args
 
 
 def test_sm_process_service(mocker, caplog):
-
     init_and_check_config(args_init())
     test_resp={'services':{'test1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
     caplog.set_level(logging.DEBUG)
@@ -182,35 +185,43 @@ def test_io_http_json_request():
 def test_validate_operation(caplog):
     init_and_check_config(args_init())
 
-    sm_dict=SMClusterState("k8s-1")
-    sm_dict["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
+    # Init state
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"] = {"status": True, "return_code": None, "service_dep_ordered": [], "deps_issue": False,
                       "ts":TopologicalSorter2}
+    sm_dict["k8s-2"] = {"status": False, "return_code": None, "service_dep_ordered": [], "deps_issue": False,
+                             "ts": TopologicalSorter2}
 
+    # Check active
     assert validate_operation(sm_dict, "active", "k8s-1")
-
-    sm_dict_site_not_available=SMClusterState("k8s-1")
-    sm_dict_site_not_available["k8s-1"]={"status":False, "return_code":None, "service_dep_ordered":[],
-                                         "deps_issue":False,
-                                         "ts":TopologicalSorter2}
     with pytest.raises(NotValid):
-        assert validate_operation(sm_dict_site_not_available, "active", "k8s-1")
+        assert validate_operation(sm_dict, "active", "k8s-2")
 
-    init_and_check_config(args_init())
-    sm_dict_status=SMClusterState()
-    sm_dict_status["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                             "ts":TopologicalSorter2}
-    sm_dict_status["k8s-2"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                             "ts":TopologicalSorter2}
-    assert validate_operation(sm_dict_status, "status", None)
-
-    sm_dict_move_fail=SMClusterState()
-    sm_dict_move_fail["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                "ts":TopologicalSorter2}
-
-    sm_dict_move_fail["k8s-2"]={"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                "ts":TopologicalSorter2}
+    # Check standby
+    assert validate_operation(sm_dict, "standby", "k8s-1")
     with pytest.raises(NotValid):
-        assert validate_operation(sm_dict_move_fail, "move", "k8s-2")
+        assert validate_operation(sm_dict, "standby", "k8s-2")
+
+    # Check disable
+    assert validate_operation(sm_dict, "disable", "k8s-1")
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "disable", "k8s-2")
+
+    # Check return
+    assert validate_operation(sm_dict, "return", "k8s-1")
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "return", "k8s-2")
+
+    # Check move
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "move", "k8s-1")
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "move", "k8s-1")
+
+    # Check stop
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "stop", "k8s-1")
+    assert validate_operation(sm_dict, "stop", "k8s-2")
 
     sm_dict_run_services=SMClusterState()
 
@@ -225,6 +236,39 @@ def test_validate_operation(caplog):
         caplog.clear()
         validate_operation(sm_dict_run_services, "stop", "k8s-2", ["fake1", "serv1"])
         assert "Service 'fake1' does not exist on 'k8s-1' site" in caplog.text
+
+
+def test_validate_restrictions(mocker, caplog):
+    init_and_check_config(args_init(test_restrictions_config_path))
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {"status": True, "return_code": None, "service_dep_ordered": ["serv1", "serv2"],
+                        "deps_issue": False, "ts": TopologicalSorter2, "services": {"serv1": {}, "serv2": {}}}
+
+    sm_dict["k8s-2"] = {"status": True, "return_code": None, "service_dep_ordered": ["serv1", "serv2"],
+                        "deps_issue": False, "ts": TopologicalSorter2, "services": {"serv1": {}, "serv2": {}}}
+
+    # Test standby-standby restriction for all services
+    test_resp = {'services': {'serv1': {'healthz': 'up', 'mode': 'standby', 'status': 'done'}}}
+    fake_resp = mocker.Mock()
+    fake_resp.json = mocker.Mock(return_value=test_resp)
+    fake_resp.status_code = HTTPStatus.OK
+    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "standby", "k8s-1")
+
+    # Test active-active restriction for specific service
+    test_resp = {'services': {'serv2': {'healthz': 'up', 'mode': 'active', 'status': 'done'}}}
+    fake_resp = mocker.Mock()
+    fake_resp.json = mocker.Mock(return_value=test_resp)
+    fake_resp.status_code = HTTPStatus.OK
+    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    with pytest.raises(NotValid):
+        caplog.clear()
+        assert validate_operation(sm_dict, "active", "k8s-1")
+        assert "final state {'k8s-1': 'active', 'k8s-2': 'active'} for service serv2 is restricted" in caplog.text
+
+    # Test active-active restriction for not restricted service
+    assert validate_operation(sm_dict, "active", "k8s-1", ["serv1"])
 
 
 def test_get_available_sites(caplog):
@@ -383,14 +427,23 @@ def test_init_and_check_config(caplog):
         with caplog.at_level(logging.CRITICAL):
             init_and_check_config(args)
             assert f"Cannot write to {args.output}" not in caplog.text
+        os.remove(os.path.expanduser(args.output))
 
-    for args.output in ["/", "/not_exist_file", "/etc/passwd", "~/", "./"]:
+    import pwd  # keep this import here for Windows compatibility
+
+    wrong_log_path = ["/", "~/", "./"]
+    if pwd.getpwuid(os.getuid())[0] == 'root':
+        warnings.warn(UserWarning("You use root user, can't check some test cases"))
+    else:
+        wrong_log_path.extend(["/not_exist_file", "/etc/passwd"])
+
+    for args.output in wrong_log_path:
         with caplog.at_level(logging.CRITICAL):
             init_and_check_config(args)
             assert f"Cannot write to {args.output}" in caplog.text
 
 
-def test_sm_poll_service_required_status(mocker,caplog):
+def test_sm_poll_service_required_status(mocker, caplog):
     init_and_check_config(args_init())
 
     test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
@@ -407,15 +460,41 @@ def test_sm_poll_service_required_status(mocker,caplog):
         "serv1":{"timeout":None}}}
     with caplog.at_level(logging.INFO):
         caplog.clear()
-        dr_status = sm_poll_service_required_status("k8s-1", "serv1", "active",sm_dict)
+        dr_status = sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict)
         assert f"{smclient.SERVICE_DEFAULT_TIMEOUT} seconds left until timeout" in caplog.text
         assert dr_status.is_ok()
 
-    #service specific timeout
+    # service specific timeout
     sm_dict=SMClusterState()
     sm_dict["k8s-1"]={"services":{
         "serv1":{"timeout":100}}}
     with caplog.at_level(logging.INFO):
         caplog.clear()
-        sm_poll_service_required_status("k8s-1", "serv1", "active",sm_dict)
+        sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict)
         assert "100 seconds left until timeout" in caplog.text
+
+def test_sm_process_service_with_polling(mocker, caplog):
+    smclient.args=args_init()
+    init_and_check_config(args_init())
+    test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'failed'}}}
+    caplog.set_level(logging.DEBUG)
+    fake_resp=mocker.Mock()
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    fake_resp.status_code=HTTPStatus.OK
+
+    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+
+    # custom timeout
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={
+        "services":{
+            "serv1":{"timeout":1,
+                 "sequence":['active','standby']}},
+        "status": True}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        sm_process_service_with_polling("serv1", "k8s-1",  "move", sm_dict)
+        service_response = thread_result_queue.get()
+        service_response.sortout_service_results()
+        assert 'serv1' in failed_services
+        assert "Service serv1 failed on k8s-1, skipping it on another site" in caplog.text
