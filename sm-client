@@ -881,7 +881,6 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
         stat.healthz = "up"
         return stat
 
-
     return ServiceDRStatus(data)
 
 
