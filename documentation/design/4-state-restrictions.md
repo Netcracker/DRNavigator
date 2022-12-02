@@ -177,5 +177,6 @@ Notes:
 
 ## Summary
 
-The verification algorithm is quite simple, if the sm-client will predict the final states. The main issue is to choose 
-the appropriate configuration format that fully meets the requirements and possible cases.
+The verification algorithm is quite simple, if the sm-client will predict the final states.
+The third configuration option is the most optimal, because used format is quite obvious and fully covers 
+work with DR clusters. 
