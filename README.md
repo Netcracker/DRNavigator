@@ -1150,6 +1150,7 @@ To support the ability of services to be managed by `site-manager`, implement th
 | tls.generateCerts.duration                                    | Define the duration (days) of created certificate using cert-manager.                                     | 365                             |
 | tls.generateCerts.subjectAlternativeName.additionalDnsNames   | Additional trusted DNS names in the certificate.                             | []                              |
 | tls.generateCerts.subjectAlternativeName.additionalIpAddresses | Additional trusted IP names in the certificate.                              | []                             |
+| paas_platform                                                  | Define PAAS Platfrom for SiteManager installation: openshift or kubernetes                                          | kubernetes                             |
 | paasGeoMonitor                                                | Refer to [paas-geo-monitor documentation](/paas-geo-monitor/docs). | |
    
 6. Install `site-manager` to OpenShift.
