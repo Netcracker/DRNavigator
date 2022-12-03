@@ -342,7 +342,7 @@ def test_ServiceDRStatus_init():
         assert ServiceDRStatus()
         assert ServiceDRStatus({'services':{}})
 
-    stat=ServiceDRStatus({'message':'You defined service that does not exist in cluster',
+    stat = ServiceDRStatus({'message':'You defined service that does not exist in cluster',
                           'wrong-service':'absent-service'})
     assert stat.service in 'absent-service' and stat.message and not stat.is_ok()
 
@@ -472,6 +472,14 @@ def test_sm_poll_service_required_status(mocker, caplog):
         caplog.clear()
         sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict)
         assert "100 seconds left until timeout" in caplog.text
+
+    # service specific timeout occured
+    sm_dict["k8s-1"]={"services":{
+        "serv1":{"timeout":1}}}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        sm_poll_service_required_status("k8s-1", "serv1", "disable", sm_dict)
+        assert "Timeout expired" in caplog.text
 
     # healthz up
     test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
