@@ -342,7 +342,7 @@ def test_ServiceDRStatus_init():
         assert ServiceDRStatus()
         assert ServiceDRStatus({'services':{}})
 
-    stat=ServiceDRStatus({'message':'You defined service that does not exist in cluster',
+    stat = ServiceDRStatus({'message':'You defined service that does not exist in cluster',
                           'wrong-service':'absent-service'})
     assert stat.service in 'absent-service' and stat.message and not stat.is_ok()
 
@@ -472,6 +472,41 @@ def test_sm_poll_service_required_status(mocker, caplog):
         caplog.clear()
         sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict)
         assert "100 seconds left until timeout" in caplog.text
+
+    # service specific timeout occured
+    sm_dict["k8s-1"]={"services":{
+        "serv1":{"timeout":1}}}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        sm_poll_service_required_status("k8s-1", "serv1", "disable", sm_dict)
+        assert "Timeout expired" in caplog.text
+
+    # healthz up
+    test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    assert sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok()
+
+    # polling successful 'healthz':'down' 'mode':'standby' "allowedStandbyStateList":["down"]
+    test_resp={'services':{'serv1':{'healthz':'down', 'mode':'standby', 'status':'done'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={"services":{
+        "serv1":{"timeout":100,
+                 "allowedStandbyStateList":["down"]}}}
+    assert 'down' in sm_poll_service_required_status("k8s-1", "serv1", "standby", sm_dict).healthz
+    # @todo need to detect True for service_status_polling in case standby
+
+    # 'healthz':'down'
+    test_resp={'services':{'serv1':{'healthz':'down', 'mode':'active', 'status':'done'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    assert not sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok()
+
+    # 'status':'failed'}
+    test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'failed'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    assert not sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok()
+
+
 
 def test_sm_process_service_with_polling(mocker, caplog):
     smclient.args=args_init()

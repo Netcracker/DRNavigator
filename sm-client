@@ -235,7 +235,7 @@ class ServiceDRStatus:
              self.service = data['wrong-service']
          else:
              raise ValueError("Missing service name")
-         serv= data['services'][self.service] if data.get('services') else data
+         serv = data['services'][self.service] if data.get('services') else data
          self.mode = serv['mode'] if serv.get("mode") in ["active", "standby", "disable"] else "--"
          self.nowait = serv["nowait"] if serv.get("nowait") else False
          self.healthz = serv["healthz"] if serv.get("healthz") in ["up", "down", "degraded"] else "--"
@@ -244,7 +244,6 @@ class ServiceDRStatus:
          # https://github.com/Netcracker/DRNavigator/blob/b4161fb15271485974abf5862e7272abc386fbc8/modules/stateful.py#L16
 
     def is_ok(self):
-        """ @todo wrong-service ?"""
         if self.healthz in ['down','degraded','--'] or self.status in ['failed']:
             return False
         return True
@@ -833,18 +832,15 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
     """ Polls service status command till desired mode is reached
         @param force: True/False --force mode to ignore healthz
     """
-    def service_status_polling(site, service, state, error_state = None, delay=5) -> Tuple[Dict,bool]:
-        """  Polls "site-manager status" <service> command till <state> dict returns during <timeout> period with <delay>
-        @param state:  expected dict state from site-manager service status command. {"status": ["up"]}
-        @param error_state: optional error state which should be processed immediately. {"status": ["failed"]}
+    def service_status_polling(site, service, expected_state, error_state, delay=5) -> Dict:
+        """  Polls "site-manager status" <service> command till <expected_state> dict or
+        error_state dict returns during <timeout> period with <delay>
+        @param expected_state:  expected dict state from site-manager service status command. {"status": ["up"]}
+        @param error_state:  error state in case return immediately. {"status": ["failed"]}
         """
         timeout = sm_dict[site]["services"][service]["timeout"] if sm_dict[site]["services"].get(service, {})\
                                                                        .get("timeout", None) is not None  else \
                                                                         SERVICE_DEFAULT_TIMEOUT
-
-        key = list(state.keys())[0]
-        value = list(state.values())[0]
-        value_error = list(state.values())[0] if error_state else []
 
         init_time = int(time.time())
         count = 0
@@ -852,41 +848,35 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
         while int(time.time()) <= init_time + int(timeout):
             count += 1
 
-            logging.info(f"Service: {service}. Site: {site}. Polling procedure {key} to be {value} Iteration {count}")
+            logging.info(f"Service: {service}. Site: {site}. Polling procedure {expected_state} Iteration {count}")
             logging.info(f"Service: {service}. Site: {site}. {int(timeout) - (int(time.time()) - init_time)} seconds left until timeout")
 
             data, ret, _ = sm_process_service(site, service, "status")
-            data  = {'services':{service:{}}} if not data else data
+            data = {'services':{service:{}}} if not data else data
 
-            logging.debug(f"Service: {service}. Site: {site}. Received data: {data}. Return code: {ret}")
-            if ret and data["services"][service][key] in value:
-                return data, ret
-            elif ret and data["services"][service][key] in value_error:
-                return data, False
+            logging.info(f"Service: {service}. Site: {site}. Received data: {data}. Return code: {ret}")
+
+            if ret and all(data["services"][service][key] in val for key, val in expected_state.items()):
+                return data
+            elif ret and any(data["services"][service][key] in val for key, val in error_state.items()):
+                logging.info(f"Service: {service}. Site: {site}. Error state occurred.")
+                return data
             else:
                 time.sleep(delay)
                 continue
-        return data, False
 
-    data, ret = service_status_polling(site,service,{"status":["done"]},["failed"])
-    if not ret:
-        return ServiceDRStatus(data)
+        logging.info(f"Service: {service}. Site: {site}. Timeout expired.")
+        return data
 
-    data, ret = service_status_polling(site,service,{"mode":[mode]})
-    if not ret:
-        return ServiceDRStatus(data)
-
-    if mode == "active":
-        data, ret = service_status_polling(site,service,{"healthz":["up"]})
-    elif mode == "standby":
-        data, ret = service_status_polling(site,service,{"healthz": \
-                                                              sm_dict[site]["services"][service]["allowedStandbyStateList"]})
-    else:
-        data, ret = service_status_polling(site,service,{"healthz": ["up"]})
-
-    if data["services"][service].get("mode","--") == "--" or \
-            data["services"][service].get("status","--") == "--":
-        data, ret = {"services": {service: {"mode": "unknown", "status": "unknown", "healthz": "--"}}},False
+    if mode == "standby":
+        data = service_status_polling(site, service,
+                                           {"status": ["done"], "mode": [mode], "healthz":
+                                               sm_dict[site]["services"][service]["allowedStandbyStateList"]},
+                                           {'status': ['failed'], 'healthz': ['down', 'degraded']})
+    else:  # active and rest commands
+        data = service_status_polling(site, service,
+                                         {"status": ["done"], "mode": [mode], "healthz": ["up"]},
+                                         {'status': ['failed'], 'healthz': ['down', 'degraded']})
 
     if force:
         logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")
