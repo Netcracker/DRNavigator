@@ -13,12 +13,16 @@ spec:
       labels:
         app: paas-geo-monitor
     spec:
+{{- if eq .Values.paas_platform "kubernetes" }}
       securityContext:
         fsGroup: 1001
+{{- end }}
       containers:
       - name: paas-geo-monitor
+{{- if eq .Values.paas_platform "kubernetes" }}
         securityContext:
           runAsUser: 1001
+{{- end }}
         image: {{ .Values.paasGeoMonitor.image}}
         imagePullPolicy: Always
         args:
