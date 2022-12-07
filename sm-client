@@ -708,6 +708,7 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
         return True
 
     def check_state_restrictions(services):
+        state_is_valid = True
         # Get services, that should be predicted
         services_to_predict = services if "*" in state_restrictions else \
            [service for service in services if service in state_restrictions.keys()]
@@ -724,22 +725,20 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
             opposite_site = sm_conf.get_opposite_site(site)
             response, ret, _ = sm_process_service(opposite_site, service, "status")
             if not ret:
-                logging.error(f"State restrictions validation fail: can't get service {service} on site {opposite_site}")
-                return False
+                logging.error(f"Can't get service {service} on site {opposite_site}")
+                state_is_valid = False
             serviceDRstatus = ServiceDRStatus(response)
             if serviceDRstatus.mode == '---':
-                logging.error(f"State restrictions validation fail: can't recognize current mode for service {service}"
-                              f" on site {opposite_site}")
-                return False
+                logging.error(f"Can't recognize current mode for service {service} on site {opposite_site}")
+                state_is_valid = False
 
             # Predicted state
             state = {site: sm_conf.convert_sitecmd_to_dr_mode(cmd), opposite_site: serviceDRstatus.mode}
             logging.debug(f"Predicted state for service {service}: {state}")
             if state in restricted_states_list:
-                logging.error(f"State restrictions validation fail: final state {state} for service {service} "
-                              f"is restricted")
-                return False
-        return True
+                logging.error(f"Final state {state} for service {service} is restricted")
+                state_is_valid = False
+        return state_is_valid
 
 
     global sm_conf
