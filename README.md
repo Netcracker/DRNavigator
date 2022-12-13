@@ -336,7 +336,7 @@ The `mode` options are as follows:
 The `status` options are as follows:
 
   - `running` specifies that the DR procedure is in progress.
-  - `done` specifies that the DR procedure is successfully done.
+  - `done` specifies that the DR procedure is successfully done. The [healthz](#check-service-healthz-of-service) status should represent the actual service health check. 
   - `failed` specifies that the DR procedure has failed. The operator should fix the problem manually or restart the DR procedure for a specific service.
 
 Example of `/GET` request with `curl` command:
