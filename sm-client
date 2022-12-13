@@ -835,11 +835,11 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
     """ Polls service status command till desired mode is reached
         @param force: True/False --force mode to ignore healthz
     """
-    def service_status_polling(site, service, expected_state, error_state, delay=5) -> Dict:
+    def service_status_polling(site, service, expected_state:{}, error_states: [], delay=5) -> Dict:
         """  Polls "site-manager status" <service> command till <expected_state> dict or
         error_state dict returns during <timeout> period with <delay>
         @param expected_state:  expected dict state from site-manager service status command. {"status": ["up"]}
-        @param error_state:  error state in case return immediately. {"status": ["failed"]}
+        @param error_states:  error states in case return immediately. [{"status": ["failed"]}]
         """
         timeout = sm_dict[site]["services"][service]["timeout"] if sm_dict[site]["services"].get(service, {})\
                                                                        .get("timeout", None) is not None  else \
@@ -859,10 +859,17 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
 
             logging.info(f"Service: {service}. Site: {site}. Received data: {data}. Return code: {ret}")
 
-            if ret and all(data["services"][service][key] in val for key, val in expected_state.items()):
-                return data
-            elif ret and any(data["services"][service][key] in val for key, val in error_state.items()):
-                logging.info(f"Service: {service}. Site: {site}. Error state occurred.")
+            def check_state():
+                for error_state in error_states:
+                    if all(data["services"][service][key] in val for key, val in expected_state.items()):
+                        logging.info(f"Service: {service}. Site: {site}. Expected state {expected_state} occurred.")
+                        return True
+                    elif all(data["services"][service][key] in val for key, val in error_state.items()):
+                        logging.info(f"Service: {service}. Site: {site}. Error state {error_state} occurred.")
+                        return True
+                return False
+
+            if ret and check_state():
                 return data
             else:
                 time.sleep(delay)
@@ -873,13 +880,15 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
 
     if mode == "standby":
         data = service_status_polling(site, service,
-                                           {"status": ["done"], "mode": [mode], "healthz":
+                                      {"status": ["done"], "mode": [mode], "healthz":
                                                sm_dict[site]["services"][service]["allowedStandbyStateList"]},
-                                           {'status': ['failed'], 'healthz': ['down', 'degraded']})
+                                      [{'status': ['done'], 'healthz': ['down', 'degraded']},
+                                       {'status': ['failed']}])
     else:  # active and rest commands
         data = service_status_polling(site, service,
-                                         {"status": ["done"], "mode": [mode], "healthz": ["up"]},
-                                         {'status': ['failed'], 'healthz': ['down', 'degraded']})
+                                      {"status": ["done"], "mode": [mode], "healthz": ["up"]},
+                                      [{'status':['done'], 'healthz':['down', 'degraded']},
+                                       {'status':['failed']}])
 
     if force:
         logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")

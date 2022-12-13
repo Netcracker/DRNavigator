@@ -484,7 +484,10 @@ def test_sm_poll_service_required_status(mocker, caplog):
     # healthz up
     test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
     fake_resp.json=mocker.Mock(return_value=test_resp)
-    assert sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok()
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        assert sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok() and \
+            "Expected state" in caplog.text
 
     # polling successful 'healthz':'down' 'mode':'standby' "allowedStandbyStateList":["down"]
     test_resp={'services':{'serv1':{'healthz':'down', 'mode':'standby', 'status':'done'}}}
@@ -505,6 +508,16 @@ def test_sm_poll_service_required_status(mocker, caplog):
     test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'failed'}}}
     fake_resp.json=mocker.Mock(return_value=test_resp)
     assert not sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok()
+
+    # 'healthz':'down' 'status':'running'}
+    sm_dict["k8s-1"]={"services":{
+        "serv1":{"timeout":1}}}
+    test_resp={'services':{'serv1':{'healthz':'down', 'mode':'active', 'status':'running'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        assert not sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok() and \
+               "Error state" not in caplog.text
 
 
 
