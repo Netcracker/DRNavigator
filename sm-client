@@ -727,10 +727,12 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
             if not ret:
                 logging.error(f"Can't get service {service} on site {opposite_site}")
                 state_is_valid = False
+                continue
             serviceDRstatus = ServiceDRStatus(response)
             if serviceDRstatus.mode == '---':
                 logging.error(f"Can't recognize current mode for service {service} on site {opposite_site}")
                 state_is_valid = False
+                continue
 
             # Predicted state
             state = {site: sm_conf.convert_sitecmd_to_dr_mode(cmd), opposite_site: serviceDRstatus.mode}
@@ -738,6 +740,8 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
             if state in restricted_states_list:
                 logging.error(f"Final state {state} for service {service} is restricted")
                 state_is_valid = False
+        if not state_is_valid:
+            logging.error(f"State restrictions validation fail. To skip it use --ignore-restrictions option")
         return state_is_valid
 
 
@@ -797,7 +801,7 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
         if not check_site_ssl_available(site) or \
                 not check_services_on_site(service_dep_ordered, site) or \
                 not check_dep_issue(site) or \
-                not check_state_restrictions(service_dep_ordered):
+                not check_state_restrictions(services_to_run if services_to_run else sm_dict[site].get('services', {}).keys()):
             raise NotValid
         ts=sm_dict[site]['ts']
 
