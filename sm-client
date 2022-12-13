@@ -831,11 +831,11 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
     """ Polls service status command till desired mode is reached
         @param force: True/False --force mode to ignore healthz
     """
-    def service_status_polling(site, service, expected_state, error_states, delay=5) -> Dict:
+    def service_status_polling(site, service, expected_state:{}, error_states: [], delay=5) -> Dict:
         """  Polls "site-manager status" <service> command till <expected_state> dict or
         error_state dict returns during <timeout> period with <delay>
         @param expected_state:  expected dict state from site-manager service status command. {"status": ["up"]}
-        @param error_states:  error states in case return immediately. {"status": ["failed"]}
+        @param error_states:  error states in case return immediately. [{"status": ["failed"]}]
         """
         timeout = sm_dict[site]["services"][service]["timeout"] if sm_dict[site]["services"].get(service, {})\
                                                                        .get("timeout", None) is not None  else \

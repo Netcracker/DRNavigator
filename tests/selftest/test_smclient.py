@@ -484,7 +484,10 @@ def test_sm_poll_service_required_status(mocker, caplog):
     # healthz up
     test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
     fake_resp.json=mocker.Mock(return_value=test_resp)
-    assert sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok()
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        assert sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok() and \
+            "Expected state" in caplog.text
 
     # polling successful 'healthz':'down' 'mode':'standby' "allowedStandbyStateList":["down"]
     test_resp={'services':{'serv1':{'healthz':'down', 'mode':'standby', 'status':'done'}}}
