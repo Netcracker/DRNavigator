@@ -854,15 +854,22 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
             data = {'services':{service:{}}} if not data else data
 
             logging.info(f"Service: {service}. Site: {site}. Received data: {data}. Return code: {ret}")
-            for error_state in error_states:
-                if ret and all(data["services"][service][key] in val for key, val in expected_state.items()):
-                    return data
-                elif ret and all(data["services"][service][key] in val for key, val in error_state.items()):
-                    logging.info(f"Service: {service}. Site: {site}. Error state {error_state} occurred.")
-                    return data
-                else:
-                    time.sleep(delay)
-                    continue
+
+            def check_state():
+                for error_state in error_states:
+                    if all(data["services"][service][key] in val for key, val in expected_state.items()):
+                        logging.info(f"Service: {service}. Site: {site}. Expected state {expected_state} occurred.")
+                        return True
+                    elif all(data["services"][service][key] in val for key, val in error_state.items()):
+                        logging.info(f"Service: {service}. Site: {site}. Error state {error_state} occurred.")
+                        return True
+                return False
+
+            if ret and check_state():
+                return data
+            else:
+                time.sleep(delay)
+                continue
 
         logging.info(f"Service: {service}. Site: {site}. Timeout expired.")
         return data
