@@ -5,7 +5,7 @@ ARG SM_UID=1001
 
 USER root
 
-COPY sm-client smclient.py utils.py /app/
+COPY sm-client smclient.py utils.py version /app/
 COPY requirements-sc.txt /app/requirements.txt
 
 WORKDIR /app/

@@ -9,6 +9,7 @@ import pytest
 
 import smclient
 from smclient import *
+from utils import io_make_http_json_request
 from http import HTTPStatus
 import http.server
 import ssl
