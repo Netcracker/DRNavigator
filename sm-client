@@ -31,8 +31,7 @@ import os
 from prettytable import PrettyTable
 from typing import Tuple, Dict, Optional
 
-
-from utils import  io_make_http_json_request
+import utils
 MAIN_HELP_SECTION = """
 Script to manage DR cases in kubernetes Active-Standby scheme
 
@@ -169,6 +168,9 @@ def init_and_check_config(args) -> bool:
 
     global SERVICE_DEFAULT_TIMEOUT
     SERVICE_DEFAULT_TIMEOUT = conf_parsed.get("sm-client", {}).get("service_default_timeout", 200)
+
+    utils.SM_GET_REQUEST_TIMEOUT = conf_parsed.get("sm-client", {}).get("get_request_timeout", 10)
+    utils.SM_POST_REQUEST_TIMEOUT = conf_parsed.get("sm-client", {}).get("post_request_timeout", 30)
 
     global ignored_services
     ignored_services.clear()
@@ -823,7 +825,7 @@ def sm_process_service(site, service, site_cmd: str, no_wait=True, force=False) 
     else:
         body = {"procedure": sm_conf.convert_sitecmd_to_dr_mode(site_cmd), "run-service": service, "no-wait": no_wait, "force": force}
 
-    ret, response, return_code = io_make_http_json_request(sm_conf[site]["url"],
+    ret, response, return_code = utils.io_make_http_json_request(sm_conf[site]["url"],
                                                            sm_conf[site]["token"],
                                                            sm_conf[site]["cacert"],
                                                            body,
