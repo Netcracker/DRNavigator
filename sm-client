@@ -938,11 +938,28 @@ def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: []):
         for sites_item in sites_name:
             if sm_dict[sites_item]['status'] and sm_dict[sites_item]['services'].get(service_item) and \
                     sm_dict[sites_item]['services'][service_item].get('status'):
-                service_pt_row.append(
-                    f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
-                    f"{sm_dict[sites_item]['services'][service_item]['status']['status']} / "
-                    f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']} / "
-                    f"{sm_dict[sites_item]['services'][service_item]['status']['message']}")
+                if len(sm_dict[sites_item]['services'][service_item]['status']['message']) > 0:
+                    if sm_dict.sm[sites_item]['services'][service_item]['status'].status == '--':
+                        logging.critical(sites_item + ': ' + service_item + ' - ' + sm_dict[sites_item]['services'][service_item]['status']['message'])
+                        service_pt_row.append(
+                            f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
+                            f"{sm_dict[sites_item]['services'][service_item]['status']['status']} / "
+                            f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']} / "
+                            f"Error, show log")
+                    else:
+                        logging.info(sites_item + ': ' + service_item + ' - ' +
+                                         sm_dict[sites_item]['services'][service_item]['status']['message'])
+                        service_pt_row.append(
+                            f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
+                            f"{sm_dict[sites_item]['services'][service_item]['status']['status']} / "
+                            f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']} / "
+                            f"I'm OK! too long message!")
+                else:
+                    service_pt_row.append(
+                        f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
+                        f"{sm_dict[sites_item]['services'][service_item]['status']['status']} / "
+                        f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']} / "
+                        f"{sm_dict[sites_item]['services'][service_item]['status']['message']}")
             else:
                 service_pt_row.append("-- / -- / -- /")
         pt.add_row(service_pt_row)
