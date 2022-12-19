@@ -204,7 +204,21 @@ def init_and_check_config(args) -> bool:
             logging.error("Check configuration file. Some of sites does not have 'site-manager' parameter")
             return False
 
-        site_token = [ i.get("token", "") for i in conf_parsed["sites"] if i ["name"] == site ][0]
+        for i in conf_parsed["sites"]:
+            if i["name"] != site:
+                continue
+            if isinstance(i.get("token", ""), dict):
+                if "from_env" not in i.get("token", {}):
+                    logging.error(f"Wrong token configuration for site {i['name']}: "
+                                  f"use string value or specify from_env parameter")
+                    return False
+                site_token = os.environ.get(i["token"]["from_env"])
+                if site_token is None:
+                    logging.error(f"Wrong token configuration for site {i['name']}: "
+                                  f"specified env {i['token']['from_env']} doesn't exist")
+                    return False
+            else:
+                site_token = i.get("token", "")
         site_cacert = [ i.get("cacert", True) for i in conf_parsed["sites"] if i ["name"] == site ][0]
 
         if site_cacert != True and not os.path.isfile(site_cacert):
