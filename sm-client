@@ -938,14 +938,14 @@ def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: []):
         for sites_item in sites_name:
             if sm_dict[sites_item]['status'] and sm_dict[sites_item]['services'].get(service_item) and \
                     sm_dict[sites_item]['services'][service_item].get('status'):
-                if len(sm_dict[sites_item]['services'][service_item]['status']['message']) > 0:
+                if len(sm_dict[sites_item]['services'][service_item]['status']['message']) >= 10:
                     if sm_dict.sm[sites_item]['services'][service_item]['status'].status == '--':
                         logging.critical(sites_item + ': ' + service_item + ' - ' + sm_dict[sites_item]['services'][service_item]['status']['message'])
                         service_pt_row.append(
                             f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
                             f"{sm_dict[sites_item]['services'][service_item]['status']['status']} / "
                             f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']} / "
-                            f"Error, show log")
+                            f"{sm_dict[sites_item]['services'][service_item]['status']['message']}")
                     else:
                         logging.info(sites_item + ': ' + service_item + ' - ' +
                                          sm_dict[sites_item]['services'][service_item]['status']['message'])
@@ -953,7 +953,7 @@ def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: []):
                             f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
                             f"{sm_dict[sites_item]['services'][service_item]['status']['status']} / "
                             f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']} / "
-                            f"I'm OK! too long message!")
+                            f"{sm_dict[sites_item]['services'][service_item]['status']['message'][:15]}")
                 else:
                     service_pt_row.append(
                         f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
