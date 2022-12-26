@@ -938,28 +938,20 @@ def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: []):
         for sites_item in sites_name:
             if sm_dict[sites_item]['status'] and sm_dict[sites_item]['services'].get(service_item) and \
                     sm_dict[sites_item]['services'][service_item].get('status'):
-                if len(sm_dict[sites_item]['services'][service_item]['status']['message']) >= 25:
-                    if sm_dict.sm[sites_item]['services'][service_item]['status'].status == '--':
-                        logging.critical(sites_item + ': ' + service_item + ' - ' + sm_dict[sites_item]['services'][service_item]['status']['message'])
-                        service_pt_row.append(
-                            f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
-                            f"{sm_dict[sites_item]['services'][service_item]['status']['status']} / "
-                            f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']} / "
-                            f"{sm_dict[sites_item]['services'][service_item]['status']['message']}")
-                    else:
-                        logging.info(sites_item + ': ' + service_item + ' - ' +
-                                         sm_dict[sites_item]['services'][service_item]['status']['message'])
-                        service_pt_row.append(
-                            f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
-                            f"{sm_dict[sites_item]['services'][service_item]['status']['status']} / "
-                            f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']} / "
-                            f"{sm_dict[sites_item]['services'][service_item]['status']['message'][:25]}")
-                else:
+                if len(sm_dict[sites_item]['services'][service_item]['status']['message']) <= pt.max_width['Service']:
                     service_pt_row.append(
                         f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
                         f"{sm_dict[sites_item]['services'][service_item]['status']['status']} / "
                         f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']} / "
                         f"{sm_dict[sites_item]['services'][service_item]['status']['message']}")
+                else:
+                    logging.warning(sites_item + ': ' + service_item + ' - ' +
+                                     sm_dict[sites_item]['services'][service_item]['status']['message'])
+                    service_pt_row.append(
+                        f"{sm_dict[sites_item]['services'][service_item]['status']['mode']} / "
+                        f"{sm_dict[sites_item]['services'][service_item]['status']['status']} / "
+                        f"{sm_dict[sites_item]['services'][service_item]['status']['healthz']} / "
+                        f"{sm_dict[sites_item]['services'][service_item]['status']['message'][:10] + '...'}")
             else:
                 service_pt_row.append("-- / -- / -- /")
         pt.add_row(service_pt_row)
