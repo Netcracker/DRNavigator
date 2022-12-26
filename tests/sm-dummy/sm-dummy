@@ -28,7 +28,7 @@ sma_port = int(os.environ.get("SMA_PORT", 8080))
 
 mode = os.environ.get("SMA_INIT_MODE", "active")
 status = 'done'
-message = "I'm OK"
+message = "long long long long long long long long long long long long long long long"
 
 app = Flask(__name__)
 app.config['DEBUG'] = os.environ.get("SMA_DEBUG", False)
@@ -61,7 +61,7 @@ def run(mode_to_set):
     time.sleep(sma_timeout)
 
     status = "done"
-    message = "I'm OK"
+    message = "long long long long long long long long long long long long long long long"
 
 
 def json_response(code, body):
