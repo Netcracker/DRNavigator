@@ -187,10 +187,10 @@ def test_validate_operation(caplog):
 
     # Init state
     sm_dict=SMClusterState()
-    sm_dict["k8s-1"] = {"status": True, "return_code": None, "service_dep_ordered": [], "deps_issue": False,
-                      "ts":TopologicalSorter2}
-    sm_dict["k8s-2"] = {"status": False, "return_code": None, "service_dep_ordered": [], "deps_issue": False,
-                             "ts": TopologicalSorter2}
+    sm_dict["k8s-1"] = {"status": True, "return_code": None, "stateful":{"service_dep_ordered": [], "deps_issue": False,
+                      "ts":TopologicalSorter2}}
+    sm_dict["k8s-2"] = {"status": False, "return_code": None, "stateful":{"service_dep_ordered": [], "deps_issue": False,
+                             "ts": TopologicalSorter2}}
 
     # Check active
     assert validate_operation(sm_dict, "active", "k8s-1")
@@ -225,12 +225,12 @@ def test_validate_operation(caplog):
 
     sm_dict_run_services=SMClusterState()
 
-    sm_dict_run_services["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                   "ts":TopologicalSorter2,
+    sm_dict_run_services["k8s-1"]={"status":True, "return_code":None, "stateful":{"service_dep_ordered":[], "deps_issue":False,
+                                   "ts":TopologicalSorter2},
                                    "services":{"serv1":{}}}
 
-    sm_dict_run_services["k8s-2"]={"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                   "ts":TopologicalSorter2,
+    sm_dict_run_services["k8s-2"]={"status":False, "return_code":None, "stateful":{"service_dep_ordered":[], "deps_issue":False,
+                                   "ts":TopologicalSorter2},
                                    "services":{"serv1":{}}}
     with caplog.at_level(logging.WARNING):
         caplog.clear()
@@ -241,11 +241,11 @@ def test_validate_operation(caplog):
 def test_validate_restrictions(mocker, caplog):
     init_and_check_config(args_init(test_restrictions_config_path))
     sm_dict = SMClusterState()
-    sm_dict["k8s-1"] = {"status": True, "return_code": None, "service_dep_ordered": ["serv1", "serv2"],
-                        "deps_issue": False, "ts": TopologicalSorter2, "services": {"serv1": {}, "serv2": {}}}
+    sm_dict["k8s-1"] = {"status": True, "return_code": None, "stateful":{"service_dep_ordered": ["serv1", "serv2"],
+                        "deps_issue": False, "ts": TopologicalSorter2}, "services": {"serv1": {}, "serv2": {}}}
 
-    sm_dict["k8s-2"] = {"status": True, "return_code": None, "service_dep_ordered": ["serv1", "serv2"],
-                        "deps_issue": False, "ts": TopologicalSorter2, "services": {"serv1": {}, "serv2": {}}}
+    sm_dict["k8s-2"] = {"status": True, "return_code": None, "stateful":{"service_dep_ordered": ["serv1", "serv2"],
+                        "deps_issue": False, "ts": TopologicalSorter2}, "services": {"serv1": {}, "serv2": {}}}
 
     # Test standby-standby restriction for all services
     test_resp = {'services': {'serv1': {'healthz': 'up', 'mode': 'standby', 'status': 'done'}}}
@@ -296,15 +296,16 @@ def test_SMClusterState_init():
     with pytest.raises(ValueError) as e:
         SMClusterState("not valid site")
     assert str(e.value) in "Unknown site name"
-    assert "services" and "dep_issue" in SMClusterState("k8s-2")["k8s-2"]
-    assert "services" and "dep_issue" in SMClusterState({"k8s-3":{"services":{"serv1":{}},
+    assert "services" and "deps_issue" and default_module in SMClusterState("k8s-2")["k8s-2"]
+    assert "services" and "deps_issue" and default_module in SMClusterState({"k8s-3":{"services":{"serv1":{}},
                                                                   "status":False},
                                                          "k8s-1":{}})["k8s-3"]
-    sm_dict=SMClusterState()
-    sm_dict["k8s-1"]={"services":{
-        "serv1":{"module":'stateful'},
-        "serv2":{"module":'stateful'},
-        "serv3":{"module":'notstateful'}}}
+    sm_dict=SMClusterState({'k8s-1':
+        {"services":{
+            "serv1":{"module":'stateful'},
+            "serv2":{"module":'stateful'},
+            "serv3":{"module":'notstateful'}}}})
+
     assert sm_dict.get_module_services('k8s-1', 'stateful') == ['serv1', 'serv2'] and \
            sm_dict.get_module_services('k8s-1', 'notstateful') == ['serv3']
 
@@ -312,6 +313,8 @@ def test_SMClusterState_init():
     with pytest.raises(ValueError) as e:
         SMClusterState()
     assert str(e.value) in "Only two sites in clusters are supported"
+
+
 
 
 def test_unexist_config_file_init():
@@ -518,7 +521,6 @@ def test_sm_poll_service_required_status(mocker, caplog):
         caplog.clear()
         assert not sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok() and \
                "Error state" not in caplog.text
-
 
 
 def test_sm_process_service_with_polling(mocker, caplog):
