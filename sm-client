@@ -7,7 +7,6 @@ Date:        2021-11-19
 Description: Client util to communicate with site-manager in kubernetes based clusters
 @todo[3]
     split current single source into modules,classes ; share common code with sm
-    logging into file
     make smclient delivery as single binary, using pyinstaller ???
     cli json output
     SM specific data structures : sm_dict; service response: 50%
@@ -270,23 +269,18 @@ class SMClusterState:
     def __init__(self,site=None):
         def init_default(sitename, modules: [] = None):
             if len(self.sm.keys()) == 2:
-                print(self.sm)
                 raise ValueError("Only two sites in clusters are supported")
             self.sm[sitename]={}
-
             self.sm[sitename]["services"]={}
             self.sm[sitename]["return_code"]=None
             self.sm[sitename]["status"]=False #ServiceDRStatus
-
             if not modules:
                 modules = [default_module]
-
             for module in modules:
                 self.sm[sitename][module] = {}
                 self.sm[sitename][module]["deps_issue"] = None
                 self.sm[sitename][module]["service_dep_ordered"] = []
                 self.sm[sitename][module]["ts"] = None
-
         if not site or (site and isinstance(site, str)): #@todo rework
             global sm_conf
             if site and site not in sm_conf.keys():
@@ -294,7 +288,6 @@ class SMClusterState:
             self.sm = {}
             for sitename in [s for s in sm_conf.keys() if site == s] if site else sm_conf.keys():
                 init_default(sitename, sm_conf.get_modules())
-
         elif isinstance(site, dict): # for dev/testing purposes
             self.sm = {}
             for key in site.keys():
@@ -374,7 +367,6 @@ def sm_get_cluster_state(site=None) -> SMClusterState:
         sm_dict[site_name]["return_code"] = code # HTTP or SSL
         sm_dict[site_name]["status"] = ret
         sm_dict[site_name].update(response)
-
     return sm_dict
 
 
@@ -500,7 +492,6 @@ def run(services:[] = None, cmd="", site=""):
             service_dep_ordered.extend(services_list)
             if mod_i in default_module:
                 ts = ts_i
-
         logging.debug(f"Service order {service_dep_ordered}")
     except NotValid:
         exit(1)
