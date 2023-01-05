@@ -538,57 +538,46 @@ def run(services:[] = None, cmd="", site=""):
     elif cmd in site_cmds + dr_procedures:  # per site command or DR procedure
         print_service_operation_summary("top", sm_dict, service_dep_ordered, cmd, site)
 
-        def run_module(module, state):  # default_module  need a running engine
-            """@todo need more flexible module support """
-            logging.info(f"Processing {module} module to mode:{state}")
-            if module not in default_module:
-                if cmd in dr_procedures:
-                    if state in 'active':
-                        site_to_run = sm_conf.get_opposite_site(site)
-                    else:
-                        site_to_run = site
-                    site_to_run = sm_conf.get_opposite_site(site_to_run) if cmd in 'move' else site_to_run
-                else:
-                    site_to_run = site
-                service_to_run = sm_dict.get_module_services(sm_dict.get_available_sites()[0], module)[0]
-                if service_to_run in service_dep_ordered and sm_dict[site_to_run]['status']:
-                    logging.debug(f"on site {site_to_run}. Services {service_to_run}  ")
-                    sm_process_service(site_to_run, service_to_run, state, False if 'move' in cmd else True)
-                    response=sm_poll_service_required_status(site_to_run, service_to_run,
-                                                             sm_conf.convert_sitecmd_to_dr_mode(state), sm_dict)
-                    response.sortout_service_results()
-            else:  # stateful module
-                process_ts_services(ts, sm_process_service_with_polling, site, cmd, sm_dict)
-
         dr_status = True
-        for elem in module_flow:
-            for module, states in elem.items():
-                if not dr_status:
-                    for i in sm_dict.get_module_services(sm_dict.get_available_sites()[0], module):
-                        if i in service_dep_ordered:
-                            ServiceDRStatus({'services':{i:{'status':'failed'}}}).sortout_service_results()
-                    break
-                if cmd in ['standby', 'disable', 'return'] and (states and states == ['active']):
-                    break
-                if cmd in 'active' and (states and set(states) == {'standby', 'disable'}):
-                    continue
+        for elem in module_flow:  # module_flow = [{'replicator': [standby,disable]},{'stateful': None},{'replicator': [active]}]
+            module, states=list(elem.items())[0]
 
-                def get_state(cmd, states) -> str:
-                    if not states:
-                        return ''
-
+            def get_cmd():
+                """get site cmd for module"""
+                if states:  # None, [standby,disable]
                     if cmd in ['move', 'stop']:
                         return states[0]
-                    elif cmd in ['disable']:
-                        return 'disable'
                     else:
-                        return states[0]
-                run_module(module, get_state(cmd,states))
-                if failed_services:
-                    logging.debug(f"Module {module} failed. Failed services {failed_services}")
-                    logging.error(f"Module {module} failed, skipping rest of services, exiting")
-                    dr_status = False
-                    break
+                        return SMConf.convert_sitecmd_to_dr_mode(cmd)
+                return cmd
+
+            def get_site():
+                """ get target site for module"""
+                if states and \
+                        (get_cmd() in 'active' and cmd in 'stop' or
+                         get_cmd() not in 'active' and cmd in 'move'):
+                    return sm_conf.get_opposite_site(site)
+                else:
+                    return site
+
+            if not dr_status:  # fail rest of services in case failed before
+                for i in sm_dict.get_module_services(sm_dict.get_available_sites()[0], module):
+                    if i in service_dep_ordered:
+                        ServiceDRStatus({'services':{i:{'status':'failed'}}}).sortout_service_results()
+                break
+            if cmd in ['standby', 'disable', 'return'] and (states and states == ['active']):
+                break
+            if cmd in 'active' and (states and set(states) == {'standby', 'disable'}):
+                continue
+
+            process_ts_services(sm_dict[get_site()][module]["ts"], sm_process_service_with_polling,
+                                get_site(), get_cmd(), sm_dict)
+
+            if failed_services:
+                logging.debug(f"Module {module} failed. Failed services {failed_services}")
+                logging.error(f"Module {module} failed, skipping rest of services, exiting")
+                dr_status = False
+                break
         print_service_operation_summary("tail",sm_dict, service_dep_ordered, cmd, site )
     else:
         logging.error(f"Unknown combination of {cmd} {site} options")
