@@ -62,7 +62,7 @@ done_services = []
 ignored_services = []
 failed_services = []
 
-args = None
+args: argparse.Namespace
 module_flow = [{'stateful': None}]  # custom DR sequence per module
 default_module = 'stateful'
 state_restrictions = {}
@@ -428,13 +428,10 @@ def print_service_order(ts: TopologicalSorter2, sm_dict: SMClusterState):
     """ Show service list ordered by dependency in debug mode"""
     stage=0
     logging.debug(f"Service order by dependency:")
-    if len(module_flow) > 1:  # print custom module service name
-        services_name=''
-        for _ in sm_dict.get_available_sites():
-            if sm_dict.get_module_services(_, list(module_flow[0].keys())[0]):
-                services_name=sm_dict.get_module_services(_, list(module_flow[0].keys())[0])[0]
+    for mod_i in [ i for i in sm_conf.get_modules() if i not in default_module]: # print custom module service names
         logging.debug("--------------------")
-        logging.debug(f"{services_name}")
+        for service_name in sm_dict.get_module_services(sm_dict.get_available_sites()[0],mod_i): #@todo if not
+            logging.debug(f"{service_name}")
     while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
         stage += 1
         logging.debug(f"------ Stage {stage} -------")
@@ -497,7 +494,6 @@ def run(services:[] = None, cmd="", site=""):
 
     # validation to satisfy cmd and current site status
     service_dep_ordered = []; ts = None
-    # default_module to make service_dep_ordered  per module in sm_dict
     try:
         for mod_i in sm_conf.get_modules():
             services_list, ts_i = validate_operation(sm_dict, cmd, site, services,mod_i)
@@ -577,7 +573,6 @@ def run(services:[] = None, cmd="", site=""):
             if failed_services:
                 logging.debug(f"Module {module} failed. Failed services {failed_services}")
                 logging.error(f"Module {module} failed, skipping rest of services, exiting")
-                dr_status = False
                 break
         print_service_operation_summary("tail",sm_dict, service_dep_ordered, cmd, site )
     else:
@@ -1036,6 +1031,7 @@ def main(command_args=None):
                 args.site if hasattr(args, 'site') else False):
         exit(1)
     exit(0)
+
 
 if __name__ == "__main__":
     main()
