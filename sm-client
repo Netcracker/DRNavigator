@@ -533,29 +533,9 @@ def run(services:[] = None, cmd="", site=""):
               f"---------------------------------------------------------------------")
     elif cmd in site_cmds + dr_procedures:  # per site command or DR procedure
         print_service_operation_summary("top", sm_dict, service_dep_ordered, cmd, site)
-
         dr_status = True
         for elem in module_flow:  # module_flow = [{'replicator': [standby,disable]},{'stateful': None},{'replicator': [active]}]
             module, states = list(elem.items())[0]
-
-            def get_cmd():
-                """get site cmd for module"""
-                if states:  # None, [standby,disable]
-                    if cmd in ['move', 'stop']:
-                        return states[0]
-                    else:
-                        return SMConf.convert_sitecmd_to_dr_mode(cmd)
-                return cmd
-
-            def get_site():
-                """ get target site for module"""
-                if states and \
-                        (get_cmd() in 'active' and cmd in 'stop' or
-                         get_cmd() not in 'active' and cmd in 'move'):
-                    return sm_conf.get_opposite_site(site)
-                else:
-                    return site
-
             if not dr_status:  # fail rest of services in case failed before
                 for i in sm_dict.get_module_services(sm_dict.get_available_sites()[0], module):
                     if i in service_dep_ordered:
@@ -565,11 +545,7 @@ def run(services:[] = None, cmd="", site=""):
                 break
             if cmd in 'active' and (states and set(states) == {'standby', 'disable'}):
                 continue
-
-            logging.info(f"Processing {module} module by cmd:{get_cmd()} on site:{get_site}")
-            process_ts_services(sm_dict[get_site()][module]["ts"], sm_process_service_with_polling,
-                                get_site(), get_cmd(), sm_dict)
-
+            process_module_services(module, states, cmd, site, sm_dict)
             if failed_services:
                 logging.debug(f"Module {module} failed. Failed services {failed_services}")
                 logging.error(f"Module {module} failed, skipping rest of services, exiting")
@@ -584,6 +560,32 @@ def run(services:[] = None, cmd="", site=""):
         exit(1)
 
     return True
+
+
+def process_module_services(module, states, cmd, site, sm_dict):
+    """ """
+    def get_cmd():
+        """get site cmd for module"""
+        if states:  # None, [standby,disable]
+            if cmd in ['move', 'stop']:
+                return states[0]
+            else:
+                return sm_conf.convert_sitecmd_to_dr_mode(cmd)
+        return cmd
+
+    def get_site():
+        """ get target site for module"""
+        if states and \
+                (get_cmd() in 'active' and cmd in 'stop' or
+                 get_cmd() not in 'active' and cmd in 'move'):
+            return sm_conf.get_opposite_site(site)
+        else:
+            return site
+
+    logging.info(f"Processing {module} module by cmd:{get_cmd()} on site:{get_site}")
+
+    process_ts_services(sm_dict[get_site()][module]["ts"], sm_process_service_with_polling,
+                        get_site(), get_cmd(), sm_dict)
 
 
 def print_service_operation_summary(part, sm_dict: SMClusterState, services_to_run: [], cmd="", site=""):
