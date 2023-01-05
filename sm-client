@@ -475,7 +475,6 @@ def run(services:[] = None, cmd="", site=""):
 
     # assemble ordered service list to proceed, keeping in services specified in cli
     for site_i in sm_dict.get_available_sites():
-        # default_module to make sm_dict per module
         for mod_i in sm_conf.get_modules():
             service_dep_ordered, return_code, ts = make_ordered_services_to_process(sm_dict, site_i, services,mod_i)
             sm_dict[site_i][mod_i]['service_dep_ordered'].extend(service_dep_ordered)
@@ -500,7 +499,7 @@ def run(services:[] = None, cmd="", site=""):
 
     # main flow by command
     if cmd in "status":
-        for serv in service_dep_ordered:  # default_module  sm_dict.service_dep_ordered
+        for serv in service_dep_ordered:
             def run_in_thread(site, serv, sm_dict):  # to run each status service in parallel
                 response, _, return_code=sm_process_service(site, serv, "status")
                 if not sm_dict[site]['services'].get(serv):
@@ -525,7 +524,7 @@ def run(services:[] = None, cmd="", site=""):
     elif cmd in site_cmds + dr_procedures:  # per site command or DR procedure
         print_service_operation_summary("top", sm_dict, service_dep_ordered, cmd, site)
         dr_status = True
-        for elem in module_flow:  # module_flow = [{'replicator': [standby,disable]},{'stateful': None},{'replicator': [active]}]
+        for elem in module_flow:
             module, states = list(elem.items())[0]
             if not dr_status:  # fail rest of services in case failed before
                 for i in sm_dict.get_module_services(sm_dict.get_available_sites()[0], module):
@@ -643,7 +642,7 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site, services_to_
     integrity_error = False
     temp_dict = copy.deepcopy(sm_dict)
 
-    # leave only service listed in service_to_process, not skipped/ignored and belong to module
+    # leave only services listed in service_to_process, not skipped/ignored and belong to module
     for serv in temp_dict[site]['services'].copy().keys():
         if temp_dict[site]['services'][serv].get('module',"") not in module:
             temp_dict[site]['services'].pop(serv, None)
@@ -675,8 +674,7 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site, services_to_
 
 
 def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=None, module=default_module) -> Tuple[list, TopologicalSorter2]:
-    """
-    Validate command compliance to current site state
+    """ Validate command compliance to current site state
     @param sm_dict: populated sm_dict
     @returns: Allowed or not to proceed operation <cmd> on <site>
     @todo warn/fail in case deps are different
