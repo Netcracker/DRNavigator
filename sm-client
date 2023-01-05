@@ -540,7 +540,7 @@ def run(services:[] = None, cmd="", site=""):
 
         dr_status = True
         for elem in module_flow:  # module_flow = [{'replicator': [standby,disable]},{'stateful': None},{'replicator': [active]}]
-            module, states=list(elem.items())[0]
+            module, states = list(elem.items())[0]
 
             def get_cmd():
                 """get site cmd for module"""
@@ -570,6 +570,7 @@ def run(services:[] = None, cmd="", site=""):
             if cmd in 'active' and (states and set(states) == {'standby', 'disable'}):
                 continue
 
+            logging.info(f"Processing {module} module by cmd:{get_cmd()} on site:{get_site}")
             process_ts_services(sm_dict[get_site()][module]["ts"], sm_process_service_with_polling,
                                 get_site(), get_cmd(), sm_dict)
 
