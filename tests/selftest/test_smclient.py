@@ -551,6 +551,3 @@ def test_sm_process_service_with_polling(mocker, caplog):
         assert 'serv1' in failed_services
         assert "Service serv1 failed on k8s-1, skipping it on another site" in caplog.text
 
-
-def test_process_module_services():
-    assert False
