@@ -17,7 +17,8 @@ template_env = {
             "exposed_ports": {
                 "service": {
                     "stateful_service": 9001,
-                    "custom_module_service": 9002
+                    "custom_module_service": 9002,
+                    "custom_module_service2": 9005
                 },
                 "site_manager": 9011
             },
@@ -27,7 +28,8 @@ template_env = {
             "exposed_ports": {
                 "service": {
                     "stateful_service": 9003,
-                    "custom_module_service": 9004
+                    "custom_module_service": 9004,
+                    "custom_module_service2": 9006
                 },
                 "site_manager": 9012
             },
@@ -101,7 +103,7 @@ class MaintenanceReturnWihCustomModuleTestCase:
         # Run maintenance
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
-             "--run-services", "custom_module_service", "disable", "site_2"])
+             "--run-services", "custom_module_service,custom_module_service2", "disable", "site_2"])
 
         # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
@@ -113,7 +115,7 @@ class MaintenanceReturnWihCustomModuleTestCase:
         # Run return
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
-             "--run-services", "custom_module_service", "return", "site_2"])
+             "--run-services", "custom_module_service,custom_module_service2", "return", "site_2"])
 
         # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:

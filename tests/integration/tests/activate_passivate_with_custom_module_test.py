@@ -17,7 +17,8 @@ template_env = {
             "exposed_ports": {
                 "service": {
                     "stateful_service": 9001,
-                    "custom_module_service": 9002
+                    "custom_module_service": 9002,
+                    "custom_module_service2": 9005
                 },
                 "site_manager": 9011
             },
@@ -27,7 +28,8 @@ template_env = {
             "exposed_ports": {
                 "service": {
                     "stateful_service": 9003,
-                    "custom_module_service": 9004
+                    "custom_module_service": 9004,
+                    "custom_module_service2": 9006
                 },
                 "site_manager": 9012
             },
