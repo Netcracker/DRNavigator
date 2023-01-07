@@ -125,19 +125,19 @@ class MaintenanceReturnWihCustomModuleTestCase:
         # Run maintenance
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
-             "--skip-services", "custom_module_service", "disable", "site_2"])
+             "--skip-services", "custom_module_service,custom_module_service2", "disable", "site_2"])
 
         # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
         {"healthz": "up", "status": "done", "message": "",
-         "mode": "standby" if ("site_1" == site) or ("custom_module_service" == service) else "disable"})
+         "mode": "standby" if ("site_1" == site) or (service in ['custom_module_service','custom_module_service2']) else "disable"})
 
     def test_return_stateful_service(self, config_dir, capfd):
         logging.info("TEST RETURN STATEFUL SERVICE")
         # Run return
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
-             "--skip-services", "custom_module_service", "return", "site_2"])
+             "--skip-services", "custom_module_service,custom_module_service2", "return", "site_2"])
 
         # Check status
         test_utils.check_statuses(capfd, template_env, lambda site, service:
