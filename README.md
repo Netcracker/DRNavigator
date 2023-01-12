@@ -805,11 +805,12 @@ The main configuration file for `sm-client` in a short format looks like the fol
 ---
 sites:
   - name: k8s-1
-    token: <TOKEN>
+    token: "some token"
     site-manager: http://site-manager.k8s-1.example.com/sitemanager
     cacert: <path-to-ca-certificate>
   - name: k8s-2
-    token: <TOKEN>
+    token: 
+      from_env: SOME_SM_TOKEN_ENV
     site-manager: http://site-manager.k8s-2.example.com/sitemanager
     cacert: <path-to-ca-certificate>
 
@@ -823,7 +824,9 @@ sm-client:
 Where:
  - `sites` is the list of Kubernetes clusters.
  - `name` is the short name of a cluster.
- - `token` is the token to have access to `site-manager` in a Kubernetes cluster.
+ - `token` is the token to have access to `site-manager` in a Kubernetes cluster. It can have value with string type (like 
+for `k8s-1` in example above) or contains `from_env` field with environment variable, where token is collected (like for `k8s-2`
+in example above)
  - `cacert` is the path to the CA certificate for `site-manager` with a self-signed certificate.
  - `http_auth` specifies to use a token for `site-manager` authorization.
  - `service_default_timeout` is optional parameter, that specifies default timeout for polling services in seconds. 
