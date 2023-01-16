@@ -67,9 +67,9 @@ class ReadStatusesTestCase:
         logging.info("TEST STATUS COMMAND WITHOUT CONFIG")
         test_utils.run_sm_client_command_with_exit(["status"], expected_exit_code=1)
 
-    def test_status(self, capfd):
+    def test_status(self, caplog):
         logging.info("TEST STATUS COMMAND")
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        test_utils.check_statuses(caplog, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                 "mode": "active" if template_env["active_site"] == site else "standby"})
 

@@ -46,57 +46,57 @@ template_env = {
 @pytest.mark.usefixtures('wait_services_until_healthy')
 class MaintenanceReturnWihCustomModuleTestCase:
 
-    def test_init_statuses(self, config_dir, capfd):
+    def test_init_statuses(self, config_dir, caplog):
         logging.info("TEST INIT STATUSES")
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        test_utils.check_statuses(caplog, template_env, lambda site, service:
                                    {"healthz": "up", "status": "done", "message": "",
                                     "mode": "active" if template_env["active_site"] == site else "standby"})
 
-    def test_maintenance_active_site(self, config_dir, capfd):
+    def test_maintenance_active_site(self, config_dir, caplog):
         logging.info("TEST MAINTENANCE ACTIVE SITE WITH CUSTOM MODULE SERVICES")
         # Run maintenance
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "disable", "site_1"])
 
         # Check status
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        test_utils.check_statuses(caplog, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                  "mode": "disable" if "site_1" == site else "standby"})
 
-    def test_maintenance_standby_site(self, config_dir, capfd):
+    def test_maintenance_standby_site(self, config_dir, caplog):
         logging.info("TEST MAINTENANCE STANDBY SITE WITH CUSTOM MODULE SERVICES")
         # Run maintenance
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "disable", "site_2"])
 
         # Check status
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        test_utils.check_statuses(caplog, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                  "mode": "disable"})
 
-    def test_return_first_site(self, config_dir, capfd):
+    def test_return_first_site(self, config_dir, caplog):
         logging.info("TEST RETURN FIRST SITE WITH STATEFUL SERVICES")
         # Run return
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "return", "site_1"])
 
         # Check status
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        test_utils.check_statuses(caplog, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                  "mode": "disable" if "site_2" == site else "standby"})
 
-    def test_return_second_site(self, config_dir, capfd):
+    def test_return_second_site(self, config_dir, caplog):
         logging.info("TEST RETURN SECOND SITE WITH STATEFUL SERVICES")
         # Run return
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "return", "site_2"])
 
         # Check status
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        test_utils.check_statuses(caplog, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                  "mode": "standby"})
 
-    def test_maintenance_custom_module_service(self, config_dir, capfd):
+    def test_maintenance_custom_module_service(self, config_dir, caplog):
         logging.info("TEST MAINTENANCE CUSTOM MODULE SERVICE")
         # Run maintenance
         test_utils.run_sm_client_command_with_exit(
@@ -104,11 +104,11 @@ class MaintenanceReturnWihCustomModuleTestCase:
              "--run-services", "custom_module_service", "disable", "site_2"])
 
         # Check status
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        test_utils.check_statuses(caplog, template_env, lambda site, service:
             {"healthz": "up", "status": "done", "message": "",
              "mode": "standby" if ("site_1" == site) or ("stateful_service" == service) else "disable"})
 
-    def test_return_custom_module_service(self, config_dir, capfd):
+    def test_return_custom_module_service(self, config_dir, caplog):
         logging.info("TEST RETURN CUSTOM MODULE SERVICE")
         # Run return
         test_utils.run_sm_client_command_with_exit(
@@ -116,11 +116,11 @@ class MaintenanceReturnWihCustomModuleTestCase:
              "--run-services", "custom_module_service", "return", "site_2"])
 
         # Check status
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        test_utils.check_statuses(caplog, template_env, lambda site, service:
             {"healthz": "up", "status": "done", "message": "",
              "mode": "standby"})
 
-    def test_maintenance_stateful_service(self, config_dir, capfd):
+    def test_maintenance_stateful_service(self, config_dir, caplog):
         logging.info("TEST MAINTENANCE STATEFUL SERVICE")
         # Run maintenance
         test_utils.run_sm_client_command_with_exit(
@@ -128,11 +128,11 @@ class MaintenanceReturnWihCustomModuleTestCase:
              "--skip-services", "custom_module_service", "disable", "site_2"])
 
         # Check status
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        test_utils.check_statuses(caplog, template_env, lambda site, service:
         {"healthz": "up", "status": "done", "message": "",
          "mode": "standby" if ("site_1" == site) or ("custom_module_service" == service) else "disable"})
 
-    def test_return_stateful_service(self, config_dir, capfd):
+    def test_return_stateful_service(self, config_dir, caplog):
         logging.info("TEST RETURN STATEFUL SERVICE")
         # Run return
         test_utils.run_sm_client_command_with_exit(
@@ -140,6 +140,6 @@ class MaintenanceReturnWihCustomModuleTestCase:
              "--skip-services", "custom_module_service", "return", "site_2"])
 
         # Check status
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        test_utils.check_statuses(caplog, template_env, lambda site, service:
         {"healthz": "up", "status": "done", "message": "",
          "mode": "standby"})

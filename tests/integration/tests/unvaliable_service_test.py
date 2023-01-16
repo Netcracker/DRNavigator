@@ -46,12 +46,12 @@ template_env = {
 @pytest.mark.usefixtures('wait_services_until_healthy')
 class UnvaliableServiceTestCase:
 
-    def test_init_statuses(self, config_dir, capfd):
+    def test_init_statuses(self, config_dir, caplog):
         logging.info("Pause service to emulate not working")
         os.system(f"docker-compose -f {os.path.join(config_dir, 'docker-compose.yaml')} pause serviceB-site-2")
 
         logging.info("TEST INIT STATUSES")
-        test_utils.check_statuses(capfd, template_env, lambda site, service: {
+        test_utils.check_statuses(caplog, template_env, lambda site, service: {
             "healthz": "up" if "site_1" == site or "serviceA" == service else "--",
             "status": "done" if "site_1" == site or "serviceA" == service else "--",
             "mode": "active" if "site_1" == site else "standby" if service == "serviceA" else "--",

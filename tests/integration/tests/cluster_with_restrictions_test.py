@@ -46,9 +46,9 @@ template_env = {
 @pytest.mark.usefixtures('wait_services_until_healthy')
 class RestrictionsTestCase:
 
-    def test_init_statuses(self, config_dir, capfd):
+    def test_init_statuses(self, config_dir, caplog):
         logging.info("TEST INIT STATUSES")
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        test_utils.check_statuses(caplog, template_env, lambda site, service:
                                    {"healthz": "up", "status": "done", "message": "",
                                     "mode": "active" if template_env["active_site"] == site else "standby"})
 

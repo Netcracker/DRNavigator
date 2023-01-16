@@ -16,21 +16,22 @@ def run_sm_client_command_with_exit(args, expected_exit_code=0):
 
 # TODO: temporary solution
 # returns dict[site-name][service][status/mode/healthz/message]
-def parse_status_table(capfd):
-    out, _ = capfd.readouterr()
-    # Print is needed, because readouterr() reset buffer and captured content doesn't appear in logs
+def parse_status_table(caplog):
+    for record in caplog.records:
+        if record.levelname == "INFO":
+            out = ''.join(record.msg)
     print(out)
 
     logging.info("Parse status table...")
 
     # Get site names
     lines = out.split("\n")
-    site_names = re.split(r' *\| *', lines[1])[2:-1]
+    site_names = re.split(r' *\| *', lines[2])[2:-1]
     result = {key: {} for key in site_names}
     logging.info(f"init value: {result}")
 
     # Get services
-    for line in lines[5:-2]:
+    for line in lines[6:-1]:
         row_content = re.split(r' *\| *', line)[1:-1]
         service_name = row_content[0]
         for site_name, status_row in zip(site_names, row_content[1:]):
@@ -77,10 +78,10 @@ def check_status_from_sm_client(status_dict, site_name, service_name, expected_s
     assert status_dict[site_name][service_name] == expected_status
 
 
-def check_statuses(capfd, template_env, expected_status_func: lambda site_name, service_name: dict):
+def check_statuses(caplog, template_env, expected_status_func: lambda site_name, service_name: dict):
     run_sm_client_command_with_exit(["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'),
                                      "-v", "status"])
-    sm_client_statuses_dict = parse_status_table(capfd)
+    sm_client_statuses_dict = parse_status_table(caplog)
     for site, config in template_env["sites"].items():
         for service, port in config["exposed_ports"]["service"].items():
             expected_status = expected_status_func(site, service)
