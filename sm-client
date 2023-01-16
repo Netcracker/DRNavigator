@@ -956,7 +956,6 @@ def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: []):
                 service_pt_row.append("-- / -- / -- /")
         pt.add_row(service_pt_row)
 
-    #print(pt)
     logging.info("Overview\n" + str(pt))
 
 
