@@ -191,7 +191,7 @@ def get_token(api_watch=False):
                 if event['object'].metadata.name == "sm-auth-sa":
                     if event['type'] in ["ADDED", "MODIFIED"]:
                         try:
-                            secret_name = [s for s in event['object'].secrets][0].name
+                            secret_name = [s for s in event['object'].secrets if 'token' in s.name][0].name
                         except: # hit here when secret for appropriate  SA is not ready yet
                             continue
 

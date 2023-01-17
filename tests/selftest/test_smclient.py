@@ -9,6 +9,7 @@ import pytest
 
 import smclient
 from smclient import *
+from utils import io_make_http_json_request
 from http import HTTPStatus
 import http.server
 import ssl
@@ -19,7 +20,8 @@ import warnings
 test_config_path=os.path.abspath("tests/selftest/resources/config_test.yaml")
 test_wrong_config_path=os.path.abspath("tests/selftest/resources/config_test_wrong.yaml")
 test_restrictions_config_path=os.path.abspath("tests/selftest/resources/config_test_with_restrictions.yaml")
-
+test_config_env_token_path = os.path.abspath("tests/selftest/resources/config_test_with_env_token.yaml")
+test_config_wrong_env_token_path = os.path.abspath("tests/selftest/resources/config_test_wrong_with_env_token.yaml")
 
 def pytest_namespace():
     return {'site_name':None}
@@ -551,3 +553,24 @@ def test_sm_process_service_with_polling(mocker, caplog):
         assert 'serv1' in failed_services
         assert "Service serv1 failed on k8s-1, skipping it on another site" in caplog.text
 
+
+def test_token_env_configuration(monkeypatch, caplog):
+    # Fail in wrong configuration
+    args = args_init(config=test_config_wrong_env_token_path)
+    with caplog.at_level(logging.ERROR):
+        assert not init_and_check_config(args)
+        assert f"Wrong token configuration for site k8s-2: use string value or specify from_env parameter" in caplog.text
+
+    # Fail when env var unexist
+    args = args_init(config=test_config_env_token_path)
+    with caplog.at_level(logging.ERROR):
+        assert not init_and_check_config(args)
+        assert f"Wrong token configuration for site k8s-2: specified env SM_TEST_TOKEN doesn't exist" in caplog.text
+
+    # Set needed env
+    monkeypatch.setenv('SM_TEST_TOKEN', '12345')
+
+    # Check configuration
+    args = args_init(config=test_config_env_token_path)
+    assert init_and_check_config(args)
+    assert smclient.sm_conf['k8s-2']['token'] == '12345'
