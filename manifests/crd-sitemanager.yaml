@@ -11,7 +11,7 @@ spec:
     singular: sitemanager
   scope: Namespaced
   versions:
-  - name: v2
+  - name: v3
     served: true
     storage: true
     subresources:
@@ -83,11 +83,14 @@ spec:
                 type: object
             type: object
         type: object
-  - name: v1
+  - name: v2
     served: true
     storage: false
     deprecated: true
-    deprecationWarning: "netcracker.com/v1 SiteManager is deprecated; use v2 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
+    deprecationWarning: >-
+      netcracker.com/v2 SiteManager is deprecated; use v3 and see actual
+      version on
+      https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful
     subresources:
       status: {}
     schema:
@@ -109,6 +112,8 @@ spec:
             properties:
               sitemanager:
                 properties:
+                  module:
+                    type: string
                   after:
                     items:
                       type: string
@@ -133,12 +138,17 @@ spec:
                     type: integer
                     minimum: 10
                     maximum: 1000
-                  serviceEndpoint:
-                    type: string
-                  ingressEndpoint:
-                    type: string
-                  healthzEndpoint:
-                    type: string
+                  parameters:
+                    type: object
+                    properties:
+                      serviceEndpoint:
+                        type: string
+                      ingressEndpoint:
+                        type: string
+                      healthzEndpoint:
+                        type: string
+                required:
+                - module
                 type: object
             type: object
           status:
@@ -159,7 +169,7 @@ spec:
           namespace: site-manager
           name: site-manager
           path: /convert
-        caBundle: "<base-64-encoded-ca-bundle>"
+        caBundle: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURDekNDQWZPZ0F3SUJBZ0lVTUw3MHg1Rms0U1plcHY4b1lsRXk5Umx5UEpzd0RRWUpLb1pJaHZjTkFRRUwKQlFBd0ZURVRNQkVHQTFVRUF3d0tVMDBnYzJWeWRtbGpaVEFlRncweU1qQTVNVFl3TmpJNE16ZGFGdzB5TkRBNQpNVFV3TmpJNE16ZGFNQlV4RXpBUkJnTlZCQU1NQ2xOTklITmxjblpwWTJVd2dnRWlNQTBHQ1NxR1NJYjNEUUVCCkFRVUFBNElCRHdBd2dnRUtBb0lCQVFEWS84SzhxY0VrZHQ0YWJ1eDFjSzJJcDdtMTNUOXg0MmNHbHFjeGNsVisKcUhrVVh4WlpheFhnOE5MZ29OMVVrTE1yT2VSSUtuMDdLaVc4QUJxMmxQYnhxYVJ0TWVIOVZFMFJqT3lHMlZHRQpJYUZMMFpLTXZkVUlsMzdwbkdHQlNZV2NlMlZGVnpHNnhJS0pBTU5zMDdyOWVibHFkSTlCYXJPblk0bi9remEyClNhUlZWcVBwWXJkbVRITE1qMnJVOFZ5ZlBrdTQ4Y0NVUVVHMUk4SDRxcnEzOFlja0xWQlJMYjNoSkxTYVNNOWMKcjlZS3NmcWJmYktEVDhibUpPbzlqQ2RJa1JBQ3ZBNlowQ05DUmd2YU95OVVhRTNaSlFVTDJBWldsWFNXa3RCRApqNVBGeUUwdS9qaCt3bmIwQ1VRYk16Y2UwcDhyVGUyQit2OVppYWJBSXVsakFnTUJBQUdqVXpCUk1CMEdBMVVkCkRnUVdCQlNxeUk1OFptMzh6QUJwb1FoNVVuUHRUbzgvS1RBZkJnTlZIU01FR0RBV2dCU3F5STU4Wm0zOHpBQnAKb1FoNVVuUHRUbzgvS1RBUEJnTlZIUk1CQWY4RUJUQURBUUgvTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFERApSUVMzRjNDSzFiSG1jWkgydHFtZkYzTDJ3WlJqaXUxYkJGdHFKbUtEVVpjR281NlMxcG83bUFYeUVmYWJhOXBVCk5OM3czRXhzWVp6YytwSUFwS3kxNkZkenRWUHJ2RkpWUkpXd2JxQkVmNUFBQmhsNzRmeEZXZmxWeStscnd0WlUKTG5seFYzVm9jT2txVU5UZzBUTWNOTDFEb3dIOEZ4cTZicWthNUlyVk5CL0xFVkpjbE50RVRnb3hOMGVHc01neQpuY2V4VFZ2cDZnZmhYaEw2aGFWODA3RFhSWFJOZlQ1MVh3Yyt6N2I1MVJhR2wwRWJINFpySXRmamFzaWtZbEpYCnRyZjg1TE91QmFaalp4aFBSaXo0eS9VcnA0anhqdzNaZTFaUkZDVlpmTmJteXJ5MWliRUVuMFlRcmtpTG92RGQKTlNmRHVtV2c0dVZwUHg2VVRSM3EKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo="
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
@@ -173,7 +183,7 @@ webhooks:
       namespace: site-manager
       name: site-manager
       path: /validate
-    caBundle: "<base-64-encoded-ca-bundle>"
+    caBundle: "LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURDekNDQWZPZ0F3SUJBZ0lVTUw3MHg1Rms0U1plcHY4b1lsRXk5Umx5UEpzd0RRWUpLb1pJaHZjTkFRRUwKQlFBd0ZURVRNQkVHQTFVRUF3d0tVMDBnYzJWeWRtbGpaVEFlRncweU1qQTVNVFl3TmpJNE16ZGFGdzB5TkRBNQpNVFV3TmpJNE16ZGFNQlV4RXpBUkJnTlZCQU1NQ2xOTklITmxjblpwWTJVd2dnRWlNQTBHQ1NxR1NJYjNEUUVCCkFRVUFBNElCRHdBd2dnRUtBb0lCQVFEWS84SzhxY0VrZHQ0YWJ1eDFjSzJJcDdtMTNUOXg0MmNHbHFjeGNsVisKcUhrVVh4WlpheFhnOE5MZ29OMVVrTE1yT2VSSUtuMDdLaVc4QUJxMmxQYnhxYVJ0TWVIOVZFMFJqT3lHMlZHRQpJYUZMMFpLTXZkVUlsMzdwbkdHQlNZV2NlMlZGVnpHNnhJS0pBTU5zMDdyOWVibHFkSTlCYXJPblk0bi9remEyClNhUlZWcVBwWXJkbVRITE1qMnJVOFZ5ZlBrdTQ4Y0NVUVVHMUk4SDRxcnEzOFlja0xWQlJMYjNoSkxTYVNNOWMKcjlZS3NmcWJmYktEVDhibUpPbzlqQ2RJa1JBQ3ZBNlowQ05DUmd2YU95OVVhRTNaSlFVTDJBWldsWFNXa3RCRApqNVBGeUUwdS9qaCt3bmIwQ1VRYk16Y2UwcDhyVGUyQit2OVppYWJBSXVsakFnTUJBQUdqVXpCUk1CMEdBMVVkCkRnUVdCQlNxeUk1OFptMzh6QUJwb1FoNVVuUHRUbzgvS1RBZkJnTlZIU01FR0RBV2dCU3F5STU4Wm0zOHpBQnAKb1FoNVVuUHRUbzgvS1RBUEJnTlZIUk1CQWY4RUJUQURBUUgvTUEwR0NTcUdTSWIzRFFFQkN3VUFBNElCQVFERApSUVMzRjNDSzFiSG1jWkgydHFtZkYzTDJ3WlJqaXUxYkJGdHFKbUtEVVpjR281NlMxcG83bUFYeUVmYWJhOXBVCk5OM3czRXhzWVp6YytwSUFwS3kxNkZkenRWUHJ2RkpWUkpXd2JxQkVmNUFBQmhsNzRmeEZXZmxWeStscnd0WlUKTG5seFYzVm9jT2txVU5UZzBUTWNOTDFEb3dIOEZ4cTZicWthNUlyVk5CL0xFVkpjbE50RVRnb3hOMGVHc01neQpuY2V4VFZ2cDZnZmhYaEw2aGFWODA3RFhSWFJOZlQ1MVh3Yyt6N2I1MVJhR2wwRWJINFpySXRmamFzaWtZbEpYCnRyZjg1TE91QmFaalp4aFBSaXo0eS9VcnA0anhqdzNaZTFaUkZDVlpmTmJteXJ5MWliRUVuMFlRcmtpTG92RGQKTlNmRHVtV2c0dVZwUHg2VVRSM3EKLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo="
   rules:
   - apiGroups:   ["netcracker.com"]
     apiVersions: ["*"]
