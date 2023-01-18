@@ -714,7 +714,11 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
     def check_dep_issue(site):
         if sm_dict[site][module]['deps_issue']:
             logging.warning(f"Dependency issues on site: {site}")
-            return False
+            if cmd in 'stop' and \
+                    (sm_dict[site][module]['ts'] is not None and sm_dict[site][module]['service_dep_ordered'] != []): # not integrity_error
+                logging.warning(f"Ignoring dependency issues for {cmd} command")
+            else:
+                return False
         return True
 
     def check_state_restrictions(services):
