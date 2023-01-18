@@ -487,10 +487,11 @@ def run(services:[] = None, cmd="", site=""):
 
     # assemble ordered service list to proceed, keeping in services specified in cli
     for site_i in sm_dict.get_available_sites():
-        service_dep_ordered, return_code, ts = make_ordered_services_to_process(sm_dict, site_i, services)
+        service_dep_ordered, return_code_deps, return_code_cycle, ts = make_ordered_services_to_process(sm_dict, site_i, services)
         sm_dict[site_i]['service_dep_ordered'] = service_dep_ordered
         sm_dict[site_i]['ts'] = ts
-        sm_dict[site_i]['deps_issue'] = not return_code
+        sm_dict[site_i]['deps_issue'] = not return_code_deps
+        sm_dict[site_i]['cycle_issue'] = return_code_cycle
         logging.debug(f"Site:{site_i} list:{sm_dict[site_i]['service_dep_ordered']} deps_issue:{sm_dict[site_i]['deps_issue']}")
 
     # validation to satisfy cmd and current site status
@@ -675,24 +676,25 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site, services_to_
 
     # collect sorted ordered service list
     service_lists = []
+    ret_cycle = False
     try:
         service_lists = [i for i in build_after_before_graph(temp_dict[site]['services']).static_order()]
         for service, depends in after_before_check(temp_dict[site]['services']).items():  # check deps
             for depend in depends:
                 logging.warning(f"Site: {site}. Service: {service} has nonexistent "
                                 f"{depend} dependency: {depends[depend]}")
-                ret = False
+                ret_deps = False
     except CycleError as e:
         logging.error(f"Site {site} has integrity issues: %s",e)
         integrity_error = True
 
     if integrity_error:
-        return [], False, type(None) # return error, integrity issue
+        ret_cycle = True
 
     # check services equality on all sites
     ts = build_after_before_graph(temp_dict[site]['services'])
     ts.prepare()
-    return service_lists, ret, ts
+    return service_lists, ret_deps, ret_cycle, ts
 
 
 def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=None) -> Tuple[list, TopologicalSorter2]:
@@ -717,6 +719,11 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
                 ret = False
         return ret
 
+    def check_cycle_issue(site):
+        if sm_dict[site]['cycle_issue']:
+            logging.critical(f"Cycles problem: {site}")
+            return False
+        return True
     def check_dep_issue(site):
         if sm_dict[site]['deps_issue']:
             logging.warning(f"Dependency issues on site: {site}")
@@ -768,7 +775,7 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
     if cmd in "stop":
         # check site availability
         if not check_site_ssl_available(sm_conf.get_opposite_site(site)) or \
-                not check_dep_issue(sm_conf.get_opposite_site(site)):
+                not check_cycle_issue(sm_conf.get_opposite_site(site)):
             raise NotValid
         service_dep_ordered = services_to_run if services_to_run else \
             sm_dict[sm_conf.get_opposite_site(site)]['service_dep_ordered']
