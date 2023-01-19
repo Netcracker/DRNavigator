@@ -349,8 +349,6 @@ def test_ServiceDRStatus_init():
     assert stat.service in 'absent-service' and stat.message and not stat.is_ok()
 
 
-
-
 def test_runservise_engine(caplog):
     def process_node(node):
         node=ServiceDRStatus({'services':{node:{}}})
