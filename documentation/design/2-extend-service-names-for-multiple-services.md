@@ -126,7 +126,7 @@ In cluster:
 apiVersion: netcracker.com/v3
 kind: SiteManager
 metadata:
-  name: ns1-serviceA.ns1
+  name: ns1-serviceA
   namespace: ns1
 spec:
   sitemanager:
@@ -136,7 +136,7 @@ spec:
 apiVersion: netcracker.com/v3
 kind: SiteManager
 metadata:
-  name: ns2-serviceB.ns2
+  name: ns2-serviceB
   namespace: ns2
 spec:
   sitemanager:
@@ -157,7 +157,7 @@ spec:
     after: []
     before: []
 ---
-apiVersion: netcracker.com/v2
+apiVersion: netcracker.com/v3
 kind: SiteManager
 metadata:
   name: serviceB
@@ -172,7 +172,7 @@ In cluster:
 apiVersion: netcracker.com/v3
 kind: SiteManager
 metadata:
-  name: serviceA.ns1
+  name: serviceA
   namespace: ns1
 spec:
   sitemanager:
@@ -182,7 +182,7 @@ spec:
 apiVersion: netcracker.com/v3
 kind: SiteManager
 metadata:
-  name: serviceB.ns2
+  name: serviceB
   namespace: ns2
 spec:
   sitemanager:

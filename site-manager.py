@@ -273,7 +273,11 @@ def cr_convert():
                     else:
                         modified_spec[i]["spec"]["sitemanager"]["after"][j] = after_services[0]
 
-        modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
+            modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
+
+        # v3 -> v2 conversion
+        if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v2":
+            modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
 
     logging.debug("CR convertation is started.")
     logging.debug(f"Initial spec: {spec}")

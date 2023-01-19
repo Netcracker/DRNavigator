@@ -53,6 +53,14 @@ Where:
   - `SiteManager CR` is the custom resource with description of the DR behavior for a service, specific for the stateful module.
   - `site-manager` is a dedicated service in a separate project. It can set a new state `active` or `standby` to other services and contains information about all services in the current Kubernetes cluster.
 
+## Service naming
+
+Site-Manager calculates service names for every service to manage them. Rules for calculation:
+```
+<cr-name>.<cr-namespace>
+```
+Site-Manager recognizes service by this name for all operations and dependencies.
+
 ## Service Sequence
 
 Service sequence is applied when a service should be reconfigured on one Kubernetes cluster before the second Kubernetes cluster (for 
@@ -167,7 +175,7 @@ The following API should be implemented by Cloud Service to be operated by SiteM
 CR SiteManager description:
 
 ```yaml
-apiVersion: netcracker.com/v2
+apiVersion: netcracker.com/v3
 kind: SiteManager
 metadata:
   name: <SERVICE>
@@ -189,8 +197,8 @@ spec:
 
 Where:
   - `module` is the name of the module through which the service should be controlled. 
-  - `after` is the list of services, that should be done before service start. In case of `after` is empty or absent the service will start among the first services if no service with name of this service in section `before`.
-  - `before` is the list of services, that should wait until service in running. May be empty or absent.
+  - `after` is the list of service names (with namespaces), that should be done before service start. In case of `after` is empty or absent the service will start among the first services if no service with name of this service in section `before`.
+  - `before` is the list of service  names (with namespaces), that should wait until service in running. May be empty or absent.
   - `sequence` is the order of starting service sides. In case sequence is empty default `["standby","active"]` is used.
   - `timeout` is the timeout in seconds for polling operation. If `timeout` is empty or absent site-manager will use `service_default_timeout` property from sm-client configuration.
   - `allowedStandbyStateList` - is the list of possible healthz statuses for standby site. By default `["up"]`.
@@ -200,7 +208,7 @@ Where:
 Example for `postgres` service:
 
 ```yaml
-apiVersion: netcracker.com/v2
+apiVersion: netcracker.com/v3
 kind: SiteManager
 metadata:
   annotations:
@@ -214,7 +222,7 @@ spec:
   sitemanager:
     module: "stateful"
     after:
-    - paas
+    - paas.paas-namespace
     before: []
     sequence:
     - standby
@@ -225,7 +233,11 @@ spec:
       healthzEndpoint: postgres-operator.postgres-service.svc.cluster.local:8080/health
 ```
 
-**Important**: Do not read CRs as `v1` version. Only `v2` read (default) is supported.
+**Important**: Do not read CRs as `v2` version. Only `v3` read (default) is supported.
+In v3 version namespaces were additionally supported in service names. In version `v2` after/before dependencies 
+contains only cr-names, but in `v3` - cr-names + namespaces. 
+SM automatically convert `v2` CR to `v3`, added namespaces for existed services. But it's recommended to organize 
+update to `v3` version for used CRs.
  
 ## REST API Definition
 
@@ -443,13 +455,14 @@ This section describes what requests a SiteManager can respond to on both Kubern
 ```json
 {
   "services": {
-    "kafka": {
+    "kafka.kafka-service": {
       "after": [], 
       "allowedStandbyStateList": [
         "up"
       ],
       "before": [], 
       "module": "stateful",
+      "name": "kafka",
       "namespace": "kafka-service", 
       "parameters": {
         "healthzEndpoint": "http://kafka-disaster-recovery.kafka-service.svc.cluster.local:8068/healthz", 
@@ -461,15 +474,16 @@ This section describes what requests a SiteManager can respond to on both Kubern
       ],  
       "timeout": 360
     },
-    "spark-operator-gcp-site-manager": {
+    "spark-operator-gcp-site-manager.spark-operator-gcp": {
       "after": [
-        "paas"
+        "paas.paas-namespace"
       ], 
       "allowedStandbyStateList": [
         "up"
       ],
       "before": [],
-      "module": "stateful", 
+      "module": "stateful",
+      "name": "spark-operator-gcp-site-manager",
       "namespace": "spark-operator-gcp", 
       "parameters": {
         "healthzEndpoint": "http://spark-site-manager.spark-operator-gcp.svc.cluster.local:8080/health", 
@@ -501,13 +515,14 @@ Output:
 ```json
 {
   "services": {
-    "kafka": {
+    "kafka.kafka-service": {
       "after": [], 
       "allowedStandbyStateList": [
         "up"
       ],
       "before": [], 
       "module": "stateful",
+      "name": "kafka",
       "namespace": "kafka-service", 
       "parameters": {
         "healthzEndpoint": "http://kafka-disaster-recovery.kafka-service.svc.cluster.local:8068/healthz", 
@@ -519,15 +534,16 @@ Output:
       ],  
       "timeout": 360
     },
-    "spark-operator-gcp-site-manager": {
+    "spark-operator-gcp-site-manager.spark-operator-gcp": {
       "after": [
-        "paas"
+        "paas.paas-namespace"
       ], 
       "allowedStandbyStateList": [
         "up"
       ],
       "before": [],
-      "module": "stateful", 
+      "module": "stateful",
+      "name": "spark-operator-gcp-site-manager",
       "namespace": "spark-operator-gcp", 
       "parameters": {
         "healthzEndpoint": "http://spark-site-manager.spark-operator-gcp.svc.cluster.local:8080/health", 
@@ -551,9 +567,9 @@ Output:
 
 **Code**: 200
 
-**Data Params**: `{"procedure": "status", "run-service": "service-name"}`
+**Data Params**: `{"procedure": "status", "run-service": "service-name.service-namespace"}`
 
-**Answer**: `"service": {[{"healthz": "up|down|degraded", "name": "service-name-1", "message": "some-message", "mode": "active|standby|disable", "status": "running|done|failed"}]}`
+**Answer**: `"services": {"service-name.service-namespace": {"healthz": "up|down|degraded", "message": "some-message", "mode": "active|standby|disable", "status": "running|done|failed"}]}`
 
 This command shows the current status of DR procedures and results of health checks.
 
@@ -562,7 +578,7 @@ Example of `/GET` request with `curl` command shows the output for `paas` servic
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"status", "run-service": "paas"}' \
+       -d '{"procedure":"status", "run-service": "paas.paas-namespace"}' \
        http://site-manager.example.com/sitemanager
 
 ```
@@ -571,15 +587,14 @@ Output:
 
 ```json
 {
-  "services": [
-    { "paas": {
+  "services": { 
+    "paas.paas-namespace": {
           "healthz": "--", 
           "message": "",
           "mode": "active", 
           "status": "done"
-      }
     }
-  ]
+  }
 }
 ```
 
@@ -593,7 +608,7 @@ Output:
 
 **Data Params**: `{"procedure": "list"}`
 
-**Answer**: `{"all_services": ["service-1", "service-2"]}`
+**Answer**: `{"all_services": ["service-1.service-1-ns", "service-2.service-2-ns"]}`
 
 Example:
 
@@ -610,14 +625,13 @@ Output:
 ```json
 {
   "all-services": [
-    "postgres", 
-    "postgres-service-site-manager", 
-    "paas", 
-    "kafka", 
-    "mongo", 
-    "streaming-platform", 
-    "paas-1", 
-    "spark-operator-gcp-site-manager"
+    "postgres.postres-ns",
+    "paas.paas-ns", 
+    "kafka.kafka.ns", 
+    "mongo.mongo.ns", 
+    "streaming-platform.streaming-platform-ns", 
+    "paas-1.paas-1-ns", 
+    "spark-operator-gcp-site-manager.spark-ns"
   ]
 }
 ```
@@ -630,9 +644,9 @@ Output:
 
 **Code**: 200
 
-**Data Params**: `{"procedure": "active|standby|disable", "run-service": "paas"}`
+**Data Params**: `{"procedure": "active|standby|disable", "run-service": "paas.paas-ns"}`
 
-**Answer**: `{"message": "Procedure active is started", "procedure": "active", "service": "paas"}`
+**Answer**: `{"message": "Procedure active is started", "procedure": "active", "service": "paas.paas-ns"}`
 
 This command performs the specified procedure for the selected service.
 
@@ -641,7 +655,7 @@ Example:
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"active", "run-service": "paas"}' \
+       -d '{"procedure":"active", "run-service": "paas.paas-ns"}' \
        http://site-manager.example.com/sitemanager
 
 ```
@@ -652,7 +666,7 @@ Output:
 {
   "message": "Procedure active is started", 
   "procedure": "active", 
-  "service": "paas"
+  "service": "paas.paas-ns"
 }
 ```
 
@@ -682,7 +696,7 @@ HTTP Code: 400
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"wrong", "run-service": "paas"}' \
+       -d '{"procedure":"wrong", "run-service": "paas.paas-ns"}' \
        http://site-manager.example.com/sitemanager
 ```
 
@@ -852,7 +866,7 @@ Switchover to cluster k8s-1:
 ...
 ---------------------------------------------------------------------
 Summary:
-services that successfully done: ['sm-test', 'paas', 'postgres', 'mongo']
+services that successfully done: ['sm-test.sm-test-ns', 'paas.paas-ns', 'postgres.postgres-ns', 'mongo.mongo-ns']
 services that failed: []
 services that ignored: []
 ---------------------------------------------------------------------
@@ -861,7 +875,7 @@ services that ignored: []
 Switchover to cluster k8s-1 with skipping paas and mongo services:
 
 ```
-./sm-client --skip-services paas,mongo move k8s-1
+./sm-client --skip-services paas.paas-ns,mongo.mongo-ns move k8s-1
 
 ---------------------------------------------------------------------
 Procedure: move
@@ -869,17 +883,17 @@ Procedure: move
 Active site is: k8s-1
 Standby site is: k8s-2
 
-Kubernetes services managed by site-manager: ['sm-test', 'paas', 'postgres', 'mongo']
-kubernetes services that will be processed: ['sm-test', 'postgres']
+Kubernetes services managed by site-manager: ['sm-test.sm-test-ns', 'paas.paas-ns', 'postgres.postgres-ns', 'mongo.mongo-ns']
+kubernetes services that will be processed: ['sm-test.sm-test-ns', 'postgres.postgres-ns']
 ---------------------------------------------------------------------
 
 ......
 
 ---------------------------------------------------------------------
 Summary:
-services that successfully done: ['sm-test', 'postgres']
+services that successfully done: ['sm-test.sm-test-ns', 'postgres.postgres-ns']
 services that failed: []
-services that ignored: ['paas', 'mongo']
+services that ignored: ['paas.paas-ns', 'mongo.mongo-ns']
 ---------------------------------------------------------------------
 ```
 
@@ -894,15 +908,15 @@ Check status of services:
 ```
 $ ./sm-client status
 
-+---------------------------------+--------------------------------------+--------------------------------------+
-| Service                         |        k8s-1                         |         k8s-2                        |
-+---------------------------------+--------------------------------------+--------------------------------------+
-|                                 | mode | DR status | healthz | message | mode | DR status | healthz | message |
-|   --------------------------    |      --------------------------      |      --------------------------      |
-| postgres-service-site-manager   | standby / done / up / --             |  active / done / up / --             |
-| kafka                           | standby / done / up / some kafka msg |  active / done / up / some kafka msg |
-| paas                            | standby / done / up / some paas msg  |  active / done / up / some paas msg  |
-+---------------------------------+--------------------------------------+--------------------------------------+
++---------------------------------------------+--------------------------------------+--------------------------------------+
+| Service                                     |        k8s-1                         |         k8s-2                        |
++---------------------------------------------+--------------------------------------+--------------------------------------+
+|                                             | mode | DR status | healthz | message | mode | DR status | healthz | message |
+|   --------------------------------------    |      --------------------------      |      --------------------------      |
+| postgres-service-site-manager.postgres-ns   | standby / done / up / --             |  active / done / up / --             |
+| kafka.kafka-ns                              | standby / done / up / some kafka msg |  active / done / up / some kafka msg |
+| paas.paas-ns                                | standby / done / up / some paas msg  |  active / done / up / some paas msg  |
++---------------------------------------------+--------------------------------------+--------------------------------------+
 ```
 
 Show list of services in Kubernetes clusters with CR SiteManager:
@@ -911,8 +925,8 @@ Show list of services in Kubernetes clusters with CR SiteManager:
 ./sm-client list
 
 ---------------------------------------------------------------------
-Kubernetes services managed by site-manager: ['postgres', 'sm-test', 'mongo', 'paas']
-kubernetes services that will be processed: ['postgres', 'sm-test', 'mongo', 'paas']
+Kubernetes services managed by site-manager: ['postgres.postgres-ns', 'sm-test.sm-test-ns', 'mongo.mongo-ns', 'paas.paas-ns']
+kubernetes services that will be processed: ['postgres.postgres-ns', 'sm-test.sm-test-ns', 'mongo.mongo-ns', 'paas.paas-ns']
 ---------------------------------------------------------------------
 ```
 
@@ -937,9 +951,9 @@ sm-client:
   http_auth: True
   
 restrictions:
-  service-1:
+  service-1.service-1-ns:
     - active-active
-  service-2:
+  service-2.service-2-ns:
     - disable-standby
     - standby-disable
   "*":
