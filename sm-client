@@ -302,6 +302,8 @@ class SMClusterState:
                     self.sm[key][k] = v
 
     def __getitem__(self, key):
+        if key not in self.sm:
+            return
         return self.sm[key]
 
     def __setitem__(self, key, item):
@@ -781,6 +783,9 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
         if not all(check_site_ssl_available(site_i) for site_i in sm_conf.keys()) or \
                 not all(check_services_on_site(service_dep_ordered, site_i) for site_i in sm_conf.keys()) or \
                 not all(check_dep_issue(site_i) for site_i in sm_conf.keys()):
+            raise NotValid
+        if site not in sm_dict.sm:
+            logging.critical(f"Unable to perform the 'move' operation due to an unknown site %s" % site)
             raise NotValid
         if set(sm_dict[site]['service_dep_ordered']) != \
                 set(sm_dict[sm_conf.get_opposite_site(site)]['service_dep_ordered']):
