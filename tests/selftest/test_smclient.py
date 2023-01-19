@@ -349,6 +349,8 @@ def test_ServiceDRStatus_init():
     assert stat.service in 'absent-service' and stat.message and not stat.is_ok()
 
 
+
+
 def test_runservise_engine(caplog):
     def process_node(node):
         node=ServiceDRStatus({'services':{node:{}}})
@@ -547,6 +549,21 @@ def test_sm_process_service_with_polling(mocker, caplog):
         service_response.sortout_service_results()
         assert 'serv1' in failed_services
         assert "Service serv1 failed on k8s-1, skipping it on another site" in caplog.text
+
+    # timeout expired fail
+    test_resp={'services':{'serv2':{'healthz':'up', 'mode':'standby', 'status':'done'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={
+        "services":{"serv2":{"timeout":1}},
+        "status": True}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        sm_process_service_with_polling("serv2", "k8s-1",  "active", sm_dict)
+        service_response = thread_result_queue.get()
+        service_response.sortout_service_results()
+        assert 'serv2' in failed_services
 
 
 def test_token_env_configuration(monkeypatch, caplog):
