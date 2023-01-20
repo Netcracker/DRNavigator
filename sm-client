@@ -21,7 +21,6 @@ import ssl
 import sys
 import threading
 import time
-from graphlib import TopologicalSorter, CycleError
 from http import HTTPStatus
 from queue import Queue
 
@@ -32,6 +31,7 @@ from prettytable import PrettyTable
 from typing import Tuple, Dict, Optional
 
 import utils
+from utils import TopologicalSorter2
 from utils import  io_make_http_json_request
 MAIN_HELP_SECTION = """
 Script to manage DR cases in kubernetes Active-Standby scheme

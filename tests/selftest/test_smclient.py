@@ -15,6 +15,7 @@ import ssl
 import threading
 import os
 import warnings
+from utils import *
 
 test_config_path=os.path.abspath("tests/selftest/resources/config_test.yaml")
 test_wrong_config_path=os.path.abspath("tests/selftest/resources/config_test_wrong.yaml")
