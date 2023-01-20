@@ -7,6 +7,7 @@ USER root
 
 COPY site-manager.py /app/
 COPY utils.py /app/
+COPY server_utils.py /app/
 COPY requirements-sm.txt /app/requirements.txt
 COPY flank_exporter_config.py /app/flank_exporter_config.py
 
