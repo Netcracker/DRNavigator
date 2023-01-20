@@ -551,19 +551,19 @@ Output:
 
 **Code**: 200
 
-**Data Params**: `{"procedure": "status", "run-service": "service-name", "with-deps": true/false}`
+**Data Params**: `{"procedure": "status", "run-service": "service-name", "with_deps": true/false}`
 
 **Answer**: `{"services": { "service-name": {"healthz": "up|down|degraded", "message": "some-message", 
 "mode": "active|standby|disable", "status": "running|done|failed"}, "deps": {
 "before": <before-services-statuses>, "after": <after-services-statuses>}}}`
 
 This command shows the current status of DR procedures and results of health checks.
-`with-deps` option are optional (default value is false). 
+`with_deps` option are optional (default value is false). 
 If it's enabled, site-manager will return information about statuses of dependent services in `deps` section.
 
 Example of `/sitemanager` request with `curl` command shows output for service `paas`:
 
-* without `with-deps`:
+* without `with_deps`:
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
@@ -588,11 +588,11 @@ Output:
 }
 ```
 
-* with`with-deps=true`:
+* with`with_deps=true`:
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"status", "run-service": "paas", "with-deps": true}' \
+       -d '{"procedure":"status", "run-service": "paas", "with_deps": true}' \
        http://site-manager.example.com/sitemanager
 ```
 
@@ -790,12 +790,12 @@ Output:
 ```
 
 HTTP Code: 400
-5. Try to start status procedure with `with-deps=true` when needed service contains non-existent dependency:
+5. Try to start status procedure with `with_deps=true` when needed service contains non-existent dependency:
 
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"status", "run-service": "some-service", "with-deps": true}' \
+       -d '{"procedure":"status", "run-service": "some-service", "with_deps": true}' \
        http://site-manager.example.com/sitemanager
 ```
 
@@ -811,12 +811,12 @@ Output:
 
 HTTP Code: 400
 
-6. Try to start status procedure with `with-deps=true` when dependencies are cycled:
+6. Try to start status procedure with `with_deps=true` when dependencies are cycled:
 
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
-       -d '{"procedure":"status", "run-service": "some-service", "with-deps": true}' \
+       -d '{"procedure":"status", "run-service": "some-service", "with_deps": true}' \
        http://site-manager.example.com/sitemanager
 ```
 
