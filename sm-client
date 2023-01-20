@@ -21,6 +21,7 @@ import ssl
 import sys
 import threading
 import time
+from graphlib import CycleError
 from http import HTTPStatus
 from queue import Queue
 
