@@ -20,7 +20,6 @@ def parse_status_table(caplog):
     for record in caplog.records:
         if record.levelname == "INFO":
             out = ''.join(record.msg)
-    print(out)
 
     logging.info("Parse status table...")
 
