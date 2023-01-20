@@ -31,7 +31,7 @@ import os
 from prettytable import PrettyTable
 from typing import Tuple, Dict, Optional
 
-
+import utils
 from utils import  io_make_http_json_request
 MAIN_HELP_SECTION = """
 Script to manage DR cases in kubernetes Active-Standby scheme
@@ -401,15 +401,6 @@ class NotValid(Exception):
     pass
 
 
-class TopologicalSorter2(TopologicalSorter):
-    """ added method to get successors of specific node """
-    def successors(self, node):
-        for i in self._node2info.values():
-            if i.node == node:
-                return i.successors
-        return None
-
-
 def print_service_order(ts: TopologicalSorter2, sm_dict: SMClusterState):
     """ Show service list ordered by dependency in debug mode"""
     stage=0
@@ -609,21 +600,6 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site, services_to_
         TopologicalSorter object in case success
     @todo[3]: cross site validation
     """
-    def build_after_before_graph(dep_list: dict) -> TopologicalSorter2:
-        """Assemble directed graph using AFTER and BEFORE dependency
-        @param dep_list:[]: services list with deps in special format, see @note
-        @returns: TopologicalSorter graph
-        @todo: [3] multiple dependency service support
-        @note:  format of input list  [{'serv2':{'after':['serv1'],'before':['serv3']}},...]
-        """
-        ts = TopologicalSorter2()
-        for item in dep_list.keys():
-            ts.add(item)
-            if dep_list[item].get('after') and dep_list[item]['after'][0] in [ii for ii in dep_list.keys()]:
-                ts.add(item, dep_list[item]['after'][0]) #if dep[AFTER,BEFORE] is present and exist in the dep_list - add it
-            if dep_list[item].get('before') and dep_list[item]['before'][0] in [ii for ii in dep_list.keys()]:
-                ts.add(dep_list[item]['before'][0], item)
-        return ts
 
     def after_before_check(ll: dict) -> {}:
         """ Check AFTER and BEFORE dependency integrity
@@ -661,7 +637,7 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site, services_to_
     # collect sorted ordered service list
     service_lists = []
     try:
-        service_lists = [i for i in build_after_before_graph(temp_dict[site]['services']).static_order()]
+        service_lists = [i for i in utils.build_after_before_graph(temp_dict[site]['services']).static_order()]
         for service, depends in after_before_check(temp_dict[site]['services']).items():  # check deps
             for depend in depends:
                 logging.warning(f"Site: {site}. Service: {service} has nonexistent "
@@ -675,7 +651,7 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site, services_to_
         return [], False, type(None) # return error, integrity issue
 
     # check services equality on all sites
-    ts = build_after_before_graph(temp_dict[site]['services'])
+    ts = utils.build_after_before_graph(temp_dict[site]['services'])
     ts.prepare()
     return service_lists, ret, ts
 

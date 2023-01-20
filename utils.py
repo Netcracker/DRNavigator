@@ -11,6 +11,7 @@ import base64
 from kubernetes import client, config, watch
 from requests.adapters import HTTPAdapter, Retry
 from urllib3.exceptions import InsecureRequestWarning
+from graphlib import TopologicalSorter, CycleError
 
 SM_CONFIG_FILE = os.environ.get("SM_CONFIG_FILE", "")
 if SM_CONFIG_FILE != "":
@@ -218,3 +219,29 @@ def get_token(api_watch=False):
                         logging.fatal("Serviceaccount sm-auth-sa was deleted. Exit")
                         os._exit(1)
             time.sleep(15)
+
+
+class TopologicalSorter2(TopologicalSorter):
+    """ added method to get successors of specific node """
+    def successors(self, node):
+        for i in self._node2info.values():
+            if i.node == node:
+                return i.successors
+        return None
+
+
+def build_after_before_graph(dep_list: dict) -> TopologicalSorter2:
+    """Assemble directed graph using AFTER and BEFORE dependency
+    @param dep_list:[]: services list with deps in special format, see @note
+    @returns: TopologicalSorter graph
+    @todo: [3] multiple dependency service support
+    @note:  format of input list  [{'serv2':{'after':['serv1'],'before':['serv3']}},...]
+    """
+    ts = TopologicalSorter2()
+    for item in dep_list.keys():
+        ts.add(item)
+        if dep_list[item].get('after') and dep_list[item]['after'][0] in [ii for ii in dep_list.keys()]:
+            ts.add(item, dep_list[item]['after'][0]) #if dep[AFTER,BEFORE] is present and exist in the dep_list - add it
+        if dep_list[item].get('before') and dep_list[item]['before'][0] in [ii for ii in dep_list.keys()]:
+            ts.add(dep_list[item]['before'][0], item)
+    return ts

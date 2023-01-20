@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import graphlib
 import logging
 import utils
 
@@ -72,31 +73,40 @@ def get_status_with_deps(service, sm_dict, *args, **kwargs):
     @param str service: name of needed service
     @param dict sm_dict: services' CRs
     """
-    visited_services_stack = []
     with_deps = kwargs.get('with_deps', False)
+
+    # Collect services with deps
+    tmp_sm_dict = {}
+
+    def visit_service(services, parent_service=None):
+        for service_name in services:
+            if service_name not in sm_dict['services']:
+                logging.error(f"Found not exist dependency: {service_name} in {parent_service} CR")
+                raise utils.ProcedureException(output={
+                    "message": "Dependency defined in CR doesn't exist",
+                    "wrong-service": service_name,
+                    "problem-cr": parent_service
+                })
+            if service_name not in tmp_sm_dict and with_deps:
+                tmp_sm_dict[service_name] = sm_dict['services'][service_name]
+                visit_service(sm_dict['services'][service_name]['before'], service_name)
+                visit_service(sm_dict['services'][service_name]['after'], service_name)
+
+    visit_service([service])
+
+    try:
+        utils.build_after_before_graph(tmp_sm_dict).prepare()
+    except graphlib.CycleError:
+        # TODO: How to understand where the cycle is?
+        raise utils.ProcedureException(output={
+            "message": "Found cycle in service dependencies"
+            #"wrong-service": "---",
+            #"cycled-services": visited_services_stack
+        })
 
     def collect_statuses_tree_for_services(services):
         output = dict()
         for service_name in services:
-            # Check ot service name is not defined in CRs
-            if service_name not in sm_dict['services']:
-                logging.error(f"Found not exist dependency: {service_name} in {visited_services_stack[-1]} CR")
-                raise utils.ProcedureException(output={
-                    "message": "Dependency defined in CR doesn't exist",
-                    "wrong-service": service_name,
-                    "problem-cr": visited_services_stack[-1]
-                })
-
-            # Check if service's already been visited
-            visited_services_stack.append(service_name)
-            if visited_services_stack.count(service_name) > 1:
-                logging.error(f"Found cycle in service dependencies: {visited_services_stack}")
-                raise utils.ProcedureException(output={
-                    "message": "Found cycle in service dependencies",
-                    "wrong-service": service_name,
-                    "cycled-services": visited_services_stack
-                })
-
             # Get status for service
             cr = sm_dict['services'][service_name]
             output[service_name] = get_status(cr, args, kwargs)
@@ -107,7 +117,6 @@ def get_status_with_deps(service, sm_dict, *args, **kwargs):
                     'before': collect_statuses_tree_for_services(cr['before']),
                     'after': collect_statuses_tree_for_services(cr['after'])
                 }
-            visited_services_stack.pop()
         return output
 
     return collect_statuses_tree_for_services([service])
