@@ -588,7 +588,7 @@ def process_module_services(module, states, cmd, site, sm_dict):
         else:
             return site
 
-    logging.info(f"Processing {module} module by cmd:{get_cmd()} on site:{get_site}")
+    logging.info(f"Processing {module} module by cmd: {get_cmd()} on site: {get_site()}")
 
     process_ts_services(sm_dict[get_site()][module]["ts"], sm_process_service_with_polling,
                         get_site(), get_cmd(), sm_dict)
