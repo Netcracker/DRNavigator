@@ -91,7 +91,8 @@ class SMConf(dict): # global config.yaml and some RO config parameters and args,
 
     def get_opposite_site(self,site):
         if site not in self.keys():
-            return None
+            logging.critical(f"Unable to perform the operation due to an unknown site %s" % site)
+            raise NotValid
         opposite_site=None
 
         for s in sm_conf.keys():
