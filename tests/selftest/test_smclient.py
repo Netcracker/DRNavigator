@@ -241,6 +241,20 @@ def test_validate_operation(caplog):
         validate_operation(sm_dict_run_services, "stop", "k8s-2", ["fake1", "serv1"])
         assert "Service 'fake1' does not exist on 'k8s-1' site" in caplog.text
 
+    sm_dict_run_stop=SMClusterState()
+    sm_dict_run_stop["k8s-2"]={"status":True, "return_code":None,
+                                   "stateful":{"service_dep_ordered":["serv1"], "deps_issue":True,
+                                               "ts":TopologicalSorter2},
+                                   "services":{"serv1":{}}}
+    sm_dict_run_stop["k8s-1"]={"status":True, "return_code":None,
+                       "stateful":{"service_dep_ordered":["serv1"], "deps_issue":True,
+                                   "ts":TopologicalSorter2},
+                       "services":{"serv1":{}}}
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        validate_operation(sm_dict_run_stop, "stop", "k8s-2", ["serv1"])
+        assert "Ignoring dependency issues for stop command" in caplog.text
+
 def test_validate_wrong_sites(caplog):
     init_and_check_config(args_init())
 
