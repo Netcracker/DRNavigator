@@ -795,14 +795,13 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
         ts=sm_dict[site][module]['ts']
 
     elif cmd in readonly_cmd:
-        if site not in sm_dict.sm:
+        if site not in sm_dict.sm and cmd in ['active', 'standby', 'disable']:
             logging.critical(f"Unable to perform the operation due to an unknown site %s" % site)
             raise NotValid
         ret = any([check_site_ssl_available(site)] if site else
                   [check_site_ssl_available(s) for s in sm_conf.keys()])
         if not ret:
             raise NotValid
-
         if len(sm_dict.get_available_sites()) > 1 and \
                 len(sm_dict[sm_dict.get_available_sites()[0]][module]['service_dep_ordered']) >= \
                 len(sm_dict[sm_dict.get_available_sites()[1]][module]['service_dep_ordered']):
@@ -814,13 +813,14 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
         else:
             service_dep_ordered=sm_dict[sm_dict.get_available_sites()[0]][module]['service_dep_ordered']
             ts=sm_dict[sm_dict.get_available_sites()[0]][module]['ts']
+
         if services_to_run:
             service_dep_ordered = services_to_run
         all(check_services_on_site(service_dep_ordered, site_i) for site_i in sm_dict.get_available_sites())
         all(check_dep_issue(site_i) for site_i in sm_dict.get_available_sites())
 
     elif cmd in site_cmds:
-        if site not in sm_dict.sm:
+        if site not in sm_dict.sm and cmd in ['active', 'standby', 'disable']:
             logging.critical(f"Unable to perform the operation due to an unknown site %s" % site)
             raise NotValid
         service_dep_ordered = services_to_run if services_to_run else \
