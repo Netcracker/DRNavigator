@@ -704,7 +704,6 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
     @returns: Allowed or not to proceed operation <cmd> on <site>
     @todo warn/fail in case deps are different
     """
-
     def check_site_ssl_available(checked_site: str):
         if not sm_dict[checked_site]['status']:
             logging.error(f"Site: {checked_site} is not available")
