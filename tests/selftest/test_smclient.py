@@ -287,12 +287,17 @@ def test_validate_wrong_sites(caplog):
     with pytest.raises(NotValid):
         caplog.clear()
         assert validate_operation(sm_dict, "move", "unknown-site-move")
-        assert "Unable to perform the operation due to an unknown site unknown-site" in caplog.text
+        assert "Unable to perform the operation due to an unknown site unknown-site-move" in caplog.text
 
     # Check stop
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict, "stop", "unknown-site-stop")
-        assert "Unable to perform the operation due to an unknown site unknown-Site" in caplog.text
+        assert "Unable to perform the operation due to an unknown site unknown-site-stop" in caplog.text
+
+    # Check status
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "stop", "unknown-site-status")
+        assert "Unable to perform the operation due to an unknown site unknown-site-status" in caplog.text
 
 def test_validate_restrictions(mocker, caplog):
     init_and_check_config(args_init(test_restrictions_config_path))
