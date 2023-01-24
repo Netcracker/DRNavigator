@@ -312,9 +312,7 @@ class SMClusterState:
                     self.sm[key][k] = v
 
     def __getitem__(self, key):
-        if key not in self.sm:
-            return self.sm.get(key)
-        return self.sm[key]
+        return self.sm.get(key)
 
     def __setitem__(self, key, item):
         self.sm[key] = item
