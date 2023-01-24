@@ -313,7 +313,7 @@ class SMClusterState:
 
     def __getitem__(self, key):
         if key not in self.sm:
-            self.sm[key] = None
+            return self.sm.get(key)
         return self.sm[key]
 
     def __setitem__(self, key, item):
