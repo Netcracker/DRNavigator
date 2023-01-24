@@ -273,6 +273,8 @@ def cr_convert():
                     else:
                         modified_spec[i]["spec"]["sitemanager"]["after"][j] = after_services[0]
 
+            if modified_spec[i]["spec"]["sitemanager"].get("parameters", {}).get("ingressEndpoint"):
+                del modified_spec[i]["spec"]["sitemanager"]["parameters"]["ingressEndpoint"]
             modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
 
         # v3 -> v2 conversion

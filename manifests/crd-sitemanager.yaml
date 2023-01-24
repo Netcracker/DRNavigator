@@ -66,8 +66,6 @@ spec:
                     properties:
                       serviceEndpoint:
                         type: string
-                      ingressEndpoint:
-                        type: string
                       healthzEndpoint:
                         type: string
                 required:
