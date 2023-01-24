@@ -223,7 +223,7 @@ def cr_validate():
     uid = cr["uid"]
 
     # Check name for unique
-    sm_dict = get_sitemanagers_dict()
+    sm_dict = get_sitemanagers_dict("v2")
     existed_cr = sm_dict['services'].get(cr['name'], None)
     if existed_cr is not None and existed_cr['namespace'] != cr['namespace']:
         allowed = False
