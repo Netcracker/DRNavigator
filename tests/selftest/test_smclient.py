@@ -296,7 +296,7 @@ def test_validate_wrong_sites(caplog):
 
     # Check status
     with pytest.raises(NotValid):
-        assert validate_operation(sm_dict, "stop", "unknown-site-status")
+        assert validate_operation(sm_dict, "status", "unknown-site-status")
         assert "Unable to perform the operation due to an unknown site unknown-site-status" in caplog.text
 
 def test_validate_restrictions(mocker, caplog):
