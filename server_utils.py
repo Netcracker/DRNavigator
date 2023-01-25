@@ -72,42 +72,28 @@ def get_status_with_deps(service, sm_dict, *args, **kwargs):
     @param str service: name of needed service
     @param dict sm_dict: services' CRs
     """
-    visited_services_stack = []
+    output = {}
     with_deps = kwargs.get('with_deps', False)
 
-    def collect_statuses_tree_for_services(services):
-        output = dict()
+    def collect_services(services, parent_service=None):
         for service_name in services:
-            # Check ot service name is not defined in CRs
             if service_name not in sm_dict['services']:
-                logging.error(f"Found not exist dependency: {service_name} in {visited_services_stack[-1]} CR")
+                logging.error(f"Found not exist dependency: {service_name} in {parent_service} CR")
                 raise utils.ProcedureException(output={
                     "message": "Dependency defined in CR doesn't exist",
                     "wrong-service": service_name,
-                    "problem-cr": visited_services_stack[-1]
-                })
+                    "problem-cr": parent_service
+            })
+            if service_name not in output:
+                cr = sm_dict['services'][service_name]
+                output[service_name] = get_status(cr, args, kwargs)
+                if with_deps:
+                    output[service_name]['deps'] = {
+                        'before': cr['before'],
+                        'after': cr['after']
+                    }
+                    collect_services(cr['before'], service_name)
+                    collect_services(cr['after'], service_name)
 
-            # Check if service's already been visited
-            visited_services_stack.append(service_name)
-            if visited_services_stack.count(service_name) > 1:
-                logging.error(f"Found cycle in service dependencies: {visited_services_stack}")
-                raise utils.ProcedureException(output={
-                    "message": "Found cycle in service dependencies",
-                    "wrong-service": service_name,
-                    "cycled-services": visited_services_stack
-                })
-
-            # Get status for service
-            cr = sm_dict['services'][service_name]
-            output[service_name] = get_status(cr, args, kwargs)
-
-            # Get dependencies if needed
-            if with_deps:
-                output[service_name]['deps'] = {
-                    'before': collect_statuses_tree_for_services(cr['before']),
-                    'after': collect_statuses_tree_for_services(cr['after'])
-                }
-            visited_services_stack.pop()
-        return output
-
-    return collect_statuses_tree_for_services([service])
+    collect_services([service])
+    return output

@@ -600,41 +600,42 @@ Output:
 
 ```json
 {
-  "services": [
-    { "paas": {
-          "healthz": "--", 
-          "message": "",
-          "mode": "active", 
-          "status": "done",
-          "deps": {
-            "before": {
-              "service-before-paas": {
-                "healthz": "--",
-                "message": "", 
-                "mode": "active", 
-                "status": "done", 
-                "deps": {
-                  "before": {},
-                  "after": {}
-                }
-              }
-            },
-            "after": {
-              "service-after-paas": {
-                "healthz": "--",
-                "message": "", 
-                "mode": "active", 
-                "status": "done", 
-                "deps": {
-                  "before": {},
-                  "after": {}
-                }
-              }
-            }
-          }
+  "services": {
+    "paas": {
+      "healthz": "--",
+      "message": "",
+      "mode": "active",
+      "status": "done",
+      "deps": {
+        "before": [
+          "service-before-paas"
+        ]
+        "after": [
+          "service-after-paas"
+        ]
+      }
+    },
+    "service-after-paas": {
+      "healthz": "--",
+      "message": "",
+      "mode": "active",
+      "status": "done",
+      "deps": {
+        "before": [],
+        "after": []
+      }
+    },
+    "service-before-paas": {
+      "healthz": "--",
+      "message": "",
+      "mode": "active",
+      "status": "done",
+      "deps": {
+        "before": [],
+        "after": []
       }
     }
-  ]
+  }
 }
 ```
 
@@ -806,27 +807,6 @@ Output:
   "message": "Dependency defined in CR doesn't exist",
   "wrong-service": "non-existed service",
   "problem-cr": "some-service"
-}
-```
-
-HTTP Code: 400
-
-6. Try to start status procedure with `with_deps=true` when dependencies are cycled:
-
-```
-$ curl -XPOST \
-       --header "Content-Type: application/json" \
-       -d '{"procedure":"status", "run-service": "some-service", "with_deps": true}' \
-       http://site-manager.example.com/sitemanager
-```
-
-Output:
-
-```json
-{
-  "message": "Found cycle in service dependencies", 
-  "wrong-service": "repeatable-service", 
-  "cycled-services": ["some-service", "repeatable-service", "some-another-service", "repeatable-service"]
 }
 ```
 

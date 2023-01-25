@@ -300,7 +300,6 @@ def sitemanager_post():
     if data["procedure"] == "status":
         try:
             output = dict()
-            output["services"] = {}
             output["services"] = get_status_with_deps(run_service, sm_dict, **data)
             return json_response(200, output)
         except utils.ProcedureException as e:

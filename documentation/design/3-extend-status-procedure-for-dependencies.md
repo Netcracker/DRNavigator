@@ -36,7 +36,7 @@ call status procedure for all of them (especially since their dependent services
 ## Proposal
 
 It is proposed to extend status procedure and get information about dependencies for all depth.
-For this, response will return additional `deps` field with information about dependent services.   
+For this, response will return status and after/before not only for called service but also for it's dependencies (on all depth).   
 Template looks like:
 ```json
 {
@@ -47,15 +47,24 @@ Template looks like:
       "mode": "active",
       "status": "done",
       "deps": {
-        "before": { <before services statuses> },
-        "after": { <after services statuses> }
+        "before": [ <before services list> ],
+        "after": [ <after services statuses> ]
       }
-    }
+    }, 
+    "some-dependent-service": {
+      "healthz": "up",
+      "message": "",
+      "mode": "active",
+      "status": "done",
+      "deps": {
+        "before": [ <before services list> ],
+        "after": [ <after services statuses> ]
+      }
+    },
+    ...
   }
 }
 ```
-
-Statuses for dependent services also contains information about dependencies, descending recursively to final services.
 
 ### Example
 
@@ -85,8 +94,8 @@ Dependencies in status procedure for `serviceA` and `serviceC` will be empty, be
       "mode": "<mode>",
       "status": "<status>",
       "deps": {
-        "before": {},
-        "after": {}
+        "before": [],
+        "after": []
       }
     }
   }
@@ -102,8 +111,8 @@ Dependencies in status procedure for `serviceA` and `serviceC` will be empty, be
       "mode": "<mode>",
       "status": "<status>",
       "deps": {
-        "before": {},
-        "after": {}
+        "before": [],
+        "after": []
       }
     }
   }
@@ -113,25 +122,24 @@ Dependencies in status procedure for `serviceA` and `serviceC` will be empty, be
 ```json
 {
   "services": {
+    "serviceA": {
+      "healthz": "<healthz>",
+      "message": "<message>",
+      "mode": "<mode>",
+      "status": "<status>",
+      "deps": {
+        "before": [],
+        "after": []
+      }
+    },
     "serviceB": {
       "healthz": "<healthz>",
       "message": "<message>",
       "mode": "<mode>",
       "status": "<status>",
       "deps": {
-        "before": {},
-        "after": {
-          "serviceA": {
-            "healthz": "<healthz>",
-            "message": "<message>",
-            "mode": "<mode>",
-            "status": "<status>",
-            "deps": {
-              "before": {},
-              "after": {}
-            }
-          }
-        }
+        "before": [],
+        "after": ["serviceA"]
       }
     }
   }
@@ -142,47 +150,44 @@ Dependencies in status procedure for `serviceA` and `serviceC` will be empty, be
 ```json
 {
   "services": {
+    "serviceA": {
+      "healthz": "<healthz>",
+      "message": "<message>",
+      "mode": "<mode>",
+      "status": "<status>",
+      "deps": {
+        "before": [],
+        "after": []
+      }
+    },
+    "serviceB": {
+      "healthz": "<healthz>",
+      "message": "<message>",
+      "mode": "<mode>",
+      "status": "<status>",
+      "deps": {
+        "before": [],
+        "after": ["serviceA"]
+      }
+    },
+    "serviceC": {
+      "healthz": "<healthz>",
+      "message": "<message>",
+      "mode": "<mode>",
+      "status": "<status>",
+      "deps": {
+        "before": [],
+        "after": []
+      }
+    },
     "serviceD": {
       "healthz": "<healthz>",
       "message": "<message>",
       "mode": "<mode>",
       "status": "<status>",
       "deps": {
-        "before": {
-          "serviceB": {
-            "healthz": "<healthz>", 
-            "message": "<message>", 
-            "mode": "<mode>", 
-            "status": "<status>", 
-            "deps": {
-              "before": {}, 
-              "after": {
-                "serviceA": {
-                  "healthz": "<healthz>",
-                  "message": "<message>", 
-                  "mode": "<mode>", 
-                  "status": "<status>", 
-                  "deps": {
-                    "before": {}, 
-                    "after": {}
-                  }
-                }
-              }
-            }
-          }
-        },
-        "after": {
-          "serviceC": {
-            "healthz": "<healthz>",
-            "message": "<message>",
-            "mode": "<mode>",
-            "status": "<status>",
-            "deps": {
-              "before": {},
-              "after": {}
-            }
-          }
-        }
+        "before": ['serviceB'],
+        "after": ['serviceC']
       }
     }
   }
