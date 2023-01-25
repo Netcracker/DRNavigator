@@ -48,7 +48,7 @@ Template looks like:
       "status": "done",
       "deps": {
         "before": [ <before services list> ],
-        "after": [ <after services statuses> ]
+        "after": [ <after services list> ]
       }
     }, 
     "some-dependent-service": {
@@ -58,7 +58,7 @@ Template looks like:
       "status": "done",
       "deps": {
         "before": [ <before services list> ],
-        "after": [ <after services statuses> ]
+        "after": [ <after services list> ]
       }
     },
     ...
