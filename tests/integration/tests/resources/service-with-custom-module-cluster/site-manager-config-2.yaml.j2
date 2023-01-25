@@ -53,3 +53,18 @@ testing:
         - standby
         - active
         timeout: 5
+      custom_module_service2:
+        after: ['custom_module_service']
+        allowedStandbyStateList:
+        - up
+        before: []
+        namespace: custom_module_service-ns
+        module: custom_module
+        parameters:
+            healthzEndpoint: http://custom_module_service2-site-2:8080/healthz
+            ingressEndpoint: ""
+            serviceEndpoint: http://custom_module_service2-site-2:8080/sitemanager
+        sequence:
+        - standby
+        - active
+        timeout: 5

@@ -9,6 +9,7 @@ import pytest
 
 import smclient
 from smclient import *
+from utils import io_make_http_json_request
 from http import HTTPStatus
 import http.server
 import ssl
@@ -19,7 +20,8 @@ import warnings
 test_config_path=os.path.abspath("tests/selftest/resources/config_test.yaml")
 test_wrong_config_path=os.path.abspath("tests/selftest/resources/config_test_wrong.yaml")
 test_restrictions_config_path=os.path.abspath("tests/selftest/resources/config_test_with_restrictions.yaml")
-
+test_config_env_token_path = os.path.abspath("tests/selftest/resources/config_test_with_env_token.yaml")
+test_config_wrong_env_token_path = os.path.abspath("tests/selftest/resources/config_test_wrong_with_env_token.yaml")
 
 def pytest_namespace():
     return {'site_name':None}
@@ -33,9 +35,9 @@ def args_init(config=None):
     args.run_services=""
     args.skip_services=""
     args.output=None
-    args.force = False
+    args.force=False
     args.command="version"
-    args.ignore_restrictions = False
+    args.ignore_restrictions=False
     return args
 
 
@@ -187,10 +189,10 @@ def test_validate_operation(caplog):
 
     # Init state
     sm_dict=SMClusterState()
-    sm_dict["k8s-1"] = {"status": True, "return_code": None, "service_dep_ordered": [], "deps_issue": False,
-                      "ts":TopologicalSorter2}
-    sm_dict["k8s-2"] = {"status": False, "return_code": None, "service_dep_ordered": [], "deps_issue": False,
-                             "ts": TopologicalSorter2}
+    sm_dict["k8s-1"]={"status":True, "return_code":None, "stateful":{"service_dep_ordered":[], "deps_issue":False,
+                                                                     "ts":TopologicalSorter2}}
+    sm_dict["k8s-2"]={"status":False, "return_code":None, "stateful":{"service_dep_ordered":[], "deps_issue":False,
+                                                                      "ts":TopologicalSorter2}}
 
     # Check active
     assert validate_operation(sm_dict, "active", "k8s-1")
@@ -225,42 +227,60 @@ def test_validate_operation(caplog):
 
     sm_dict_run_services=SMClusterState()
 
-    sm_dict_run_services["k8s-1"]={"status":True, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                   "ts":TopologicalSorter2,
+    sm_dict_run_services["k8s-1"]={"status":True, "return_code":None,
+                                   "stateful":{"service_dep_ordered":[], "deps_issue":False,
+                                               "ts":TopologicalSorter2},
                                    "services":{"serv1":{}}}
 
-    sm_dict_run_services["k8s-2"]={"status":False, "return_code":None, "service_dep_ordered":[], "deps_issue":False,
-                                   "ts":TopologicalSorter2,
+    sm_dict_run_services["k8s-2"]={"status":False, "return_code":None,
+                                   "stateful":{"service_dep_ordered":[], "deps_issue":False,
+                                               "ts":TopologicalSorter2},
                                    "services":{"serv1":{}}}
     with caplog.at_level(logging.WARNING):
         caplog.clear()
         validate_operation(sm_dict_run_services, "stop", "k8s-2", ["fake1", "serv1"])
         assert "Service 'fake1' does not exist on 'k8s-1' site" in caplog.text
 
+    sm_dict_run_stop=SMClusterState()
+    sm_dict_run_stop["k8s-2"]={"status":True, "return_code":None,
+                                   "stateful":{"service_dep_ordered":["serv1"], "deps_issue":True,
+                                               "ts":TopologicalSorter2},
+                                   "services":{"serv1":{}}}
+    sm_dict_run_stop["k8s-1"]={"status":True, "return_code":None,
+                       "stateful":{"service_dep_ordered":["serv1"], "deps_issue":True,
+                                   "ts":TopologicalSorter2},
+                       "services":{"serv1":{}}}
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        validate_operation(sm_dict_run_stop, "stop", "k8s-2", ["serv1"])
+        assert "Ignoring dependency issues for stop command" in caplog.text
+
 
 def test_validate_restrictions(mocker, caplog):
     init_and_check_config(args_init(test_restrictions_config_path))
-    sm_dict = SMClusterState()
-    sm_dict["k8s-1"] = {"status": True, "return_code": None, "service_dep_ordered": ["serv1", "serv2"],
-                        "deps_issue": False, "ts": TopologicalSorter2, "services": {"serv1": {}, "serv2": {}}}
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={"status":True, "return_code":None, "stateful":{"service_dep_ordered":["serv1", "serv2"],
+                                                                     "deps_issue":False, "ts":TopologicalSorter2},
+                      "services":{"serv1":{}, "serv2":{}}}
 
-    sm_dict["k8s-2"] = {"status": True, "return_code": None, "service_dep_ordered": ["serv1", "serv2"],
-                        "deps_issue": False, "ts": TopologicalSorter2, "services": {"serv1": {}, "serv2": {}}}
+    sm_dict["k8s-2"]={"status":True, "return_code":None, "stateful":{"service_dep_ordered":["serv1", "serv2"],
+                                                                     "deps_issue":False, "ts":TopologicalSorter2},
+                      "services":{"serv1":{}, "serv2":{}}}
 
     # Test standby-standby restriction for all services
-    test_resp = {'services': {'serv1': {'healthz': 'up', 'mode': 'standby', 'status': 'done'}}}
-    fake_resp = mocker.Mock()
-    fake_resp.json = mocker.Mock(return_value=test_resp)
-    fake_resp.status_code = HTTPStatus.OK
+    test_resp={'services':{'serv1':{'healthz':'up', 'mode':'standby', 'status':'done'}}}
+    fake_resp=mocker.Mock()
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    fake_resp.status_code=HTTPStatus.OK
     mocker.patch("utils.requests.Session.post", return_value=fake_resp)
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict, "standby", "k8s-1")
 
     # Test active-active restriction for specific service
-    test_resp = {'services': {'serv2': {'healthz': 'up', 'mode': 'active', 'status': 'done'}}}
-    fake_resp = mocker.Mock()
-    fake_resp.json = mocker.Mock(return_value=test_resp)
-    fake_resp.status_code = HTTPStatus.OK
+    test_resp={'services':{'serv2':{'healthz':'up', 'mode':'active', 'status':'done'}}}
+    fake_resp=mocker.Mock()
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    fake_resp.status_code=HTTPStatus.OK
     mocker.patch("utils.requests.Session.post", return_value=fake_resp)
     with pytest.raises(NotValid):
         caplog.clear()
@@ -296,15 +316,16 @@ def test_SMClusterState_init():
     with pytest.raises(ValueError) as e:
         SMClusterState("not valid site")
     assert str(e.value) in "Unknown site name"
-    assert "services" and "dep_issue" in SMClusterState("k8s-2")["k8s-2"]
-    assert "services" and "dep_issue" in SMClusterState({"k8s-3":{"services":{"serv1":{}},
-                                                                  "status":False},
-                                                         "k8s-1":{}})["k8s-3"]
-    sm_dict=SMClusterState()
-    sm_dict["k8s-1"]={"services":{
-        "serv1":{"module":'stateful'},
-        "serv2":{"module":'stateful'},
-        "serv3":{"module":'notstateful'}}}
+    assert "services" and "deps_issue" and default_module in SMClusterState("k8s-2")["k8s-2"]
+    assert "services" and "deps_issue" and default_module in SMClusterState({"k8s-3":{"services":{"serv1":{}},
+                                                                                      "status":False},
+                                                                             "k8s-1":{}})["k8s-3"]
+    sm_dict=SMClusterState({'k8s-1':
+        {"services":{
+            "serv1":{"module":'stateful'},
+            "serv2":{"module":'stateful'},
+            "serv3":{"module":'notstateful'}}}})
+
     assert sm_dict.get_module_services('k8s-1', 'stateful') == ['serv1', 'serv2'] and \
            sm_dict.get_module_services('k8s-1', 'notstateful') == ['serv3']
 
@@ -347,7 +368,7 @@ def test_ServiceDRStatus_init():
     assert stat.service in 'absent-service' and stat.message and not stat.is_ok()
 
 
-def test_runservise_engine(caplog):
+def test_runservice_engine(caplog):
     def process_node(node):
         node=ServiceDRStatus({'services':{node:{}}})
         if node.service in test_failed_services:
@@ -431,7 +452,7 @@ def test_init_and_check_config(caplog):
 
     import pwd  # keep this import here for Windows compatibility
 
-    wrong_log_path = ["/", "~/", "./"]
+    wrong_log_path=["/", "~/", "./"]
     if pwd.getpwuid(os.getuid())[0] == 'root':
         warnings.warn(UserWarning("You use root user, can't check some test cases"))
     else:
@@ -460,7 +481,7 @@ def test_sm_poll_service_required_status(mocker, caplog):
         "serv1":{"timeout":None}}}
     with caplog.at_level(logging.INFO):
         caplog.clear()
-        dr_status = sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict)
+        dr_status=sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict)
         assert f"{smclient.SERVICE_DEFAULT_TIMEOUT} seconds left until timeout" in caplog.text
         assert dr_status.is_ok()
 
@@ -472,6 +493,53 @@ def test_sm_poll_service_required_status(mocker, caplog):
         caplog.clear()
         sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict)
         assert "100 seconds left until timeout" in caplog.text
+
+    # service specific timeout occured
+    sm_dict["k8s-1"]={"services":{
+        "serv1":{"timeout":1}}}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        sm_poll_service_required_status("k8s-1", "serv1", "disable", sm_dict)
+        assert "Timeout expired" in caplog.text
+
+    # healthz up
+    test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        assert sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok() and \
+               "Expected state" in caplog.text
+
+    # polling successful 'healthz':'down' 'mode':'standby' "allowedStandbyStateList":["down"]
+    test_resp={'services':{'serv1':{'healthz':'down', 'mode':'standby', 'status':'done'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={"services":{
+        "serv1":{"timeout":100,
+                 "allowedStandbyStateList":["down"]}}}
+    assert 'down' in sm_poll_service_required_status("k8s-1", "serv1", "standby", sm_dict).healthz
+    # @todo need to detect True for service_status_polling in case standby
+
+    # 'healthz':'down'
+    test_resp={'services':{'serv1':{'healthz':'down', 'mode':'active', 'status':'done'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    assert not sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok()
+
+    # 'status':'failed'}
+    test_resp={'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'failed'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    assert not sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok()
+
+    # 'healthz':'down' 'status':'running'}
+    sm_dict["k8s-1"]={"services":{
+        "serv1":{"timeout":1}}}
+    test_resp={'services':{'serv1':{'healthz':'down', 'mode':'active', 'status':'running'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        assert not sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok() and \
+               "Error state" not in caplog.text
+
 
 def test_sm_process_service_with_polling(mocker, caplog):
     smclient.args=args_init()
@@ -489,12 +557,49 @@ def test_sm_process_service_with_polling(mocker, caplog):
     sm_dict["k8s-1"]={
         "services":{
             "serv1":{"timeout":1,
-                 "sequence":['active','standby']}},
-        "status": True}
+                     "sequence":['active', 'standby']}},
+        "status":True}
     with caplog.at_level(logging.INFO):
         caplog.clear()
-        sm_process_service_with_polling("serv1", "k8s-1",  "move", sm_dict)
-        service_response = thread_result_queue.get()
+        sm_process_service_with_polling("serv1", "k8s-1", "move", sm_dict)
+        service_response=thread_result_queue.get()
         service_response.sortout_service_results()
         assert 'serv1' in failed_services
         assert "Service serv1 failed on k8s-1, skipping it on another site" in caplog.text
+
+    # timeout expired fail
+    test_resp={'services':{'serv2':{'healthz':'up', 'mode':'standby', 'status':'done'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={
+        "services":{"serv2":{"timeout":1}},
+        "status": True}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        sm_process_service_with_polling("serv2", "k8s-1",  "active", sm_dict)
+        service_response = thread_result_queue.get()
+        service_response.sortout_service_results()
+        assert 'serv2' in failed_services
+
+
+def test_token_env_configuration(monkeypatch, caplog):
+    # Fail in wrong configuration
+    args = args_init(config=test_config_wrong_env_token_path)
+    with caplog.at_level(logging.ERROR):
+        assert not init_and_check_config(args)
+        assert f"Wrong token configuration for site k8s-2: use string value or specify from_env parameter" in caplog.text
+
+    # Fail when env var unexist
+    args = args_init(config=test_config_env_token_path)
+    with caplog.at_level(logging.ERROR):
+        assert not init_and_check_config(args)
+        assert f"Wrong token configuration for site k8s-2: specified env SM_TEST_TOKEN doesn't exist" in caplog.text
+
+    # Set needed env
+    monkeypatch.setenv('SM_TEST_TOKEN', '12345')
+
+    # Check configuration
+    args = args_init(config=test_config_env_token_path)
+    assert init_and_check_config(args)
+    assert smclient.sm_conf['k8s-2']['token'] == '12345'

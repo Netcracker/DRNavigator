@@ -17,7 +17,8 @@ template_env = {
             "exposed_ports": {
                 "service": {
                     "stateful_service": 9001,
-                    "custom_module_service": 9002
+                    "custom_module_service": 9002,
+                    "custom_module_service2": 9005
                 },
                 "site_manager": 9011
             },
@@ -27,7 +28,8 @@ template_env = {
             "exposed_ports": {
                 "service": {
                     "stateful_service": 9003,
-                    "custom_module_service": 9004
+                    "custom_module_service": 9004,
+                    "custom_module_service2": 9006
                 },
                 "site_manager": 9012
             },
@@ -80,11 +82,12 @@ class SwitchoverFailoverWithCustomModuleTestCase:
         # Run move to another site
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
-                "--run-services", "custom_module_service", "move", "site_2"])
+                "--run-services", "custom_module_service,custom_module_service2", "move", "site_2"])
 
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                 {"healthz": "up", "status": "done", "message": "",
-                 "mode": "active" if ("site_1" == site) != ("custom_module_service" == service) else "standby"})
+                 "mode": "active" if ("site_1" == site) != (service in ["custom_module_service","custom_module_service2"]) \
+                     else "standby"})
 
 
     def test_move_only_first_service(self, config_dir, capfd):
@@ -92,7 +95,7 @@ class SwitchoverFailoverWithCustomModuleTestCase:
         # Run move to another site
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
-                "--skip-services", "custom_module_service", "move", "site_2"])
+                "--skip-services", "custom_module_service,custom_module_service2", "move", "site_2"])
 
         # Check status after move to another site
         test_utils.check_statuses(capfd, template_env, lambda site, service:
@@ -105,20 +108,29 @@ class SwitchoverFailoverWithCustomModuleTestCase:
         # Run move to another site
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
-             "--run-services", "custom_module_service", "stop", "site_2"])
+             "--run-services", "custom_module_service,custom_module_service2", "stop", "site_2"])
 
         test_utils.check_statuses(capfd, template_env, lambda site, service:
             {"healthz": "up", "status": "done", "message": "",
-             "mode": "active" if ("site_2" == site) != ("custom_module_service" == service) else "standby"})
+             "mode": "active" if ("site_2" == site) != (service in ["custom_module_service","custom_module_service2"]) \
+                 else "standby"})
 
     def test_stop_only_first_service(self, config_dir, capfd):
         logging.info("TEST STOP STATEFUL SERVICE TO ANOTHER SITE")
         # Run move to another site
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
-                "--skip-services", "custom_module_service", "stop", "site_2"])
+                "--skip-services", "custom_module_service,custom_module_service2", "stop", "site_2"])
 
         # Check status after move to another site
         test_utils.check_statuses(capfd, template_env, lambda site, service:
         {"healthz": "up", "status": "done", "message": "",
          "mode": "active" if "site_1" == site else "standby"})
+
+    def test_move_only_one_custom_service(self, config_dir, capfd):
+        logging.info("TEST MOVE CUSTOM SERVICE WITH WRONG DEP TO ANOTHER SITE")
+        # Run move to another site
+        test_utils.run_sm_client_command_with_exit(
+            ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
+                "--run-services", "custom_module_service2", "move", "site_2"],expected_exit_code=1)
+
