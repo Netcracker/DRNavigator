@@ -551,14 +551,19 @@ Output:
 
 **Code**: 200
 
-**Data Params**: `{"procedure": "status", "run-service": "service-name"}`
+**Data Params**: `{"procedure": "status", "run-service": "service-name", "with_deps": true/false}`
 
-**Answer**: `"service": {[{"healthz": "up|down|degraded", "name": "service-name-1", "message": "some-message", "mode": "active|standby|disable", "status": "running|done|failed"}]}`
+**Answer**: `{"services": { "service-name": {"healthz": "up|down|degraded", "message": "some-message", 
+"mode": "active|standby|disable", "status": "running|done|failed"}, "deps": {
+"before": <before-services-statuses>, "after": <after-services-statuses>}}}`
 
 This command shows the current status of DR procedures and results of health checks.
+`with_deps` option are optional (default value is false). 
+If it's enabled, site-manager will return information about statuses of dependent services in `deps` section.
 
-Example of `/GET` request with `curl` command shows the output for `paas` service:
+Example of `/sitemanager` request with `curl` command shows output for service `paas`:
 
+* without `with_deps`:
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
@@ -580,6 +585,57 @@ Output:
       }
     }
   ]
+}
+```
+
+* with`with_deps=true`:
+```
+$ curl -XPOST \
+       --header "Content-Type: application/json" \
+       -d '{"procedure":"status", "run-service": "paas", "with_deps": true}' \
+       http://site-manager.example.com/sitemanager
+```
+
+Output:
+
+```json
+{
+  "services": {
+    "paas": {
+      "healthz": "--",
+      "message": "",
+      "mode": "active",
+      "status": "done",
+      "deps": {
+        "before": [
+          "service-before-paas"
+        ]
+        "after": [
+          "service-after-paas"
+        ]
+      }
+    },
+    "service-after-paas": {
+      "healthz": "--",
+      "message": "",
+      "mode": "active",
+      "status": "done",
+      "deps": {
+        "before": [],
+        "after": []
+      }
+    },
+    "service-before-paas": {
+      "healthz": "--",
+      "message": "",
+      "mode": "active",
+      "status": "done",
+      "deps": {
+        "before": [],
+        "after": []
+      }
+    }
+  }
 }
 ```
 
@@ -732,6 +788,26 @@ Output:
     "wrong-service": "wrong-service"
 }
 
+```
+
+HTTP Code: 400
+5. Try to start status procedure with `with_deps=true` when needed service contains non-existent dependency:
+
+```
+$ curl -XPOST \
+       --header "Content-Type: application/json" \
+       -d '{"procedure":"status", "run-service": "some-service", "with_deps": true}' \
+       http://site-manager.example.com/sitemanager
+```
+
+Output:
+
+```json
+{
+  "message": "Dependency defined in CR doesn't exist",
+  "wrong-service": "non-existed service",
+  "problem-cr": "some-service"
+}
 ```
 
 HTTP Code: 400
