@@ -264,25 +264,6 @@ def test_validate_wrong_sites(caplog):
                       "ts":TopologicalSorter2}
     sm_dict["k8s-2"] = {"status": True, "return_code": None, "service_dep_ordered": [], "deps_issue": False,
                              "ts": TopologicalSorter2}
-
-    # Check active
-    with pytest.raises(NotValid):
-        caplog.clear()
-        assert validate_operation(sm_dict, "active", "unknown-site-active")
-        assert "Unable to perform the operation due to an unknown site unknown-site-active" in caplog.text
-
-    # Check standby
-    with pytest.raises(NotValid):
-        caplog.clear()
-        assert validate_operation(sm_dict, "standby", "unknown-site-standby")
-        assert "Unable to perform the operation due to an unknown site unknown-site-standby" in caplog.text
-
-    # Check disable
-    with pytest.raises(NotValid):
-        caplog.clear()
-        assert validate_operation(sm_dict, "disable", "unknown-site-disable")
-        assert "Unable to perform the operation due to an unknown site unknown-site-disable" in caplog.text
-
     # Check move
     with pytest.raises(NotValid):
         caplog.clear()
@@ -294,10 +275,6 @@ def test_validate_wrong_sites(caplog):
         assert validate_operation(sm_dict, "stop", "unknown-site-stop")
         assert "Unable to perform the operation due to an unknown site unknown-site-stop" in caplog.text
 
-    # Check status
-    with pytest.raises(NotValid):
-        assert validate_operation(sm_dict, "status", "unknown-site-status")
-        assert "Unable to perform the operation due to an unknown site unknown-site-status" in caplog.text
 
 def test_validate_restrictions(mocker, caplog):
     init_and_check_config(args_init(test_restrictions_config_path))

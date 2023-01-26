@@ -764,7 +764,7 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
     ret = True
 
     if site not in sm_dict.sm and site != "":
-        logging.critical(f"Unable to perform the operation %s due to an unknown site %s" % (cmd, site))
+        logging.critical(f"Unknown site %s" % site)
         raise NotValid
 
     if cmd in "stop":
