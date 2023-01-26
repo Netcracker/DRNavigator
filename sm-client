@@ -436,7 +436,7 @@ def print_service_order(ts: TopologicalSorter2, sm_dict: SMClusterState):
     """ Show service list ordered by dependency in debug mode"""
     stage=0
     logging.debug(f"Service order by dependency:")
-    for mod_i in [ i for i in sm_conf.get_modules() if i not in default_module]: # print custom module service names
+    for mod_i in [ i for i in sm_conf.get_modules() if i not in default_module]: #@todo to rework module support
         logging.debug("--------------------")
         for service_name in sm_dict.get_module_services(sm_dict.get_available_sites()[0],mod_i): #@todo if not
             logging.debug(f"{service_name}")
@@ -503,7 +503,7 @@ def run(services:[] = None, cmd="", site=""):
     service_dep_ordered = []; ts = None
     try:
         for mod_i in sm_conf.get_modules():
-            services_list, ts_i = validate_operation(sm_dict, cmd, site, services,mod_i)
+            services_list, ts_i = validate_operation(sm_dict, cmd, site, services, mod_i)
             service_dep_ordered.extend(services_list)
             if mod_i in default_module:
                 ts = ts_i
@@ -706,7 +706,7 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
     def check_services_on_site(services, site):
         ret = True
         for s in services:
-            if s not in sm_dict[site]["services"].keys():
+            if s not in sm_dict[site]["services"].keys(): # need to rework to support modules, run-services as well
                 logging.warning(f"Service '{s}' does not exist on '{site}' site")
                 ret = False
         return ret
@@ -758,7 +758,6 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
             logging.error(f"State restrictions validation fail. To skip it use --ignore-restrictions option")
         return state_is_valid
 
-
     global sm_conf
     service_dep_ordered = None ; ts = None
     ret = True
@@ -803,10 +802,14 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
         else:
             service_dep_ordered=sm_dict[sm_dict.get_available_sites()[0]][module]['service_dep_ordered']
             ts=sm_dict[sm_dict.get_available_sites()[0]][module]['ts']
-        if services_to_run:
+
+        if services_to_run and module in default_module:
             service_dep_ordered = services_to_run
-        all(check_services_on_site(service_dep_ordered, site_i) for site_i in sm_dict.get_available_sites())
-        all(check_dep_issue(site_i) for site_i in sm_dict.get_available_sites())
+
+        for site_i in sm_dict.get_available_sites():
+            check_services_on_site(service_dep_ordered, site_i)
+            check_dep_issue(site_i)
+
 
     elif cmd in site_cmds:
 
