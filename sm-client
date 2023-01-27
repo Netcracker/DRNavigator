@@ -311,6 +311,14 @@ class SMClusterState:
                 for k,v in site[key].items():
                     self.sm[key][k] = v
 
+        # Init global service order and global ts
+        self.globals = {}
+        for module in sm_conf.get_modules():
+            self.globals[module] = {}
+            self.globals[module]["deps_issue"] = None
+            self.globals[module]["service_dep_ordered"] = []
+            self.globals[module]["ts"] = None
+
     def __getitem__(self, key):
         return self.sm[key]
 
@@ -499,6 +507,14 @@ def run(services:[] = None, cmd="", site=""):
             logging.debug(f"Site:{site_i} module:{mod_i} list:{sm_dict[site_i][mod_i]['service_dep_ordered']} "
                           f"deps_issue:{sm_dict[site_i][mod_i]['deps_issue']}")
 
+    for mod_i in sm_conf.get_modules():
+        service_dep_ordered, return_code, ts = make_ordered_services_to_process(sm_dict, services_to_process = services, module=mod_i)
+        sm_dict.globals[mod_i]['service_dep_ordered'] = service_dep_ordered
+        sm_dict.globals[mod_i]['ts'] = ts
+        sm_dict.globals[mod_i]['deps_issue'] = not return_code
+        logging.debug(f"Globals module:{mod_i} list:{sm_dict.globals[mod_i]['service_dep_ordered']} "
+                      f"deps_issue:{sm_dict.globals[mod_i]['deps_issue']}")
+
     # validation to satisfy cmd and current site status
     service_dep_ordered = []; ts = None
     try:
@@ -612,7 +628,7 @@ def print_service_operation_summary(part, sm_dict: SMClusterState, services_to_r
         logging.info("---------------------------------------------------------------------")
 
 
-def make_ordered_services_to_process(sm_dict: SMClusterState, site, services_to_process: list = None,
+def make_ordered_services_to_process(sm_dict: SMClusterState, site : str = None, services_to_process: list = None,
                                      module = default_module ) -> Tuple[list, bool, Optional[TopologicalSorter2]]:
     """ Make ordered and validated services list from all sites in sm_dict
     @returns: ordered list or empty if not possible to assemble(integrity issue), True or False  in case minor issue
@@ -656,35 +672,47 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site, services_to_
 
     ret = True
     integrity_error = False
-    temp_dict = copy.deepcopy(sm_dict)
+    used_sites = [site] if site is not None else sm_dict.get_available_sites()
+    services_with_deps = {}
 
-    # leave only services listed in service_to_process, not skipped/ignored and belong to module
-    for serv in temp_dict[site]['services'].copy().keys():
-        if temp_dict[site]['services'][serv].get('module',"") not in module:
-            temp_dict[site]['services'].pop(serv, None)
-        if services_to_process and serv not in services_to_process:
-            temp_dict[site]['services'].pop(serv,None)
-        if ignored_services and serv in ignored_services: # remove skipped/ignored
-            temp_dict[site]['services'].pop(serv, None)
+    for site_name in used_sites:
+        for serv, serv_conf in sm_dict[site_name]['services'].items():
+            # leave only services listed in service_to_process, not skipped/ignored and belong to module
+            if serv_conf.get('module', "") != module or \
+                    services_to_process and serv not in services_to_process or \
+                    ignored_services and serv in ignored_services:
+                continue
+            if serv in services_with_deps:
+                # Add new service dependencies
+                services_with_deps[serv]['before'] += \
+                    [dep for dep in serv_conf['before'] if dep not in services_with_deps[serv]['before']]
+                services_with_deps[serv]['after'] += \
+                    [dep for dep in serv_conf['after'] if dep not in services_with_deps[serv]['after']]
+            else:
+                # Add service with dependencies
+                services_with_deps[serv] = {
+                    'before': serv_conf['before'],
+                    'after': serv_conf['after']
+                }
 
     # collect sorted ordered service list
     service_lists = []
     try:
-        service_lists = [i for i in build_after_before_graph(temp_dict[site]['services']).static_order()]
-        for service, depends in after_before_check(temp_dict[site]['services']).items():  # check deps
+        service_lists = [i for i in build_after_before_graph(services_with_deps).static_order()]
+        for service, depends in after_before_check(services_with_deps).items():  # check deps
             for depend in depends:
-                logging.warning(f"Site: {site}. Service: {service} has nonexistent "
+                logging.warning(f"Site {site if site else 'merging'}. Service: {service} has nonexistent "
                                 f"{depend} dependency: {depends[depend]}")
                 ret = False
     except CycleError as e:
-        logging.error(f"Site {site} has integrity issues: %s",e)
+        logging.error(f"Site {site if site else 'merging'} has integrity issues: %s",e)
         integrity_error = True
 
     if integrity_error:
         return [], False, type(None) # return error, integrity issue
 
     # check services equality on all sites
-    ts = build_after_before_graph(temp_dict[site]['services'])
+    ts = build_after_before_graph(services_with_deps)
     ts.prepare()
     return service_lists, ret, ts
 
@@ -711,8 +739,11 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
                 ret = False
         return ret
 
-    def check_dep_issue(site):
-        if sm_dict[site][module]['deps_issue']:
+    def check_dep_issue(site=None):
+        if site is None and sm_dict.globals[module]['deps_issue']:
+            logging.warning(f"Dependency issue in sites merging")
+            return False
+        elif site is not None and sm_dict[site][module]['deps_issue']:
             logging.warning(f"Dependency issues on site: {site}")
             if cmd in 'stop' and \
                     (sm_dict[site][module]['ts'] is not None and sm_dict[site][module]['service_dep_ordered'] != []): # not integrity_error
@@ -767,13 +798,17 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
         if not check_site_ssl_available(sm_conf.get_opposite_site(site)) or \
                 not check_dep_issue(sm_conf.get_opposite_site(site)):
             raise NotValid
-        service_dep_ordered = services_to_run if services_to_run else \
+        service_dep_ordered = [service for service in sm_dict[sm_conf.get_opposite_site(site)][module]['service_dep_ordered']
+                               if service in services_to_run] \
+            if services_to_run else \
             sm_dict[sm_conf.get_opposite_site(site)][module]['service_dep_ordered']
         check_services_on_site(service_dep_ordered, sm_conf.get_opposite_site(site))
         ts=sm_dict[sm_conf.get_opposite_site(site)][module]['ts']
 
     elif cmd in "move":
-        service_dep_ordered = services_to_run if services_to_run else \
+        service_dep_ordered = [service for service in sm_dict[site][module]['service_dep_ordered']
+                               if service in services_to_run] \
+            if services_to_run else \
             sm_dict[site][module]['service_dep_ordered']
         if not all(check_site_ssl_available(site_i) for site_i in sm_conf.keys()) or \
                 not all(check_services_on_site(service_dep_ordered, site_i) for site_i in sm_conf.keys()) or \
@@ -791,29 +826,29 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
         if not ret:
             raise NotValid
 
-        if len(sm_dict.get_available_sites()) > 1 and \
-                len(sm_dict[sm_dict.get_available_sites()[0]][module]['service_dep_ordered']) >= \
-                len(sm_dict[sm_dict.get_available_sites()[1]][module]['service_dep_ordered']):
-            service_dep_ordered=sm_dict[sm_dict.get_available_sites()[0]][module]['service_dep_ordered']
-            ts=sm_dict[sm_dict.get_available_sites()[0]][module]['ts']
-        elif len(sm_dict.get_available_sites()) > 1:
-            service_dep_ordered=sm_dict[sm_dict.get_available_sites()[1]][module]['service_dep_ordered']
-            ts=sm_dict[sm_dict.get_available_sites()[1]][module]['ts']
+        if site is None:
+            service_dep_ordered = sm_dict.globals[module]['service_dep_ordered']
+            ts = sm_dict.globals[module]['ts']
         else:
-            service_dep_ordered=sm_dict[sm_dict.get_available_sites()[0]][module]['service_dep_ordered']
-            ts=sm_dict[sm_dict.get_available_sites()[0]][module]['ts']
+            service_dep_ordered = sm_dict[site][module]['service_dep_ordered']
+            ts = sm_dict[site][module]['ts']
 
-        if services_to_run and module in default_module:
-            service_dep_ordered = services_to_run
+        if services_to_run:
+            service_dep_ordered = [service for service in service_dep_ordered if service in services_to_run]
+
+        # Fail if required site (or site merging) has deps issues:
+        if not check_dep_issue(site):
+            raise NotValid
 
         for site_i in sm_dict.get_available_sites():
             check_services_on_site(service_dep_ordered, site_i)
             check_dep_issue(site_i)
 
-
     elif cmd in site_cmds:
 
-        service_dep_ordered = services_to_run if services_to_run else \
+        service_dep_ordered = [service for service in sm_dict[site][module]['service_dep_ordered']
+                               if service in services_to_run] \
+            if services_to_run else \
             sm_dict[site][module]['service_dep_ordered']
         if not check_site_ssl_available(site) or \
                 not check_services_on_site(service_dep_ordered, site) or \
@@ -1014,11 +1049,11 @@ def parse_command_line(command_args) -> argparse.Namespace:
     parser_6.set_defaults(command='standby')
 
     parser_7 = subparsers.add_parser('list', help='list all services from Active-Standby scheme managed by site-manager with dependencies')
-    parser_7.add_argument('site', nargs='?', default="", help=SITE_HELP_SECTION)
+    parser_7.add_argument('site', nargs='?', default=None, help=SITE_HELP_SECTION)
     parser_7.set_defaults(command='list')
 
     parser_8 = subparsers.add_parser('status', help='show current status of clusters and all services')
-    parser_8.add_argument('site', nargs='?', default="", help=SITE_HELP_SECTION)  # todo to update help
+    parser_8.add_argument('site', nargs='?', default=None, help=SITE_HELP_SECTION)  # todo to update help
     parser_8.set_defaults(command='status')
 
     parser_9 = subparsers.add_parser('version', help='get current version')
