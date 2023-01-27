@@ -762,8 +762,8 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
     global sm_conf
     service_dep_ordered = None ; ts = None
     ret = True
-
-    if site not in sm_dict.sm and site != "":
+    test = len(site)
+    if site not in sm_dict.sm and len(site) != 0:
         logging.critical(f"Unknown site %s" % site)
         raise NotValid
 
