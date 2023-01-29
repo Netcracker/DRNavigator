@@ -647,11 +647,3 @@ def test_process_module_services(mocker, caplog):
     sm_dict["k8s-2"]["stateful"]["ts"] = ts
     process_module_services("stateful", "", "active", "k8s-2", sm_dict)
     assert "serv1" in done_services
-
-    done_services.clear()
-    ts = TopologicalSorter2()
-    ts.add("serv1")
-    ts.prepare()
-    sm_dict["k8s-2"]["stateful"]["ts"] = ts
-    process_module_services("stateful", "", "active", "k8s-2", sm_dict)
-    assert "serv1" in done_services

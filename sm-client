@@ -591,7 +591,6 @@ def process_module_services(module, states, cmd, site, sm_dict):
     logging.info(f"Processing {module} module by cmd: {get_cmd()} on site: {get_site()}")
 
     process_ts_services(sm_dict[sm_conf.get_opposite_site(site) if get_cmd() in 'stop' else get_site()][module]["ts"],
-    #process_ts_services(sm_dict[get_site()][module]["ts"],
                         sm_process_service_with_polling,
                         get_site(), get_cmd(), sm_dict)
 
