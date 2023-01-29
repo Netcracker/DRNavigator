@@ -20,8 +20,9 @@ import warnings
 test_config_path=os.path.abspath("tests/selftest/resources/config_test.yaml")
 test_wrong_config_path=os.path.abspath("tests/selftest/resources/config_test_wrong.yaml")
 test_restrictions_config_path=os.path.abspath("tests/selftest/resources/config_test_with_restrictions.yaml")
-test_config_env_token_path = os.path.abspath("tests/selftest/resources/config_test_with_env_token.yaml")
-test_config_wrong_env_token_path = os.path.abspath("tests/selftest/resources/config_test_wrong_with_env_token.yaml")
+test_config_env_token_path=os.path.abspath("tests/selftest/resources/config_test_with_env_token.yaml")
+test_config_wrong_env_token_path=os.path.abspath("tests/selftest/resources/config_test_wrong_with_env_token.yaml")
+
 
 def pytest_namespace():
     return {'site_name':None}
@@ -243,13 +244,13 @@ def test_validate_operation(caplog):
 
     sm_dict_run_stop=SMClusterState()
     sm_dict_run_stop["k8s-2"]={"status":True, "return_code":None,
-                                   "stateful":{"service_dep_ordered":["serv1"], "deps_issue":True,
-                                               "ts":TopologicalSorter2},
-                                   "services":{"serv1":{}}}
+                               "stateful":{"service_dep_ordered":["serv1"], "deps_issue":True,
+                                           "ts":TopologicalSorter2},
+                               "services":{"serv1":{}}}
     sm_dict_run_stop["k8s-1"]={"status":True, "return_code":None,
-                       "stateful":{"service_dep_ordered":["serv1"], "deps_issue":True,
-                                   "ts":TopologicalSorter2},
-                       "services":{"serv1":{}}}
+                               "stateful":{"service_dep_ordered":["serv1"], "deps_issue":True,
+                                           "ts":TopologicalSorter2},
+                               "services":{"serv1":{}}}
     with caplog.at_level(logging.WARNING):
         caplog.clear()
         validate_operation(sm_dict_run_stop, "stop", "k8s-2", ["serv1"])
@@ -577,7 +578,7 @@ def test_sm_process_service_with_polling(mocker, caplog):
         "status": True}
     with caplog.at_level(logging.INFO):
         caplog.clear()
-        sm_process_service_with_polling("serv2", "k8s-1",  "active", sm_dict)
+        sm_process_service_with_polling("serv2", "k8s-1", "active", sm_dict)
         service_response = thread_result_queue.get()
         service_response.sortout_service_results()
         assert 'serv2' in failed_services
@@ -603,3 +604,54 @@ def test_token_env_configuration(monkeypatch, caplog):
     args = args_init(config=test_config_env_token_path)
     assert init_and_check_config(args)
     assert smclient.sm_conf['k8s-2']['token'] == '12345'
+
+
+def test_process_module_services(mocker, caplog):
+    caplog.set_level(logging.INFO)
+    smclient.args = args_init()
+    init_and_check_config(args_init())
+    test_resp = {'services':{'serv1':{'healthz':'up', 'mode':'active', 'status':'done'}}}
+    caplog.set_level(logging.DEBUG)
+    fake_resp = mocker.Mock()
+    fake_resp.json = mocker.Mock(return_value=test_resp)
+    fake_resp.status_code = HTTPStatus.OK
+
+    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+
+    done_services.clear()
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {
+        "services":{
+            "serv1": {"timeout": 1,
+                     "sequence": ['standby','active']}},
+        "stateful": {"ts": None},
+        "status": False}
+    ts = TopologicalSorter2()
+    ts.add("serv1")
+    ts.prepare()
+    sm_dict["k8s-2"] = {
+        "services":{
+            "serv1": {"timeout": 1,
+                     "sequence": ['standby','active'],
+                     "allowedStandbyStateList":"up"}},
+        "stateful": {"ts":ts},
+        "status": True}
+
+    process_module_services("stateful","", "stop", "k8s-1", sm_dict)
+    assert "serv1" in done_services
+
+    done_services.clear()
+    ts = TopologicalSorter2()
+    ts.add("serv1")
+    ts.prepare()
+    sm_dict["k8s-2"]["stateful"]["ts"] = ts
+    process_module_services("stateful", "", "active", "k8s-2", sm_dict)
+    assert "serv1" in done_services
+
+    done_services.clear()
+    ts = TopologicalSorter2()
+    ts.add("serv1")
+    ts.prepare()
+    sm_dict["k8s-2"]["stateful"]["ts"] = ts
+    process_module_services("stateful", "", "active", "k8s-2", sm_dict)
+    assert "serv1" in done_services
