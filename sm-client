@@ -406,7 +406,6 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
         service_response = sm_poll_service_required_status(site, service, mode, sm_dict)
         thread_result_queue.put(service_response)
     elif cmd in dr_procedures:
-        # todo to handle False(no service on this site)
         for site_to_process, mode in sm_dict.get_dr_operation_sequence(service, cmd, site):
             if cmd == "stop" and mode == "standby":
                 force = True
@@ -414,7 +413,9 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
             else:
                 force = args.force
 
-            if sm_dict[site_to_process]['status']: # to process only available sites
+            if service not in sm_dict[site_to_process].get("services", []):
+                logging.warning(f"Service {service} doesn't exist on site {site_to_process}, skip it")
+            elif sm_dict[site_to_process]['status']: # to process only available sites
                 sm_process_service(site_to_process, service, mode, False if 'move' in cmd else True)
                 service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force)
                 if cmd in 'move' and not service_response.is_ok():

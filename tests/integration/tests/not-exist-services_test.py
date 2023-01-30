@@ -98,10 +98,10 @@ class NotExistServicesTestCase:
     def test_stop_statuses(self, config_dir, capfd):
         logging.info("TEST STOP")
 
-        # TODO: wait bug with stop procedure
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "stop", "site_1"])
 
+        # todo: check if serviceASite1 should continue being active on site_1
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                    {"healthz": "up", "status": "done", "message": "",
                                     "mode": "active" if template_env["active_site"] != site or
@@ -109,5 +109,3 @@ class NotExistServicesTestCase:
                                   if (service != "serviceASite1" or site != "site_2") and
                                      (service != "serviceASite2" or site != "site_1") else
                                    {"healthz": "--", "status": "--", "message": "Service doesn't exist", "mode": "--"})
-
-        logging.info("THats all")
