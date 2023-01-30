@@ -590,7 +590,8 @@ def process_module_services(module, states, cmd, site, sm_dict):
 
     logging.info(f"Processing {module} module by cmd: {get_cmd()} on site: {get_site()}")
 
-    process_ts_services(sm_dict[get_site()][module]["ts"], sm_process_service_with_polling,
+    process_ts_services(sm_dict[sm_conf.get_opposite_site(site) if get_cmd() in 'stop' else get_site()][module]["ts"],
+                        sm_process_service_with_polling,
                         get_site(), get_cmd(), sm_dict)
 
 
@@ -803,13 +804,13 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
             service_dep_ordered=sm_dict[sm_dict.get_available_sites()[0]][module]['service_dep_ordered']
             ts=sm_dict[sm_dict.get_available_sites()[0]][module]['ts']
 
-        if services_to_run and module in default_module:
-            service_dep_ordered = services_to_run
+        if services_to_run:
+            service_dep_ordered = [s for s in services_to_run if s in
+                                   sm_dict.get_module_services(sm_dict.get_available_sites()[0],module)]
 
         for site_i in sm_dict.get_available_sites():
             check_services_on_site(service_dep_ordered, site_i)
             check_dep_issue(site_i)
-
 
     elif cmd in site_cmds:
 
