@@ -800,17 +800,13 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
         if not check_site_ssl_available(sm_conf.get_opposite_site(site)) or \
                 not check_dep_issue(sm_conf.get_opposite_site(site)):
             raise NotValid
-        service_dep_ordered = [service for service in sm_dict[sm_conf.get_opposite_site(site)][module]['service_dep_ordered']
-                               if service in services_to_run] \
-            if services_to_run else \
+        service_dep_ordered = services_to_run if services_to_run else \
             sm_dict[sm_conf.get_opposite_site(site)][module]['service_dep_ordered']
         check_services_on_site(service_dep_ordered, sm_conf.get_opposite_site(site))
         ts=sm_dict[sm_conf.get_opposite_site(site)][module]['ts']
 
     elif cmd in "move":
-        service_dep_ordered = [service for service in sm_dict[site][module]['service_dep_ordered']
-                               if service in services_to_run] \
-            if services_to_run else \
+        service_dep_ordered = services_to_run if services_to_run else \
             sm_dict[site][module]['service_dep_ordered']
         if not all(check_site_ssl_available(site_i) for site_i in sm_conf.keys()) or \
                 not all(check_services_on_site(service_dep_ordered, site_i) for site_i in sm_conf.keys()) or \
@@ -836,7 +832,8 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
             ts = sm_dict[site][module]['ts']
 
         if services_to_run:
-            service_dep_ordered = [service for service in service_dep_ordered if service in services_to_run]
+            service_dep_ordered = [s for s in services_to_run if s in
+                                   sm_dict.get_module_services(sm_dict.get_available_sites()[0], module)]
 
         # Fail if required site (or site merging) has deps issues:
         if not check_dep_issue(site):
