@@ -77,17 +77,31 @@ def check_status_from_sm_client(status_dict, site_name, service_name, expected_s
     assert status_dict[site_name][service_name] == expected_status
 
 
+def get_services_to_check(template_env):
+    services_to_check = []
+    for site, config in template_env["sites"].items():
+        services_to_check += [service for service in config["exposed_ports"]["service"]
+                              if service not in services_to_check]
+    return services_to_check
+
+
 def check_statuses(capfd, template_env, expected_status_func: lambda site_name, service_name: dict):
+    services_to_check = get_services_to_check(template_env)
     run_sm_client_command_with_exit(["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'),
                                      "-v", "status"])
     sm_client_statuses_dict = parse_status_table(capfd)
     for site, config in template_env["sites"].items():
-        for service, port in config["exposed_ports"]["service"].items():
+        for service in services_to_check:
+            port = config["exposed_ports"]["service"].get(service)
             expected_status = expected_status_func(site, service)
-            check_status_from_service(site, service, f"http://localhost:{port}", expected_status)
+            if port:
+                check_status_from_service(site, service, f"http://localhost:{port}", expected_status)
+            expected_answer_from_sm = {"services": {service: expected_status}} \
+                if expected_status.get("message") != "Service doesn't exist" else \
+                {"message": "Service doesn't exist", "wrong-service": service}
             check_status_from_site_manager(site, service,
                                            sm_url=f"https://localhost:{config['exposed_ports']['site_manager']}",
                                            token=config["token"],
                                            verify=False,
-                                           expected_answer={"services": {service: expected_status}})
+                                           expected_answer=expected_answer_from_sm)
             check_status_from_sm_client(sm_client_statuses_dict, site, service, expected_status)

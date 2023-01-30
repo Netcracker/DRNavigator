@@ -678,7 +678,7 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site : str = None,
     for site_name in used_sites:
         for serv, serv_conf in sm_dict[site_name]['services'].items():
             # leave only services listed in service_to_process, not skipped/ignored and belong to module
-            if serv_conf.get('module', "") != module or \
+            if serv_conf.get('module', "") not in module or \
                     services_to_process and serv not in services_to_process or \
                     ignored_services and serv in ignored_services:
                 continue
