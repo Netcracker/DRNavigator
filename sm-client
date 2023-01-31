@@ -763,7 +763,7 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
     service_dep_ordered = None ; ts = None
     ret = True
 
-    if site not in sm_dict.sm and len(site) != 0:
+    if site not in sm_dict.sm and site != None:
         logging.critical(f"Unknown site %s" % site)
         raise NotValid
 
@@ -1014,11 +1014,11 @@ def parse_command_line(command_args) -> argparse.Namespace:
     parser_6.set_defaults(command='standby')
 
     parser_7 = subparsers.add_parser('list', help='list all services from Active-Standby scheme managed by site-manager with dependencies')
-    parser_7.add_argument('site', nargs='?', default="", help=SITE_HELP_SECTION)
+    parser_7.add_argument('site', nargs='?', default=None, help=SITE_HELP_SECTION)
     parser_7.set_defaults(command='list')
 
     parser_8 = subparsers.add_parser('status', help='show current status of clusters and all services')
-    parser_8.add_argument('site', nargs='?', default="", help=SITE_HELP_SECTION)  # todo to update help
+    parser_8.add_argument('site', nargs='?', default=None, help=SITE_HELP_SECTION)  # todo to update help
     parser_8.set_defaults(command='status')
 
     parser_9 = subparsers.add_parser('version', help='get current version')
