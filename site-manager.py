@@ -79,7 +79,9 @@ def get_sitemanagers_dict(api_version=utils.SM_VERSION):
     output = dict()
     output['services'] = {}
     for item in response["items"]:
-        output['services']["%s.%s" % (item['metadata'].get('name'), item['metadata'].get('namespace'))] = \
+        serviceName = item['spec']['sitemanager'].get("alias",
+                                           "%s.%s" % (item['metadata'].get('name'), item['metadata'].get('namespace')))
+        output['services'][serviceName] = \
             get_module_specific_cr(item)
 
     return output
@@ -188,7 +190,7 @@ def get_module_specific_cr(item):
         healthz_endpoint = ''
     allowed_standby_state_list = [i.lower() for i in item['spec']['sitemanager'].get('allowedStandbyStateList', ["up"])]
 
-    result = {"name": item["metadata"]["name"],
+    result = {"CRname": item["metadata"]["name"],
             "namespace": item["metadata"]["namespace"],
             "module": item['spec']['sitemanager'].get('module', ''),
             "after": item['spec']['sitemanager'].get('after', []),
@@ -200,6 +202,8 @@ def get_module_specific_cr(item):
                  "healthzEndpoint": healthz_endpoint}}
     if 'timeout' in item['spec']['sitemanager']:
         result['timeout'] = item['spec']['sitemanager']['timeout']
+    if 'alias' in item['spec']['sitemanager']:
+        result['alias'] = item['spec']['sitemanager']['alias']
     return result
 
 
@@ -245,9 +249,28 @@ def cr_convert():
     spec = request.json["request"]["objects"]
     modified_spec = copy.deepcopy(spec)
     for i in range(len(modified_spec)):
+        # v1 -> v2, v3 conversion
+        if modified_spec[i]["apiVersion"] == "netcracker.com/v1":
+            if "module" not in modified_spec[i]["spec"]["sitemanager"]:
+                modified_spec[i]["spec"]["sitemanager"]["module"] = modified_spec[i]["spec"]["sitemanager"].get(
+                    "module", "stateful")
+
+            if "parameters" not in modified_spec[i]["spec"]["sitemanager"]:
+                modified_spec[i]["spec"]["sitemanager"]["parameters"] = {}
+                modified_spec[i]["spec"]["sitemanager"]["parameters"]["serviceEndpoint"] = modified_spec[i]["spec"][
+                    "sitemanager"].pop("serviceEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["parameters"]["ingressEndpoint"] = modified_spec[i]["spec"][
+                    "sitemanager"].pop("ingressEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["parameters"]["healthzEndpoint"] = modified_spec[i]["spec"][
+                    "sitemanager"].pop("healthzEndpoint", "")
+
         # v2 -> v3 conversion
         if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v3":
-            # Skip CR, if it doesn't have any dependencies
+            # TODO: It's needed for automatic conversion not stateful modules
+            if modified_spec[i]["spec"]["sitemanager"]["module"] != "stateful":
+                modified_spec[i]["spec"]["sitemanager"]["alias"] = modified_spec[i]["metadata"]["name"]
+
+            # skip CR, if it doesn't have any dependencies
             if modified_spec[i]["spec"]["sitemanager"]["before"] or modified_spec[i]["spec"]["sitemanager"]["after"]:
                 sm_dict = get_sitemanagers_dict("v2")
 
@@ -255,7 +278,7 @@ def cr_convert():
                 for j in range(len(modified_spec[i]["spec"]["sitemanager"]["before"])):
                     before_service_name = modified_spec[i]["spec"]["sitemanager"]["before"][j]
                     before_services = [key for key, value in sm_dict["services"].items()
-                                       if value["name"] == before_service_name]
+                                       if value["CRname"] == before_service_name]
                     if not before_services:
                         logging.error("Found non-exist before dependency %s for CR %s" %
                                       (before_service_name, modified_spec[i]["metadata"]["name"]))
@@ -266,7 +289,7 @@ def cr_convert():
                 for j in range(len(modified_spec[i]["spec"]["sitemanager"]["after"])):
                     after_service_name = modified_spec[i]["spec"]["sitemanager"]["after"][j]
                     after_services = [key for key, value in sm_dict["services"].items()
-                                      if value["name"] == after_service_name]
+                                      if value["CRname"] == after_service_name]
                     if not after_services:
                         logging.error("Found non-exist after dependency %s for CR %s" %
                                       (after_service_name, modified_spec[i]["metadata"]["name"]))
@@ -280,6 +303,20 @@ def cr_convert():
         # v3 -> v2 conversion
         if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v2":
             modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
+
+        # v3,v2->v1 conversion
+        if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v1":
+            modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
+
+            if "module" in modified_spec[i]["spec"]["sitemanager"]:
+                del modified_spec[i]["spec"]["sitemanager"]["module"]
+
+            if "parameters" in modified_spec[i]["spec"]["sitemanager"]:
+                modified_spec[i]["spec"]["sitemanager"]["serviceEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("serviceEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("ingressEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("healthzEndpoint", "")
+                del modified_spec[i]["spec"]["sitemanager"]["parameters"]
+
 
     logging.debug("CR convertation is started.")
     logging.debug(f"Initial spec: {spec}")

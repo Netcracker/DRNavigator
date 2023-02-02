@@ -3,6 +3,7 @@
 <!-- TOC -->
 * [Overview](#overview)
 * [Managing Services](#managing-services)
+  * [Service Naming](#service-naming)
   * [Service Sequence](#service-sequence)
   * [DR Procedures Flow](#dr-procedures-flow)
   * [Possible Schemes for sm-client and Site-Manager](#possible-schemes-for-sm-client-and-site-manager)
@@ -59,7 +60,9 @@ Site-Manager calculates service names for every service to manage them. Rules fo
 ```
 <cr-name>.<cr-namespace>
 ```
-Site-Manager recognizes service by this name for all operations and dependencies.
+Site-Manager recognizes service by this name for all operations and dependencies.  
+If you **must** use another name (e.g. you have to use different namespaces in different sites), you can 
+override this name using special section `alias` in CR version v3.
 
 ## Service Sequence
 
@@ -185,6 +188,7 @@ metadata:
 spec:
   sitemanager:
     module: "stateful"
+    alias: <OVERRIDEN-SERVICE-NAME>
     after: ["<SERVICE-1>", "<SERVICE-3>"]
     before: ["<SERVICE-5>"]
     sequence: ["standby", "active"]
@@ -197,6 +201,7 @@ spec:
 
 Where:
   - `module` is the name of the module through which the service should be controlled. 
+  - `alias` is optional parameter. If it's defined, Site-Manager and sm-client will use specified value instead if `<cr-name>.<namespace>`.
   - `after` is the list of service names (with namespaces), that should be done before service start. In case of `after` is empty or absent the service will start among the first services if no service with name of this service in section `before`.
   - `before` is the list of service  names (with namespaces), that should wait until service in running. May be empty or absent.
   - `sequence` is the order of starting service sides. In case sequence is empty default `["standby","active"]` is used.
@@ -522,7 +527,7 @@ Output:
       ],
       "before": [], 
       "module": "stateful",
-      "name": "kafka",
+      "СRname": "kafka",
       "namespace": "kafka-service", 
       "parameters": {
         "healthzEndpoint": "http://kafka-disaster-recovery.kafka-service.svc.cluster.local:8068/healthz", 
@@ -534,16 +539,17 @@ Output:
       ],  
       "timeout": 360
     },
-    "spark-operator-gcp-site-manager.spark-operator-gcp": {
+    "spark-operator-gcp-site-manager": {
+      "alias:": "spark-operator-gcp-site-manager",
       "after": [
         "paas.paas-namespace"
-      ], 
+      ],
       "allowedStandbyStateList": [
         "up"
       ],
       "before": [],
       "module": "stateful",
-      "name": "spark-operator-gcp-site-manager",
+      "CRname": "spark-operator-gcp-site-manager",
       "namespace": "spark-operator-gcp", 
       "parameters": {
         "healthzEndpoint": "http://spark-site-manager.spark-operator-gcp.svc.cluster.local:8080/health", 

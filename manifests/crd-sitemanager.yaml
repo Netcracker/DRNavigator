@@ -37,6 +37,8 @@ spec:
                 properties:
                   module:
                     type: string
+                  alias:
+                    type: string
                   after:
                     items:
                       type: string
@@ -147,6 +149,73 @@ spec:
                         type: string
                 required:
                 - module
+                type: object
+            type: object
+          status:
+            properties:
+              siteManagerStatus:
+                properties:
+                  status:
+                    type: string
+                type: object
+            type: object
+        type: object
+  - name: v1
+    served: false
+    storage: false
+    deprecated: true
+    deprecationWarning: "netcracker.com/v1 SiteManager is deprecated; use v2 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
+    subresources:
+      status: {}
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              sitemanager:
+                properties:
+                  after:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  before:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  sequence:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  allowedStandbyStateList:
+                    items:
+                      type: string
+                    type: array
+                    default: ["up"]
+                  timeout:
+                    type: integer
+                    minimum: 10
+                    maximum: 1000
+                  serviceEndpoint:
+                    type: string
+                  ingressEndpoint:
+                    type: string
+                  healthzEndpoint:
+                    type: string
                 type: object
             type: object
           status:
