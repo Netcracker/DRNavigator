@@ -220,18 +220,22 @@ def root_get():
 
 @app.route('/validate', methods=['POST'])
 def cr_validate():
-    cr = request.json["request"]
-    logging.debug(f"Initial object from API for validating: {cr}")
+    data = request.json["request"]
+    logging.debug(f"Initial object from API for validating: {data}")
     allowed = True
     message = "All checks passed"
-    uid = cr["uid"]
+    uid = data["uid"]
 
     # Check name for unique
-    sm_dict = get_sitemanagers_dict("v2")
-    existed_cr = sm_dict['services'].get(cr['name'], None)
-    if existed_cr is not None and existed_cr['namespace'] != cr['namespace']:
+    sm_dict = get_sitemanagers_dict()
+    service_name = data['object']['spec']['sitemanager'].get("alias",
+                                                             "%s.%s" % (data.get('name'), data.get('namespace')))
+    existed_cr = sm_dict['services'].get(service_name, None)
+    if existed_cr is not None and existed_cr['namespace'] != data['namespace']:
         allowed = False
-        message = f"CR with name {cr['name']} has already existed in cluster"
+        message = f"Can't use alias {service_name}, this name is used for another service" \
+            if "alias" in data['object']['spec']['sitemanager'] else \
+            f"Can't use service with calculated name {service_name}, this name is used for another service"
         logging.debug(f"CR validation fails: {message}")
 
     return jsonify({"apiVersion": "admission.k8s.io/v1",
