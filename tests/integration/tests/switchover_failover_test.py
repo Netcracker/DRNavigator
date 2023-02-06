@@ -98,7 +98,12 @@ class SwitchoverFailoverTestCase:
         # Run move to another site
         test_utils.run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v",
-                "--run-services", "serviceB", "stop", "site_2"], expected_exit_code=1)
+                "--run-services", "serviceB", "stop", "site_2"])
+
+        # Check status after move to another site
+        test_utils.check_statuses(capfd, template_env, lambda site, service:
+                {"healthz": "up", "status": "done", "message": "",
+                 "mode": "active" if ("site_1" == site) == ("serviceB" == service) else "standby"})
 
     def test_stop_only_first_service(self, config_dir, capfd):
         logging.info("TEST STOP FIRST SERVICE TO ANOTHER SITE")

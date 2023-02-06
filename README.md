@@ -467,7 +467,7 @@ This section describes what requests a SiteManager can respond to on both Kubern
       ],
       "before": [], 
       "module": "stateful",
-      "name": "kafka",
+      "CRname": "kafka",
       "namespace": "kafka-service", 
       "parameters": {
         "healthzEndpoint": "http://kafka-disaster-recovery.kafka-service.svc.cluster.local:8068/healthz", 
@@ -488,7 +488,7 @@ This section describes what requests a SiteManager can respond to on both Kubern
       ],
       "before": [],
       "module": "stateful",
-      "name": "spark-operator-gcp-site-manager",
+      "CRname": "spark-operator-gcp-site-manager",
       "namespace": "spark-operator-gcp", 
       "parameters": {
         "healthzEndpoint": "http://spark-site-manager.spark-operator-gcp.svc.cluster.local:8080/health", 
@@ -573,14 +573,19 @@ Output:
 
 **Code**: 200
 
-**Data Params**: `{"procedure": "status", "run-service": "service-name.service-namespace"}`
+**Data Params**: `{"procedure": "status", "run-service": "service-name.service-namespace, "with_deps": true/false"}`
 
-**Answer**: `"services": {"service-name.service-namespace": {"healthz": "up|down|degraded", "message": "some-message", "mode": "active|standby|disable", "status": "running|done|failed"}]}`
+**Answer**: `"services": {"service-name.service-namespace": {"healthz": "up|down|degraded", "message": "some-message", 
+"mode": "active|standby|disable", "status": "running|done|failed", "deps": {"before": <before-services>, 
+"after": <after-services->}}}]}`
 
 This command shows the current status of DR procedures and results of health checks.
+`with_deps` option are optional (default value is false). 
+If it's enabled, site-manager will return information about statuses of dependent services in `deps` section.
 
-Example of `/GET` request with `curl` command shows the output for `paas` service:
+Example of `/sitemanager` request with `curl` command shows output for service `paas`:
 
+* without `with_deps`:
 ```
 $ curl -XPOST \
        --header "Content-Type: application/json" \
@@ -599,6 +604,57 @@ Output:
           "message": "",
           "mode": "active", 
           "status": "done"
+    }
+  }
+}
+```
+
+* with`with_deps=true`:
+```
+$ curl -XPOST \
+       --header "Content-Type: application/json" \
+       -d '{"procedure":"status", "run-service": "paas.paas-namespace", "with_deps": true}' \
+       http://site-manager.example.com/sitemanager
+```
+
+Output:
+
+```json
+{
+  "services": {
+    "paas.paas-namespace": {
+      "healthz": "--",
+      "message": "",
+      "mode": "active",
+      "status": "done",
+      "deps": {
+        "before": [
+          "service-before-paas.some-namespace"
+        ]
+        "after": [
+          "service-after-paas.some-namespace"
+        ]
+      }
+    },
+    "service-after-paas.some-namespace": {
+      "healthz": "--",
+      "message": "",
+      "mode": "active",
+      "status": "done",
+      "deps": {
+        "before": [],
+        "after": []
+      }
+    },
+    "service-before-paas.some-namespace": {
+      "healthz": "--",
+      "message": "",
+      "mode": "active",
+      "status": "done",
+      "deps": {
+        "before": [],
+        "after": []
+      }
     }
   }
 }
@@ -752,6 +808,26 @@ Output:
     "wrong-service": "wrong-service"
 }
 
+```
+
+HTTP Code: 400
+5. Try to start status procedure with `with_deps=true` when needed service contains non-existent dependency:
+
+```
+$ curl -XPOST \
+       --header "Content-Type: application/json" \
+       -d '{"procedure":"status", "run-service": "some-service.namespace", "with_deps": true}' \
+       http://site-manager.example.com/sitemanager
+```
+
+Output:
+
+```json
+{
+  "message": "Dependency defined in CR doesn't exist",
+  "wrong-service": "non-existed service",
+  "problem-cr": "some-service.namespace"
+}
 ```
 
 HTTP Code: 400
