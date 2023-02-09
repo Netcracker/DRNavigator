@@ -161,7 +161,7 @@ spec:
             type: object
         type: object
   - name: v1
-    served: false
+    served: true
     storage: false
     deprecated: true
     deprecationWarning: "netcracker.com/v1 SiteManager is deprecated; use v2 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
