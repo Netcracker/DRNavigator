@@ -25,7 +25,7 @@ else:
 # Define kubernetes CR objects
 SM_GROUP = os.environ.get("SM_GROUP", "netcracker.com")
 SM_PLURAL = os.environ.get("SM_PLURAL", "sitemanagers")
-SM_VERSION = os.environ.get("SM_VERSION", "v2")
+SM_VERSION = os.environ.get("SM_VERSION", "v3")
 
 # Define services default parameters
 HTTP_SCHEME = os.environ.get("HTTP_SCHEME", "http://")
