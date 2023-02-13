@@ -225,6 +225,18 @@ def test_validate_operation(caplog):
         assert validate_operation(sm_dict, "stop", "k8s-1")
     assert validate_operation(sm_dict, "stop", "k8s-2")
 
+    # Check wrong sites
+
+    with pytest.raises(NotValid):
+        caplog.clear()
+        assert validate_operation(sm_dict, "move", "unknown-site-move")
+        assert "Unable to perform the operation due to an unknown site unknown-site-move" in caplog.text
+
+    # Check stop
+    with pytest.raises(NotValid):
+        assert validate_operation(sm_dict, "stop", "unknown-site-stop")
+        assert "Unable to perform the operation due to an unknown site unknown-site-stop" in caplog.text
+
     sm_dict_run_services=SMClusterState()
 
     sm_dict_run_services["k8s-1"]={"status":True, "return_code":None,
@@ -254,27 +266,6 @@ def test_validate_operation(caplog):
         caplog.clear()
         validate_operation(sm_dict_run_stop, "stop", "k8s-2", ["serv1"])
         assert "Ignoring dependency issues for stop command" in caplog.text
-
-def test_validate_wrong_sites(caplog):
-    init_and_check_config(args_init())
-
-    # Init state
-    sm_dict=SMClusterState()
-    sm_dict["k8s-1"] = {"status": True, "return_code": None, "service_dep_ordered": [], "deps_issue": False,
-                      "ts":TopologicalSorter2}
-    sm_dict["k8s-2"] = {"status": True, "return_code": None, "service_dep_ordered": [], "deps_issue": False,
-                             "ts": TopologicalSorter2}
-    # Check move
-    with pytest.raises(NotValid):
-        caplog.clear()
-        assert validate_operation(sm_dict, "move", "unknown-site-move")
-        assert "Unable to perform the operation due to an unknown site unknown-site-move" in caplog.text
-
-    # Check stop
-    with pytest.raises(NotValid):
-        assert validate_operation(sm_dict, "stop", "unknown-site-stop")
-        assert "Unable to perform the operation due to an unknown site unknown-site-stop" in caplog.text
-
 
 def test_validate_restrictions(mocker, caplog):
     init_and_check_config(args_init(test_restrictions_config_path))
