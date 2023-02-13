@@ -227,6 +227,7 @@ def test_validate_operation(caplog):
 
     # Check wrong sites
 
+    # Check move
     with pytest.raises(NotValid):
         caplog.clear()
         assert validate_operation(sm_dict, "move", "unknown-site-move")
