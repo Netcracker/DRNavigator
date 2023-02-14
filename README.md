@@ -1199,7 +1199,7 @@ To support the ability of services to be managed by `site-manager`, implement th
 
     In case of cert-manager, the integration is created automatically during the helm chart installation.
 
-### Renewal Certificate Procedure
+### Certificate Renewal Procedure
 
 To renew a certificate:
 
