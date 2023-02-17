@@ -59,6 +59,7 @@ class ProcedureException(Exception):
     """
 
     def __init__(self, output):
+        super().__init__(output)
         self.output = output
 
 
