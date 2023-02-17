@@ -29,7 +29,7 @@ app = Flask(__name__)
 
 app.config['DEBUG'] = utils.SM_DEBUG
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
-#metrics = GunicornInternalPrometheusMetrics(app)
+metrics = GunicornInternalPrometheusMetrics(app)
 
 site_manager_health = Gauge('site_manager_health', 'SM pod health')
 
