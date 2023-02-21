@@ -11,6 +11,9 @@ import logging
 import threading
 import http
 import copy
+
+from kubernetes.client import ApiException
+
 import utils
 from flask import Flask, request, jsonify, make_response
 from kubernetes import client, config
@@ -72,9 +75,18 @@ def get_sitemanagers_dict(api_version=utils.SM_VERSION):
                                                                                                  plural=utils.SM_PLURAL,
                                                                                                  _request_timeout=10)
 
-    except Exception as e:
-        logging.error("Can not download sitemanager objects: \n %s" % str(e))
-        return {}
+    except ApiException as e:
+        if e.status == 404:
+            logging.error(f"Can't get sitemanager objects: Desired CRD not found:\n"
+                          f"\tplural={utils.SM_PLURAL}\n"
+                          f"\tgroup={utils.SM_GROUP}\n"
+                          f"\tversion={api_version}")
+            raise utils.ProcedureException(output={"message": "Can't get sitemanager objects: Desired CRD not found",
+                                                   "plural": utils.SM_PLURAL,
+                                                   "group": utils.SM_GROUP,
+                                                   "version": api_version})
+        else:
+            raise e
 
     output = dict()
     output['services'] = {}
@@ -296,7 +308,7 @@ def sitemanager_get():
     try:
         response = json_response(200, get_sitemanagers_dict())
     except Exception as e:
-        logging.error(str(e))
+        logging.error("Can not get sitemanager structures \n %s" % str(e))
         response = json_response(500, {"message": "Can not get sitemanager structures"})
 
     return response
@@ -328,7 +340,12 @@ def sitemanager_post():
 
     no_wait = True if data.get("no-wait", "") in (1, "1", True, "true", "True") else False
 
-    sm_dict = get_sitemanagers_dict()
+    try:
+        sm_dict = get_sitemanagers_dict()
+    except Exception as e:
+        logging.error("Can not get sitemanager structures: \n %s" % str(e))
+        return json_response(500, {"message": "Can not get sitemanager structures"})
+
     all_services = get_all_services(sm_dict)
 
     if data["procedure"] == "list":
