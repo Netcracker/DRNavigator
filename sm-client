@@ -479,6 +479,8 @@ def process_ts_services(ts:TopologicalSorter2, process_func, *run_args:()) -> No
             thread.start()
         service_response = thread_result_queue.get()
 
+        if not run_args:
+            run_args = (None,None,None)
         if not service_response.is_ok(run_args[2],run_args[1],run_args[0]) :  # mark failed and skip successors of serv_done
             for s in ts.successors(service_response.service):
                 logging.debug(f"Found successor {s} for failed {service_response.service} ")

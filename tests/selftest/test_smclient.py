@@ -371,7 +371,7 @@ def test_ServiceDRStatus_init():
 
 
 def test_runservice_engine(caplog):
-    def process_node(node):
+    def process_node(node,*kargs):
         node=ServiceDRStatus({'services':{node:{}}})
         if node.service in test_failed_services:
             node.healthz='down'
