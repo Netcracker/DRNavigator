@@ -258,6 +258,7 @@ class ServiceDRStatus:
              self.service = data['wrong-service']
          else:
              raise ValueError("Missing service name")
+
          serv = data['services'][self.service] if data.get('services') else data
          self.mode = serv['mode'] if serv.get("mode") in ["active", "standby", "disable"] else "--"
          self.nowait = serv["nowait"] if serv.get("nowait") else False
@@ -266,14 +267,19 @@ class ServiceDRStatus:
          self.message = serv["message"] if serv.get("message") else ""
          # https://github.com/Netcracker/DRNavigator/blob/b4161fb15271485974abf5862e7272abc386fbc8/modules/stateful.py#L16
 
-    def is_ok(self):
-        if self.healthz in ['down','degraded','--'] or self.status in ['failed']:
+    def is_ok(self, smdict = None, site: str = None, mode: str = None):
+        failed_healthz = ['down','degraded','--']
+
+        if mode and mode in 'standby' and smdict[site]['services'][self.service].get('allowedStandbyStateList'):
+            failed_healthz = set(failed_healthz) - set(smdict[site]['services'][self.service].get('allowedStandbyStateList'))
+
+        if self.healthz in failed_healthz or self.status in ['failed']:
             return False
         return True
 
-    def sortout_service_results(self):
+    def sortout_service_results(self, smdict=None, site: str = None, mode: str = None):
         """ Put service name in appropriate list(failed or done) """
-        if self.is_ok():  # return Ok - done_service
+        if self.is_ok(smdict, site, mode):  # return Ok - done_service
             if self.service not in failed_services:
                 done_services.append(self.service) if self.service not in done_services else None
         else:
@@ -409,7 +415,7 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
             if sm_dict[site_to_process]['status']: # to process only available sites
                 sm_process_service(site_to_process, service, mode, False if 'move' in cmd else True)
                 service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force)
-                if cmd in 'move' and not service_response.is_ok():
+                if cmd in 'move' and not service_response.is_ok(sm_dict, site_to_process, mode):
                     logging.info(f"Service {service} failed on {site_to_process}, skipping it on another site...")
                     break
 
@@ -473,12 +479,12 @@ def process_ts_services(ts:TopologicalSorter2, process_func, *run_args:()) -> No
             thread.start()
         service_response = thread_result_queue.get()
 
-        if not service_response.is_ok() :  # mark failed and skip successors of serv_done
+        if not service_response.is_ok(run_args[2],run_args[1],run_args[0]) :  # mark failed and skip successors of serv_done
             for s in ts.successors(service_response.service):
                 logging.debug(f"Found successor {s} for failed {service_response.service} ")
                 failed_successors.append(s)
         ts.done(service_response.service)
-        service_response.sortout_service_results()
+        service_response.sortout_service_results(run_args[2],run_args[1],run_args[0])
     for thread in serv_thread_pool:
         thread.join()
 

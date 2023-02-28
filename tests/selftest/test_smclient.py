@@ -3,6 +3,7 @@
 pytest based unit test
 python3  -m pytest -o log_cli=true -s -v tests/selftest/test_smclient.py <-k  test_name*>
 """
+import functools
 import json
 
 import pytest
@@ -582,6 +583,54 @@ def test_sm_process_service_with_polling(mocker, caplog):
         service_response = thread_result_queue.get()
         service_response.sortout_service_results()
         assert 'serv2' in failed_services
+
+    # standby with  allowedStandbyStateList=down
+    test_resp = {'services':{'serv3':{'healthz':'down', 'mode':'standby', 'status':'done'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={
+        "services":{"serv3":{"timeout":1,
+                             "allowedStandbyStateList":["down","up"],
+                             "sequence":['standby','active' ]}},
+        "status": True}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        sm_process_service_with_polling("serv3", "k8s-1", "standby", sm_dict)
+        service_response = thread_result_queue.get()
+        service_response.sortout_service_results(sm_dict,'k8s-1','standby')
+        assert 'serv3' in done_services
+
+    # switchover with  allowedStandbyStateList=down
+    def condition(*args,**kwargs):
+        if any('k8s-1' in i for i in args):
+            fake_resp.json=mocker.Mock(return_value={'services':{'serv4':{'healthz':'down', 'mode':'standby', 'status':'done'}}})
+            return fake_resp
+        fake_resp.json=mocker.Mock(return_value={'services':{'serv4':{'healthz':'up', 'mode':'active', 'status':'done'}}})
+        return fake_resp
+
+    #mock_with_condition = functools.partial(condition)
+    mocker.patch("utils.requests.Session.post", new=functools.partial(condition))
+
+    sm_dict=SMClusterState()
+    sm_dict["k8s-1"]={
+        "services":{"serv4":{"timeout":1,
+                             "allowedStandbyStateList":["down","up"],
+                             "sequence":['standby','active' ]}},
+        "status": True}
+    sm_dict["k8s-2"]={
+        "services":{"serv4":{"timeout":1,
+                             "allowedStandbyStateList":["down","up"],
+                             "sequence":['standby', 'active']}},
+        "status":True}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        sm_process_service_with_polling("serv4", "k8s-2", "move", sm_dict)
+        service_response = thread_result_queue.get()
+        service_response.sortout_service_results()
+        assert 'serv4' in done_services
+
 
 
 def test_token_env_configuration(monkeypatch, caplog):
