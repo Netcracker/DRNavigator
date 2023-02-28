@@ -520,7 +520,12 @@ def run(services:[] = None, cmd="", site=""):
                 response, _, return_code=sm_process_service(site, serv, "status")
                 if not sm_dict[site]['services'].get(serv):
                     sm_dict[site]['services'][serv]={}
-                sm_dict[site]['services'][serv]['status']=ServiceDRStatus(response) if return_code else False
+                try:
+                    sm_dict[site]['services'][serv]['status']=ServiceDRStatus(response) if return_code else False
+                except ValueError:
+                    logging.error(f"Site:{site} service:{serv}, can't recognise status for service, status code: "
+                                  f"{return_code}: {response}")
+                    sm_dict[site]['services'][serv]['status'] = False
 
             for site_i in sm_dict.get_available_sites():
                 thread=threading.Thread(target=run_in_thread, args=(site_i, serv, sm_dict))
