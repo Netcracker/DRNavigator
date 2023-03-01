@@ -279,7 +279,7 @@ class ServiceDRStatus:
                 return False
             else:
                 return True
-
+        # separate service status field, since healthz may be treated differently depending on running mode - allowedStandbyStateList
         self.service_status = set_service_status(smdict, site, mode)
 
     def is_ok(self):

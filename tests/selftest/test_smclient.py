@@ -542,6 +542,17 @@ def test_sm_poll_service_required_status(mocker, caplog):
         assert not sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok() and \
                "Error state" not in caplog.text
 
+    # 'healthz':'down' force = True}
+    sm_dict["k8s-1"]={"services":{
+        "serv1":{"timeout":1,
+                 "allowedStandbyStateList":["up"]}}}
+    test_resp={'services':{'serv1':{'healthz':'down', 'mode':'standby', 'status':'done'}}}
+    fake_resp.json=mocker.Mock(return_value=test_resp)
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        assert sm_poll_service_required_status("k8s-1", "serv1", "standby", sm_dict,True).is_ok() and \
+            "Force mode enabled. Service healthz ignored" in caplog.text
+
 
 def test_sm_process_service_with_polling(mocker, caplog):
     smclient.args=args_init()
