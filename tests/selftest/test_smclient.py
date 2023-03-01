@@ -371,12 +371,12 @@ def test_ServiceDRStatus_init():
 
 
 def test_runservice_engine(caplog):
-    def process_node(node,*kargs):
+    def process_node(node):
         node=ServiceDRStatus({'services':{node:{}}})
         if node.service in test_failed_services:
-            node.healthz='down'
+            node.service_status = False
         else:
-            node.healthz='up'
+            node.service_status = True
         thread_result_queue.put(node)
 
     caplog.set_level(logging.INFO)
@@ -599,15 +599,15 @@ def test_sm_process_service_with_polling(mocker, caplog):
         caplog.clear()
         sm_process_service_with_polling("serv3", "k8s-1", "standby", sm_dict)
         service_response = thread_result_queue.get()
-        service_response.sortout_service_results(sm_dict,'k8s-1','standby')
+        service_response.sortout_service_results()
         assert 'serv3' in done_services
 
     # switchover with  allowedStandbyStateList=down
     def condition(*args,**kwargs):
         if any('k8s-1' in i for i in args):
-            fake_resp.json=mocker.Mock(return_value={'services':{'serv4':{'healthz':'down', 'mode':'standby', 'status':'done'}}})
+            fake_resp.json = mocker.Mock(return_value={'services':{'serv4':{'healthz':'down', 'mode':'standby', 'status':'done'}}})
             return fake_resp
-        fake_resp.json=mocker.Mock(return_value={'services':{'serv4':{'healthz':'up', 'mode':'active', 'status':'done'}}})
+        fake_resp.json = mocker.Mock(return_value={'services':{'serv4':{'healthz':'up', 'mode':'active', 'status':'done'}}})
         return fake_resp
 
     #mock_with_condition = functools.partial(condition)
