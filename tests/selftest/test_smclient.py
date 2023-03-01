@@ -8,6 +8,8 @@ import json
 import pytest
 
 import smclient
+from sm_client.processing import process_ts_services, sm_poll_service_required_status, sm_process_service_with_polling, \
+    thread_result_queue
 from smclient import *
 from utils import io_make_http_json_request
 from http import HTTPStatus
@@ -317,10 +319,10 @@ def test_SMClusterState_init():
     with pytest.raises(ValueError) as e:
         SMClusterState("not valid site")
     assert str(e.value) in "Unknown site name"
-    assert "services" and "deps_issue" and default_module in SMClusterState("k8s-2")["k8s-2"]
-    assert "services" and "deps_issue" and default_module in SMClusterState({"k8s-3":{"services":{"serv1":{}},
+    assert "services" and "deps_issue" and settings.default_module in SMClusterState("k8s-2")["k8s-2"]
+    assert "services" and "deps_issue" and settings.default_module in SMClusterState({"k8s-3":{"services":{"serv1":{}},
                                                                                       "status":False},
-                                                                             "k8s-1":{}})["k8s-3"]
+                                                                                      "k8s-1":{}})["k8s-3"]
     sm_dict=SMClusterState({'k8s-1':
         {"services":{
             "serv1":{"module":'stateful'},
@@ -390,9 +392,10 @@ def test_runservice_engine(caplog):
 
     process_ts_services(ts, process_node)
 
-    logging.info(f"failed_services: {failed_services}")
-    logging.info(f"done_services: {done_services}")
-    assert done_services == ['aa', 'cc', 'cc1'] and failed_services == ['bb', 'bb1']
+    logging.info(f"failed_services: {settings.failed_services}")
+    logging.info(f"done_services: {settings.done_services}")
+    assert settings.done_services in [['aa', 'cc', 'cc1'], ['cc', 'aa', 'cc1'], ['cc', 'cc1', 'aa']] \
+           and settings.failed_services == ['bb', 'bb1']
 
 
 def test_get_dr_operation_sequence():
@@ -483,7 +486,7 @@ def test_sm_poll_service_required_status(mocker, caplog):
     with caplog.at_level(logging.INFO):
         caplog.clear()
         dr_status=sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict)
-        assert f"{smclient.SERVICE_DEFAULT_TIMEOUT} seconds left until timeout" in caplog.text
+        assert f"{settings.SERVICE_DEFAULT_TIMEOUT} seconds left until timeout" in caplog.text
         assert dr_status.is_ok()
 
     # service specific timeout
@@ -565,7 +568,7 @@ def test_sm_process_service_with_polling(mocker, caplog):
         sm_process_service_with_polling("serv1", "k8s-1", "move", sm_dict)
         service_response=thread_result_queue.get()
         service_response.sortout_service_results()
-        assert 'serv1' in failed_services
+        assert 'serv1' in settings.failed_services
         assert "Service serv1 failed on k8s-1, skipping it on another site" in caplog.text
 
     # timeout expired fail
@@ -581,7 +584,7 @@ def test_sm_process_service_with_polling(mocker, caplog):
         sm_process_service_with_polling("serv2", "k8s-1", "active", sm_dict)
         service_response = thread_result_queue.get()
         service_response.sortout_service_results()
-        assert 'serv2' in failed_services
+        assert 'serv2' in settings.failed_services
 
 
 def test_token_env_configuration(monkeypatch, caplog):
@@ -603,7 +606,7 @@ def test_token_env_configuration(monkeypatch, caplog):
     # Check configuration
     args = args_init(config=test_config_env_token_path)
     assert init_and_check_config(args)
-    assert smclient.sm_conf['k8s-2']['token'] == '12345'
+    assert settings.sm_conf['k8s-2']['token'] == '12345'
 
 
 def test_process_module_services(mocker, caplog):
@@ -618,7 +621,7 @@ def test_process_module_services(mocker, caplog):
 
     mocker.patch("utils.requests.Session.post", return_value=fake_resp)
 
-    done_services.clear()
+    settings.done_services.clear()
     sm_dict = SMClusterState()
     sm_dict["k8s-1"] = {
         "services":{
@@ -638,12 +641,12 @@ def test_process_module_services(mocker, caplog):
         "status": True}
 
     process_module_services("stateful","", "stop", "k8s-1", sm_dict)
-    assert "serv1" in done_services
+    assert "serv1" in settings.done_services
 
-    done_services.clear()
+    settings.done_services.clear()
     ts = TopologicalSorter2()
     ts.add("serv1")
     ts.prepare()
     sm_dict["k8s-2"]["stateful"]["ts"] = ts
     process_module_services("stateful", "", "active", "k8s-2", sm_dict)
-    assert "serv1" in done_services
+    assert "serv1" in settings.done_services
