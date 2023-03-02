@@ -3,13 +3,15 @@
 pytest based unit test
 python3  -m pytest -o log_cli=true -s -v tests/selftest/test_smclient.py <-k  test_name*>
 """
+import argparse
 import json
 
 import pytest
 
 import smclient
-from sm_client.processing import process_ts_services, sm_poll_service_required_status, sm_process_service_with_polling, \
-    thread_result_queue
+from sm_client.initialization import init_and_check_config
+from sm_client.prepare import make_ordered_services_to_process
+from sm_client.processing import *
 from common.utils import io_make_http_json_request
 from http import HTTPStatus
 import http.server
@@ -17,6 +19,8 @@ import ssl
 import threading
 import os
 import warnings
+
+from sm_client.validation import validate_operation
 
 test_config_path=os.path.abspath("tests/selftest/resources/config_test.yaml")
 test_wrong_config_path=os.path.abspath("tests/selftest/resources/config_test_wrong.yaml")
@@ -51,7 +55,7 @@ def test_sm_process_service(mocker, caplog):
     fake_resp.json=mocker.Mock(return_value=test_resp)
     fake_resp.status_code=HTTPStatus.OK
 
-    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
 
     json_body_s, ret, code=sm_process_service("k8s-1", "test1", "active")
 
@@ -274,7 +278,7 @@ def test_validate_restrictions(mocker, caplog):
     fake_resp=mocker.Mock()
     fake_resp.json=mocker.Mock(return_value=test_resp)
     fake_resp.status_code=HTTPStatus.OK
-    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict, "standby", "k8s-1")
 
@@ -283,7 +287,7 @@ def test_validate_restrictions(mocker, caplog):
     fake_resp=mocker.Mock()
     fake_resp.json=mocker.Mock(return_value=test_resp)
     fake_resp.status_code=HTTPStatus.OK
-    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
     with pytest.raises(NotValid):
         caplog.clear()
         assert validate_operation(sm_dict, "active", "k8s-1")
@@ -476,7 +480,7 @@ def test_sm_poll_service_required_status(mocker, caplog):
     fake_resp.json=mocker.Mock(return_value=test_resp)
     fake_resp.status_code=HTTPStatus.OK
 
-    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
 
     # default timeout
     sm_dict=SMClusterState()
@@ -553,7 +557,7 @@ def test_sm_process_service_with_polling(mocker, caplog):
     fake_resp.json=mocker.Mock(return_value=test_resp)
     fake_resp.status_code=HTTPStatus.OK
 
-    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
 
     # custom timeout
     sm_dict=SMClusterState()
@@ -573,7 +577,7 @@ def test_sm_process_service_with_polling(mocker, caplog):
     # timeout expired fail
     test_resp={'services':{'serv2':{'healthz':'up', 'mode':'standby', 'status':'done'}}}
     fake_resp.json=mocker.Mock(return_value=test_resp)
-    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
     sm_dict=SMClusterState()
     sm_dict["k8s-1"]={
         "services":{"serv2":{"timeout":1}},
@@ -618,7 +622,7 @@ def test_process_module_services(mocker, caplog):
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
 
-    mocker.patch("utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
 
     settings.done_services.clear()
     sm_dict = SMClusterState()

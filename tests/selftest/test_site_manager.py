@@ -56,7 +56,7 @@ def test_status_with_deps(mocker):
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
 
-    mocker.patch("utils.requests.Session.get", return_value=fake_resp)
+    mocker.patch("common.utils.requests.Session.get", return_value=fake_resp)
 
     # Check services with deps
     serviceAStatus = get_status_with_deps("serviceA", test_sm_dict, with_deps=True)
@@ -97,7 +97,7 @@ def test_status_without_deps(mocker):
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
 
-    mocker.patch("utils.requests.Session.get", return_value=fake_resp)
+    mocker.patch("common.utils.requests.Session.get", return_value=fake_resp)
 
     # Check services without deps
     serviceAStatus = get_status_with_deps("serviceA", test_sm_dict)
@@ -124,7 +124,7 @@ def test_not_exist_deps(mocker):
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
 
-    mocker.patch("utils.requests.Session.get", return_value=fake_resp)
+    mocker.patch("common.utils.requests.Session.get", return_value=fake_resp)
 
     # Add service with wrong dependency
     test_sm_dict['services']['serviceE'] = {
@@ -167,7 +167,7 @@ def test_cr_cycles(mocker):
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
 
-    mocker.patch("utils.requests.Session.get", return_value=fake_resp)
+    mocker.patch("common.utils.requests.Session.get", return_value=fake_resp)
 
     # Add services with CR cycles
     test_sm_dict['services']['serviceE'] = {
@@ -197,7 +197,7 @@ def test_deps_cycles(mocker):
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
 
-    mocker.patch("utils.requests.Session.get", return_value=fake_resp)
+    mocker.patch("common.utils.requests.Session.get", return_value=fake_resp)
 
     # Add services with CR cycles
     test_sm_dict['services']['serviceE'] = {
