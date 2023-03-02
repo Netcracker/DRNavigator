@@ -621,7 +621,6 @@ def test_sm_process_service_with_polling(mocker, caplog):
         fake_resp.json = mocker.Mock(return_value={'services':{'serv4':{'healthz':'up', 'mode':'active', 'status':'done'}}})
         return fake_resp
 
-    #mock_with_condition = functools.partial(condition)
     mocker.patch("utils.requests.Session.post", new=functools.partial(condition))
 
     sm_dict=SMClusterState()
