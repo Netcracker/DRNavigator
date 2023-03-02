@@ -7,19 +7,17 @@ Date:        2021-11-19
 Description: Service for management of microservices in active-standby scheme of kubernetes cluster
 """
 
-import logging
 import threading
 import http
 import copy
 
 from kubernetes.client import ApiException
 
-import utils
 from flask import Flask, request, jsonify, make_response
 from kubernetes import client, config
 from prometheus_flask_exporter.multiprocess import GunicornInternalPrometheusMetrics
 from prometheus_client import Gauge
-from server_utils import *
+from site_manager.server_utils import *
 
 
 # List of possible procedures

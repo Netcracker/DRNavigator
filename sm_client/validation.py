@@ -199,4 +199,3 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
         return validation_func[cmd](sm_dict, cmd, site, services_to_run, module)
     else:
         raise NotValid
-

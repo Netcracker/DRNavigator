@@ -7,7 +7,7 @@ from http import HTTPStatus
 
 import pytest
 
-from server_utils import *
+from site_manager.server_utils import *
 
 
 '''

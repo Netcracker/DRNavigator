@@ -10,8 +10,7 @@ import pytest
 import smclient
 from sm_client.processing import process_ts_services, sm_poll_service_required_status, sm_process_service_with_polling, \
     thread_result_queue
-from smclient import *
-from utils import io_make_http_json_request
+from common.utils import io_make_http_json_request
 from http import HTTPStatus
 import http.server
 import ssl

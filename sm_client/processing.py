@@ -5,7 +5,7 @@ import time
 from http import HTTPStatus
 from typing import Tuple, Dict
 
-import utils
+from common import utils
 from sm_client.data.structures import *
 
 thread_pool = []

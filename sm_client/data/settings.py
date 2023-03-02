@@ -1,8 +1,8 @@
 # consts
 default_module = 'stateful'
 readonly_cmd = ("status", "list")
-dr_procedures =("move", "stop") + readonly_cmd  # DR procedures: switchover, failover
-site_cmds =("active", "standby", "return", "disable") + readonly_cmd  # per site commands
+dr_procedures = ("move", "stop") + readonly_cmd  # DR procedures: switchover, failover
+site_cmds = ("active", "standby", "return", "disable") + readonly_cmd  # per site commands
 
 # Parameters from config
 sm_conf: dict
