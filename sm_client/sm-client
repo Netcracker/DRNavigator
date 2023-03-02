@@ -288,7 +288,7 @@ def main(command_args=None):
 
     # get version command
     if args.command in "version":
-        with open('../version', 'r') as f:
+        with open('./version', 'r') as f:
             print('SM-client %s' % f.read())
         exit(0)
 
