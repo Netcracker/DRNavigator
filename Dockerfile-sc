@@ -5,7 +5,7 @@ ARG SM_UID=1001
 
 USER root
 
-COPY smclient.py version /app/
+COPY smclient.py version sm-client /app/
 COPY sm_client/ /app/sm_client/
 COPY common/ /app/common/
 
