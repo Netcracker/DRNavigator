@@ -1,1 +1,1 @@
-sm_client/sm-client
+sm-client
