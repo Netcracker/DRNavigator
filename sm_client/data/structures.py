@@ -138,7 +138,8 @@ class ServiceDRStatus:
     def __getitem__(self, key):
         return self.__getattribute__(key)
 
-    def __init__(self, data: dict = None):  # {'services':{service_name:{}}}
+    def __init__(self, data: dict = None, smdict = None, site: str = None,
+                 mode: str = None):  # {'services':{service_name:{}}}
         if data and data.get("services") and isinstance(data['services'], dict):
             self.service = list(data['services'].keys())[0]
         elif data and data.get("wrong-service") and isinstance(data['wrong-service'], str):
@@ -151,12 +152,26 @@ class ServiceDRStatus:
         self.healthz = serv["healthz"] if serv.get("healthz") in ["up", "down", "degraded"] else "--"
         self.status = serv["status"] if serv.get("status") in ["running", "done", "failed"] else "--"
         self.message = serv["message"] if serv.get("message") else ""
+
         # https://github.com/Netcracker/DRNavigator/blob/b4161fb15271485974abf5862e7272abc386fbc8/modules/stateful.py#L16
 
+        def set_service_status(smdict, site, mode):
+            failed_healthz = ['down', 'degraded', '--']
+
+            if mode and mode in 'standby' and smdict[site]['services'][self.service].get('allowedStandbyStateList'):
+                failed_healthz = set(failed_healthz) - set(
+                    smdict[site]['services'][self.service].get('allowedStandbyStateList'))
+
+            if self.healthz in failed_healthz or self.status in ['failed']:
+                return False
+            else:
+                return True
+
+        # separate service status field, since healthz may be treated differently depending on running mode - allowedStandbyStateList
+        self.service_status = set_service_status(smdict, site, mode)
+
     def is_ok(self):
-        if self.healthz in ['down', 'degraded', '--'] or self.status in ['failed']:
-            return False
-        return True
+        return self.service_status
 
     def sortout_service_results(self):
         """ Put service name in appropriate list(failed or done) """
@@ -175,6 +190,7 @@ class NotValid(Exception):
 
 class TopologicalSorter2(TopologicalSorter):
     """ added method to get successors of specific node """
+
     def successors(self, node):
         for i in self._node2info.values():
             if i.node == node:

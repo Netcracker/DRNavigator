@@ -170,10 +170,10 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
     if force:
         logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")
         stat = ServiceDRStatus(data)
-        stat.healthz = "up"
+        stat.service_status = True
         return stat
 
-    return ServiceDRStatus(data)
+    return ServiceDRStatus(data, sm_dict, site, mode)
 
 
 def sm_process_service(site, service, site_cmd: str, no_wait=True, force=False) -> Tuple[Dict, bool, int]:

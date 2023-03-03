@@ -1,3 +1,4 @@
+import functools
 import http.server
 import json
 import logging
@@ -88,9 +89,9 @@ def test_runservice_engine(caplog):
     def process_node(node):
         node = ServiceDRStatus({'services': {node: {}}})
         if node.service in test_failed_services:
-            node.healthz = 'down'
+            node.service_status = False
         else:
-            node.healthz = 'up'
+            node.service_status = True
         thread_result_queue.put(node)
 
     caplog.set_level(logging.INFO)
@@ -187,6 +188,17 @@ def test_sm_poll_service_required_status(mocker, caplog):
         assert not sm_poll_service_required_status("k8s-1", "serv1", "active", sm_dict).is_ok() and \
                "Error state" not in caplog.text
 
+    # 'healthz':'down' force = True}
+    sm_dict["k8s-1"] = {"services": {
+        "serv1": {"timeout": 1,
+                  "allowedStandbyStateList": ["up"]}}}
+    test_resp = {'services': {'serv1': {'healthz': 'down', 'mode': 'standby', 'status': 'done'}}}
+    fake_resp.json = mocker.Mock(return_value=test_resp)
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        assert sm_poll_service_required_status("k8s-1", "serv1", "standby", sm_dict, True).is_ok() and \
+               "Force mode enabled. Service healthz ignored" in caplog.text
+
 
 def test_sm_process_service_with_polling(mocker, caplog):
     smclient.args = args_init()
@@ -228,6 +240,54 @@ def test_sm_process_service_with_polling(mocker, caplog):
         service_response = thread_result_queue.get()
         service_response.sortout_service_results()
         assert 'serv2' in settings.failed_services
+
+    # standby with  allowedStandbyStateList=down
+    test_resp = {'services': {'serv3': {'healthz': 'down', 'mode': 'standby', 'status': 'done'}}}
+    fake_resp.json = mocker.Mock(return_value=test_resp)
+    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
+
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {
+        "services": {"serv3": {"timeout": 1,
+                               "allowedStandbyStateList": ["down", "up"],
+                               "sequence": ['standby', 'active']}},
+        "status": True}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        sm_process_service_with_polling("serv3", "k8s-1", "standby", sm_dict)
+        service_response = thread_result_queue.get()
+        service_response.sortout_service_results()
+        assert 'serv3' in settings.done_services
+
+    # switchover with  allowedStandbyStateList=down
+    def condition(*args, **kwargs):
+        if any('k8s-1' in i for i in args):
+            fake_resp.json = mocker.Mock(
+                return_value={'services': {'serv4': {'healthz': 'down', 'mode': 'standby', 'status': 'done'}}})
+            return fake_resp
+        fake_resp.json = mocker.Mock(
+            return_value={'services': {'serv4': {'healthz': 'up', 'mode': 'active', 'status': 'done'}}})
+        return fake_resp
+
+    mocker.patch("common.utils.requests.Session.post", new=functools.partial(condition))
+
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {
+        "services": {"serv4": {"timeout": 1,
+                               "allowedStandbyStateList": ["down", "up"],
+                               "sequence": ['standby', 'active']}},
+        "status": True}
+    sm_dict["k8s-2"] = {
+        "services": {"serv4": {"timeout": 1,
+                               "allowedStandbyStateList": ["down", "up"],
+                               "sequence": ['standby', 'active']}},
+        "status": True}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        sm_process_service_with_polling("serv4", "k8s-2", "move", sm_dict)
+        service_response = thread_result_queue.get()
+        service_response.sortout_service_results()
+        assert 'serv4' in settings.done_services
 
 
 def test_process_module_services(mocker, caplog):

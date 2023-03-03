@@ -1219,6 +1219,17 @@ To support the ability of services to be managed by `site-manager`, implement th
 
     In case of cert-manager, the integration is created automatically during the helm chart installation.
 
+### Certificate Renewal Procedure
+
+To renew a certificate:
+
+1. Execute the instructions in the **Prerequisites** section from the step 2.2 to 3.2.
+2. Delete the `sm-certs` secret on the cluster.
+3. Create a secret with SSL certificates for `site-manager` again.
+    ```
+    $ kubectl -n site-manager create secret tls sm-certs --cert site-manager-tls.crt --key site-manager-tls.key
+    ```
+
 ### Installation 
  
    Install `site-manager` helm chart:
