@@ -251,25 +251,40 @@ class ServiceDRStatus:
     def __getitem__(self, key):
         return self.__getattribute__(key)
 
-    def __init__(self, data: dict = None ): # {'services':{service_name:{}}}
-         if data and data.get("services") and isinstance(data['services'],dict):
-             self.service = list(data['services'].keys())[0]
-         elif data and data.get("wrong-service") and isinstance(data['wrong-service'],str):
-             self.service = data['wrong-service']
-         else:
-             raise ValueError("Missing service name")
-         serv = data['services'][self.service] if data.get('services') else data
-         self.mode = serv['mode'] if serv.get("mode") in ["active", "standby", "disable"] else "--"
-         self.nowait = serv["nowait"] if serv.get("nowait") else False
-         self.healthz = serv["healthz"] if serv.get("healthz") in ["up", "down", "degraded"] else "--"
-         self.status = serv["status"] if serv.get("status") in ["running","done","failed"] else "--"
-         self.message = serv["message"] if serv.get("message") else ""
-         # https://github.com/Netcracker/DRNavigator/blob/b4161fb15271485974abf5862e7272abc386fbc8/modules/stateful.py#L16
+    def __init__(self, data: dict = None, smdict = None, site: str = None, mode: str = None): # {'services':{service_name:{}}}
+
+        if data and data.get("services") and isinstance(data['services'],dict):
+            self.service = list(data['services'].keys())[0]
+        elif data and data.get("wrong-service") and isinstance(data['wrong-service'],str):
+            self.service = data['wrong-service']
+        else:
+            raise ValueError("Missing service name")
+
+        serv = data['services'][self.service] if data.get('services') else data
+        self.mode = serv['mode'] if serv.get("mode") in ["active", "standby", "disable"] else "--"
+        self.nowait = serv["nowait"] if serv.get("nowait") else False
+        self.healthz = serv["healthz"] if serv.get("healthz") in ["up", "down", "degraded"] else "--"
+        self.status = serv["status"] if serv.get("status") in ["running","done","failed"] else "--"
+        self.message = serv["message"] if serv.get("message") else ""
+
+        # https://github.com/Netcracker/DRNavigator/blob/b4161fb15271485974abf5862e7272abc386fbc8/modules/stateful.py#L16
+
+        def set_service_status(smdict, site, mode):
+            failed_healthz = ['down', 'degraded', '--']
+
+            if mode and mode in 'standby' and smdict[site]['services'][self.service].get('allowedStandbyStateList'):
+                failed_healthz = set(failed_healthz) - set(
+                    smdict[site]['services'][self.service].get('allowedStandbyStateList'))
+
+            if self.healthz in failed_healthz or self.status in ['failed']:
+                return False
+            else:
+                return True
+        # separate service status field, since healthz may be treated differently depending on running mode - allowedStandbyStateList
+        self.service_status = set_service_status(smdict, site, mode)
 
     def is_ok(self):
-        if self.healthz in ['down','degraded','--'] or self.status in ['failed']:
-            return False
-        return True
+        return self.service_status
 
     def sortout_service_results(self):
         """ Put service name in appropriate list(failed or done) """
@@ -912,10 +927,10 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
     if force:
         logging.warning(f"Service: {service}. Force mode enabled. Service healthz ignored")
         stat = ServiceDRStatus(data)
-        stat.healthz = "up"
+        stat.service_status = True
         return stat
 
-    return ServiceDRStatus(data)
+    return ServiceDRStatus(data, sm_dict, site, mode)
 
 
 def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: []):
