@@ -266,6 +266,7 @@ class ServiceDRStatus:
         self.healthz = serv["healthz"] if serv.get("healthz") in ["up", "down", "degraded"] else "--"
         self.status = serv["status"] if serv.get("status") in ["running","done","failed"] else "--"
         self.message = serv["message"] if serv.get("message") else ""
+
         # https://github.com/Netcracker/DRNavigator/blob/b4161fb15271485974abf5862e7272abc386fbc8/modules/stateful.py#L16
 
         def set_service_status(smdict, site, mode):
@@ -283,10 +284,7 @@ class ServiceDRStatus:
         self.service_status = set_service_status(smdict, site, mode)
 
     def is_ok(self):
-        if self.service_status:
-            return True
-        return False
-
+        return self.service_status
 
     def sortout_service_results(self):
         """ Put service name in appropriate list(failed or done) """
