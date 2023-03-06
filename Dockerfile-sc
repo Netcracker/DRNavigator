@@ -15,7 +15,8 @@ WORKDIR /app/
 
 RUN useradd -r -u "${SM_UID}" "${SM_USER}" && \
     pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    chmod 755 /app/sm-client
 
 USER "${SM_USER}"
 
