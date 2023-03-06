@@ -49,7 +49,7 @@ def init_and_check_config(args) -> bool:
     logging.debug(f"Script arguments: {args}")
 
     # Define, check and load configuration file
-    conf_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.yaml") if args.config == "" else args.config
+    conf_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../config.yaml") if args.config == "" else args.config
     if not os.path.isfile(conf_file):
         logging.fatal("You should define configuration file for site-manager or copy it to config.yaml in site-manager main directory")
         exit(1)
