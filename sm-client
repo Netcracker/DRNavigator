@@ -195,6 +195,9 @@ def init_and_check_config(args) -> bool:
     else:
         skip_services.clear()
 
+    global done_services
+    done_services.clear()
+
     global failed_services
     failed_services.clear()
 
@@ -283,27 +286,20 @@ class ServiceDRStatus:
 
 class SMClusterState:
     def __init__(self,site=None):
-        def init_default(sitename, modules: [] = None):
+        def init_default(sitename):
             if len(self.sm.keys()) == 2:
                 raise ValueError("Only two sites in clusters are supported")
             self.sm[sitename]={}
             self.sm[sitename]["services"]={}
             self.sm[sitename]["return_code"]=None
             self.sm[sitename]["status"]=False #ServiceDRStatus
-            if not modules:
-                modules = [default_module]
-            for module in modules:
-                self.sm[sitename][module] = {}
-                self.sm[sitename][module]["deps_issue"] = None
-                self.sm[sitename][module]["service_dep_ordered"] = []
-                self.sm[sitename][module]["ts"] = None
         if not site or (site and isinstance(site, str)): #@todo rework
             global sm_conf
             if site and site not in sm_conf.keys():
                 raise ValueError("Unknown site name")
             self.sm = {}
             for sitename in [s for s in sm_conf.keys() if site == s] if site else sm_conf.keys():
-                init_default(sitename, sm_conf.get_modules())
+                init_default(sitename)
         elif isinstance(site, dict): # for dev/testing purposes
             self.sm = {}
             for key in site.keys():
@@ -345,7 +341,8 @@ class SMClusterState:
             elif mode == 'active':
                 site_sequence=[[site, 'active'], [opposite_site, 'standby']]
         elif procedure == 'stop':  # failover
-            mode, = self.sm[opposite_site]['services'][serv]['sequence'][0:1] or ['standby']
+            site_to_check = opposite_site if serv in self.sm[opposite_site]['services'] else site
+            mode, = self.sm[site_to_check]['services'][serv]['sequence'][0:1] or ['standby']
             if mode == 'standby':
                 site_sequence=[[site, 'standby'], [opposite_site, 'active']]
             elif mode == 'active':
@@ -469,6 +466,9 @@ def process_ts_services(ts:TopologicalSorter2, process_func, *run_args:()) -> No
     serv_thread_pool=[]
     global thread_result_queue
 
+    # Make deep copy for ts to process modules by flow on different sites separately
+    ts = copy.deepcopy(ts)
+
     while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
         for serv in ts.get_ready():
             if serv in failed_successors:
@@ -499,31 +499,32 @@ def run(services:[] = None, cmd="", site=""):
     sm_dict = sm_get_cluster_state(None)
 
     # assemble ordered service list to proceed, keeping in services specified in cli
-    for site_i in sm_dict.get_available_sites():
-        for mod_i in sm_conf.get_modules():
-            service_dep_ordered, return_code, ts = make_ordered_services_to_process(sm_dict, site_i, services,mod_i)
-            sm_dict[site_i][mod_i]['service_dep_ordered'].extend(service_dep_ordered)
-            sm_dict[site_i][mod_i]['ts'] = ts
-            sm_dict[site_i][mod_i]['deps_issue'] = not return_code
-            logging.debug(f"Site:{site_i} module:{mod_i} list:{sm_dict[site_i][mod_i]['service_dep_ordered']} "
-                          f"deps_issue:{sm_dict[site_i][mod_i]['deps_issue']}")
+    site_to_order = site if cmd not in ["stop", "move"] else None
 
     for mod_i in sm_conf.get_modules():
-        service_dep_ordered, return_code, ts = make_ordered_services_to_process(sm_dict, services_to_process = services, module=mod_i)
+        service_dep_ordered, return_code, ts = make_ordered_services_to_process(
+            sm_dict, site_to_order, services_to_process = services, module=mod_i)
+        # if can't order all sites services for failover, run it for opposite site
+        if ts is None and cmd == "stop":
+            logging.warning("Module: {mod_i}, can't order services for available site, try to order for active one...")
+            service_dep_ordered, return_code, ts = make_ordered_services_to_process(sm_dict, site,
+                                                                                    services_to_process=services,
+                                                                                    module=mod_i)
+
         sm_dict.globals[mod_i]['service_dep_ordered'] = service_dep_ordered
         sm_dict.globals[mod_i]['ts'] = ts
         sm_dict.globals[mod_i]['deps_issue'] = not return_code
-        logging.debug(f"Globals module:{mod_i} list:{sm_dict.globals[mod_i]['service_dep_ordered']} "
+        logging.debug(f"Module:{mod_i} list:{sm_dict.globals[mod_i]['service_dep_ordered']} "
                       f"deps_issue:{sm_dict.globals[mod_i]['deps_issue']}")
 
     # validation to satisfy cmd and current site status
     service_dep_ordered = []; ts = None
     try:
         for mod_i in sm_conf.get_modules():
-            services_list, ts_i = validate_operation(sm_dict, cmd, site, services, mod_i)
+            services_list = validate_operation(sm_dict, cmd, site, services, mod_i)
             service_dep_ordered.extend(services_list)
             if mod_i in default_module:
-                ts = ts_i
+                ts = sm_dict.globals[mod_i]['ts']
         logging.debug(f"Service order {service_dep_ordered}")
     except NotValid:
         exit(1)
@@ -607,7 +608,7 @@ def process_module_services(module, states, cmd, site, sm_dict):
 
     logging.info(f"Processing {module} module by cmd: {get_cmd()} on site: {get_site()}")
 
-    process_ts_services(sm_dict[sm_conf.get_opposite_site(site) if get_cmd() in 'stop' else get_site()][module]["ts"],
+    process_ts_services(sm_dict.globals[module]["ts"],
                         sm_process_service_with_polling,
                         get_site(), get_cmd(), sm_dict)
 
@@ -660,15 +661,17 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site : str = None,
         """
         wrong_dep_list={}
         for i in ll.keys():
-            if ll[i]['after'] and  ll[i]['after'][0] not in [ii for ii in ll.keys()]: #if wrong dep - collect them
+            wrong_deps = [dep for dep in ll[i]['after'] if dep not in ll]
+            if wrong_deps:
                 if not wrong_dep_list.get(i):
                     wrong_dep_list[i]={}
-                wrong_dep_list[i]['after'] = ll[i]['after']
+                wrong_dep_list[i]['after'] = wrong_deps
 
-            if ll[i]['before'] and ll[i]['before'][0] not in [ii for ii in ll.keys()]: #if wrong dep - collect them
+            wrong_deps = [dep for dep in ll[i]['before'] if dep not in ll]
+            if wrong_deps:
                 if not wrong_dep_list.get(i):
-                    wrong_dep_list[i]={}
-                wrong_dep_list[i]['before'] = ll[i]['before']
+                    wrong_dep_list[i] = {}
+                wrong_dep_list[i]['before'] = wrong_deps
 
         return wrong_dep_list
 
@@ -704,7 +707,7 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site : str = None,
         for service, depends in after_before_check(services_with_deps).items():  # check deps
             for depend in depends:
                 logging.warning(f"Site {site if site else 'merging'}. Service: {service} has nonexistent "
-                                f"{depend} dependency: {depends[depend]}")
+                                f"{depend} dependencies: {depends[depend]}")
                 ret = False
     except CycleError as e:
         logging.error(f"Site {site if site else 'merging'} has integrity issues: %s",e)
@@ -719,7 +722,7 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site : str = None,
     return service_lists, ret, ts
 
 
-def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=None, module=default_module) -> Tuple[list, TopologicalSorter2]:
+def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=None, module=default_module) -> list:
     """ Validate command compliance to current site state
     @param sm_dict: populated sm_dict
     @returns: Allowed or not to proceed operation <cmd> on <site>
@@ -741,14 +744,11 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
                 ret = False
         return ret
 
-    def check_dep_issue(site=None):
-        if site is None and sm_dict.globals[module]['deps_issue']:
-            logging.warning(f"Dependency issue in sites merging")
-            return False
-        elif site is not None and sm_dict[site][module]['deps_issue']:
-            logging.warning(f"Dependency issues on site: {site}")
-            if cmd in 'stop' and \
-                    (sm_dict[site][module]['ts'] is not None and sm_dict[site][module]['service_dep_ordered'] != []): # not integrity_error
+    def check_dep_issue():
+        if sm_dict.globals[module]['deps_issue']:
+            logging.warning(f"Module: {module}, found dependency issue")
+            if cmd == "stop" and (sm_dict.globals[module]['ts'] is not None and
+                                  sm_dict.globals[module]['service_dep_ordered'] != []):
                 logging.warning(f"Ignoring dependency issues for {cmd} command")
             else:
                 return False
@@ -792,31 +792,22 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
         return state_is_valid
 
     global sm_conf
-    service_dep_ordered = None ; ts = None
     ret = True
+
+    service_dep_ordered = services_to_run if services_to_run else sm_dict.globals[module]['service_dep_ordered']
 
     if cmd in "stop":
         # check site availability
         if not check_site_ssl_available(sm_conf.get_opposite_site(site)) or \
-                not check_dep_issue(sm_conf.get_opposite_site(site)):
+                not check_dep_issue():
             raise NotValid
-        service_dep_ordered = services_to_run if services_to_run else \
-            sm_dict[sm_conf.get_opposite_site(site)][module]['service_dep_ordered']
         check_services_on_site(service_dep_ordered, sm_conf.get_opposite_site(site))
-        ts=sm_dict[sm_conf.get_opposite_site(site)][module]['ts']
 
     elif cmd in "move":
-        service_dep_ordered = services_to_run if services_to_run else \
-            sm_dict[site][module]['service_dep_ordered']
         if not all(check_site_ssl_available(site_i) for site_i in sm_conf.keys()) or \
                 not all(check_services_on_site(service_dep_ordered, site_i) for site_i in sm_conf.keys()) or \
-                not all(check_dep_issue(site_i) for site_i in sm_conf.keys()):
+                not check_dep_issue():
             raise NotValid
-        if set(sm_dict[site][module]['service_dep_ordered']) != \
-                set(sm_dict[sm_conf.get_opposite_site(site)][module]['service_dep_ordered']):
-            logging.critical(f"Not able to perform 'move' operation because of different service lists on sites ")
-            raise NotValid
-        ts=sm_dict[site][module]['ts']
 
     elif cmd in readonly_cmd:
         ret = any([check_site_ssl_available(site)] if site else
@@ -824,37 +815,20 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
         if not ret:
             raise NotValid
 
-        if site is None:
-            service_dep_ordered = sm_dict.globals[module]['service_dep_ordered']
-            ts = sm_dict.globals[module]['ts']
-        else:
-            service_dep_ordered = sm_dict[site][module]['service_dep_ordered']
-            ts = sm_dict[site][module]['ts']
-
-        if services_to_run:
-            service_dep_ordered = [s for s in services_to_run if s in
-                                   sm_dict.get_module_services(sm_dict.get_available_sites()[0], module)]
-
         # Fail if required site (or site merging) has deps issues:
-        if not check_dep_issue(site):
+        if not check_dep_issue():
             raise NotValid
 
         for site_i in sm_dict.get_available_sites():
             check_services_on_site(service_dep_ordered, site_i)
-            check_dep_issue(site_i)
+            check_dep_issue()
 
     elif cmd in site_cmds:
-
-        service_dep_ordered = [service for service in sm_dict[site][module]['service_dep_ordered']
-                               if service in services_to_run] \
-            if services_to_run else \
-            sm_dict[site][module]['service_dep_ordered']
         if not check_site_ssl_available(site) or \
                 not check_services_on_site(service_dep_ordered, site) or \
-                not check_dep_issue(site) or \
-                not check_state_restrictions(services_to_run if services_to_run else sm_dict[site].get('services', {}).keys()):
+                not check_dep_issue() or \
+                not check_state_restrictions(service_dep_ordered):
             raise NotValid
-        ts=sm_dict[site][module]['ts']
 
     else:
         ret = False
@@ -862,7 +836,7 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
     if not ret:
         raise NotValid
 
-    return service_dep_ordered,ts
+    return service_dep_ordered
 
 
 def sm_process_service(site, service, site_cmd: str, no_wait=True, force=False) -> Tuple[Dict, bool, int]:

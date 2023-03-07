@@ -240,28 +240,27 @@ def test_validate_operation(caplog):
 
     # Init state
     sm_dict=SMClusterState()
-    sm_dict["k8s-1"]={"status":True, "return_code":None, "stateful":{"service_dep_ordered":[], "deps_issue":False,
-                                                                     "ts":TopologicalSorter2}}
-    sm_dict["k8s-2"]={"status":False, "return_code":None, "stateful":{"service_dep_ordered":[], "deps_issue":False,
-                                                                      "ts":TopologicalSorter2}}
+    sm_dict["k8s-1"] = {"status": True, "return_code":None }
+    sm_dict["k8s-2"] = {"status": False, "return_code": None }
+    sm_dict.globals = {"stateful": {"service_dep_ordered": [], "deps_issue": False, "ts": TopologicalSorter2}}
 
     # Check active
-    assert validate_operation(sm_dict, "active", "k8s-1")
+    assert validate_operation(sm_dict, "active", "k8s-1") == []
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict, "active", "k8s-2")
 
     # Check standby
-    assert validate_operation(sm_dict, "standby", "k8s-1")
+    assert validate_operation(sm_dict, "standby", "k8s-1") == []
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict, "standby", "k8s-2")
 
     # Check disable
-    assert validate_operation(sm_dict, "disable", "k8s-1")
+    assert validate_operation(sm_dict, "disable", "k8s-1") == []
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict, "disable", "k8s-2")
 
     # Check return
-    assert validate_operation(sm_dict, "return", "k8s-1")
+    assert validate_operation(sm_dict, "return", "k8s-1") == []
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict, "return", "k8s-2")
 
@@ -274,33 +273,24 @@ def test_validate_operation(caplog):
     # Check stop
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict, "stop", "k8s-1")
-    assert validate_operation(sm_dict, "stop", "k8s-2")
+    assert validate_operation(sm_dict, "stop", "k8s-2") == []
 
     sm_dict_run_services=SMClusterState()
 
-    sm_dict_run_services["k8s-1"]={"status":True, "return_code":None,
-                                   "stateful":{"service_dep_ordered":[], "deps_issue":False,
-                                               "ts":TopologicalSorter2},
-                                   "services":{"serv1":{}}}
+    sm_dict_run_services["k8s-1"] = {"status": True, "return_code": None, "services": {"serv1": {}}}
 
-    sm_dict_run_services["k8s-2"]={"status":False, "return_code":None,
-                                   "stateful":{"service_dep_ordered":[], "deps_issue":False,
-                                               "ts":TopologicalSorter2},
-                                   "services":{"serv1":{}}}
+    sm_dict_run_services["k8s-2"] = {"status": False, "return_code": None, "services": {"serv1": {}}}
+    sm_dict_run_services.globals = {"stateful": {"service_dep_ordered": [], "deps_issue": False, "ts": TopologicalSorter2}}
+
     with caplog.at_level(logging.WARNING):
         caplog.clear()
         validate_operation(sm_dict_run_services, "stop", "k8s-2", ["fake1", "serv1"])
         assert "Service 'fake1' does not exist on 'k8s-1' site" in caplog.text
 
     sm_dict_run_stop=SMClusterState()
-    sm_dict_run_stop["k8s-2"]={"status":True, "return_code":None,
-                               "stateful":{"service_dep_ordered":["serv1"], "deps_issue":True,
-                                           "ts":TopologicalSorter2},
-                               "services":{"serv1":{}}}
-    sm_dict_run_stop["k8s-1"]={"status":True, "return_code":None,
-                               "stateful":{"service_dep_ordered":["serv1"], "deps_issue":True,
-                                           "ts":TopologicalSorter2},
-                               "services":{"serv1":{}}}
+    sm_dict_run_stop["k8s-2"] = {"status": True, "return_code": None, "services": {"serv1": {}}}
+    sm_dict_run_stop["k8s-1"] = {"status": True, "return_code": None, "services": {"serv1": {}}}
+    sm_dict_run_stop.globals = {"stateful": {"service_dep_ordered": ["serv1"], "deps_issue": True, "ts": TopologicalSorter2}}
     with caplog.at_level(logging.WARNING):
         caplog.clear()
         validate_operation(sm_dict_run_stop, "stop", "k8s-2", ["serv1"])
@@ -310,13 +300,10 @@ def test_validate_operation(caplog):
 def test_validate_restrictions(mocker, caplog):
     init_and_check_config(args_init(test_restrictions_config_path))
     sm_dict=SMClusterState()
-    sm_dict["k8s-1"]={"status":True, "return_code":None, "stateful":{"service_dep_ordered":["serv1", "serv2"],
-                                                                     "deps_issue":False, "ts":TopologicalSorter2},
-                      "services":{"serv1":{}, "serv2":{}}}
-
-    sm_dict["k8s-2"]={"status":True, "return_code":None, "stateful":{"service_dep_ordered":["serv1", "serv2"],
-                                                                     "deps_issue":False, "ts":TopologicalSorter2},
-                      "services":{"serv1":{}, "serv2":{}}}
+    sm_dict["k8s-1"] = {"status": True, "return_code": None, "services": {"serv1":{}, "serv2": {}}}
+    sm_dict["k8s-2"] = {"status": True, "return_code": None, "services": {"serv1": {}, "serv2": {}}}
+    sm_dict.globals = {"stateful": {"service_dep_ordered": ["serv1", "serv2"], "deps_issue": False,
+                                    "ts": TopologicalSorter2}}
 
     # Test standby-standby restriction for all services
     test_resp={'services':{'serv1':{'healthz':'up', 'mode':'standby', 'status':'done'}}}
@@ -367,10 +354,16 @@ def test_SMClusterState_init():
     with pytest.raises(ValueError) as e:
         SMClusterState("not valid site")
     assert str(e.value) in "Unknown site name"
-    assert "services" and "deps_issue" and default_module in SMClusterState("k8s-2")["k8s-2"]
-    assert "services" and "deps_issue" and default_module in SMClusterState({"k8s-3":{"services":{"serv1":{}},
-                                                                                      "status":False},
-                                                                             "k8s-1":{}})["k8s-3"]
+    sm_dict = SMClusterState("k8s-2")
+    assert "services" in sm_dict["k8s-2"]
+    assert default_module in sm_dict.globals
+    assert all(key in sm_dict.globals[default_module] for key in ["deps_issue", "service_dep_ordered", "ts"])
+
+    sm_dict = SMClusterState({"k8s-3": {"services": {"serv1": {}}, "status": False}, "k8s-1": {}})
+    assert "services" in sm_dict["k8s-3"]
+    assert default_module in sm_dict.globals
+    assert all(key in sm_dict.globals[default_module] for key in ["deps_issue", "service_dep_ordered", "ts"])
+
     sm_dict=SMClusterState({'k8s-1':
         {"services":{
             "serv1":{"module":'stateful'},
