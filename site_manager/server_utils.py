@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import logging
-import utils
+from common import utils
 
 
 def get_all_services(sm_dict):
@@ -53,12 +53,12 @@ def get_status(service, *args, **kwargs):
     """
 
     output = dict()
-    _, status, _ = utils.io_make_http_json_request(service['parameters']["serviceEndpoint"],token=utils.SM_AUTH_TOKEN)
+    _, status, _ = utils.io_make_http_json_request(service['parameters']["serviceEndpoint"], token=utils.SM_AUTH_TOKEN)
     output["mode"] = status.get("mode", "--")
     output["status"] = status.get("status", "--")
     output["message"] = status.get("message", "")
     if service['parameters'].get("healthzEndpoint", "") != "":
-        _, healthz, _ = utils.io_make_http_json_request(service['parameters']["healthzEndpoint"],token=utils.SM_AUTH_TOKEN)
+        _, healthz, _ = utils.io_make_http_json_request(service['parameters']["healthzEndpoint"], token=utils.SM_AUTH_TOKEN)
         output["healthz"] = healthz.get("status", "--")
     else:
         output["healthz"] = "--"
