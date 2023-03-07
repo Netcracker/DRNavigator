@@ -667,7 +667,6 @@ def test_process_module_services(mocker, caplog):
         "services":{
             "serv1": {"timeout": 1,
                      "sequence": ['standby','active']}},
-        "stateful": {"ts": None},
         "status": False}
     ts = TopologicalSorter2()
     ts.add("serv1")
@@ -677,16 +676,12 @@ def test_process_module_services(mocker, caplog):
             "serv1": {"timeout": 1,
                      "sequence": ['standby','active'],
                      "allowedStandbyStateList":"up"}},
-        "stateful": {"ts":ts},
         "status": True}
+    sm_dict.globals = {"stateful": {"ts":ts}}
 
     process_module_services("stateful","", "stop", "k8s-1", sm_dict)
     assert "serv1" in done_services
 
     done_services.clear()
-    ts = TopologicalSorter2()
-    ts.add("serv1")
-    ts.prepare()
-    sm_dict["k8s-2"]["stateful"]["ts"] = ts
     process_module_services("stateful", "", "active", "k8s-2", sm_dict)
     assert "serv1" in done_services
