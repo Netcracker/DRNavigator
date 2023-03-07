@@ -7,18 +7,17 @@ Date:        2021-11-19
 Description: Service for management of microservices in active-standby scheme of kubernetes cluster
 """
 
-import importlib.util
-import logging
 import threading
-import time
 import http
 import copy
-import utils
+
+from kubernetes.client import ApiException
+
 from flask import Flask, request, jsonify, make_response
 from kubernetes import client, config
 from prometheus_flask_exporter.multiprocess import GunicornInternalPrometheusMetrics
 from prometheus_client import Gauge
-from server_utils import *
+from site_manager.server_utils import *
 
 
 # List of possible procedures
@@ -51,7 +50,7 @@ if utils.FRONT_HTTP_AUTH or utils.BACK_HTTP_AUTH:
     w_thread.start()
 
 
-def get_sitemanagers_dict():
+def get_sitemanagers_dict(api_version=utils.SM_VERSION):
     """
     Method creates dictionary of donwloaded data from sitemanager CRs
     """
@@ -70,18 +69,30 @@ def get_sitemanagers_dict():
 
     try:
         response = client.CustomObjectsApi(api_client=k8s_api_client).list_cluster_custom_object(group=utils.SM_GROUP,
-                                                                                                 version=utils.SM_VERSION,
+                                                                                                 version=api_version,
                                                                                                  plural=utils.SM_PLURAL,
                                                                                                  _request_timeout=10)
 
-    except Exception as e:
-        logging.error("Can not download sitemanager objects: \n %s" % str(e))
-        return {}
+    except ApiException as e:
+        if e.status == 404:
+            logging.error(f"Can't get sitemanager objects: Desired CRD not found:\n"
+                          f"\tplural={utils.SM_PLURAL}\n"
+                          f"\tgroup={utils.SM_GROUP}\n"
+                          f"\tversion={api_version}")
+            raise utils.ProcedureException(output={"message": "Can't get sitemanager objects: Desired CRD not found",
+                                                   "plural": utils.SM_PLURAL,
+                                                   "group": utils.SM_GROUP,
+                                                   "version": api_version})
+        else:
+            raise e
 
     output = dict()
     output['services'] = {}
     for item in response["items"]:
-        output['services'][item['metadata'].get('name')] = get_module_specific_cr(item)
+        serviceName = item['spec']['sitemanager'].get("alias",
+                                           "%s.%s" % (item['metadata'].get('name'), item['metadata'].get('namespace')))
+        output['services'][serviceName] = \
+            get_module_specific_cr(item)
 
     return output
 
@@ -126,7 +137,8 @@ def get_module_specific_cr(item):
         healthz_endpoint = ''
     allowed_standby_state_list = [i.lower() for i in item['spec']['sitemanager'].get('allowedStandbyStateList', ["up"])]
 
-    result = {"namespace": item["metadata"]["namespace"],
+    result = {"CRname": item["metadata"]["name"],
+            "namespace": item["metadata"]["namespace"],
             "module": item['spec']['sitemanager'].get('module', ''),
             "after": item['spec']['sitemanager'].get('after', []),
             "before": item['spec']['sitemanager'].get('before', []),
@@ -137,6 +149,8 @@ def get_module_specific_cr(item):
                  "healthzEndpoint": healthz_endpoint}}
     if 'timeout' in item['spec']['sitemanager']:
         result['timeout'] = item['spec']['sitemanager']['timeout']
+    if 'alias' in item['spec']['sitemanager']:
+        result['alias'] = item['spec']['sitemanager']['alias']
     return result
 
 
@@ -153,18 +167,22 @@ def root_get():
 
 @app.route('/validate', methods=['POST'])
 def cr_validate():
-    cr = request.json["request"]
-    logging.debug(f"Initial object from API for validating: {cr}")
+    data = request.json["request"]
+    logging.debug(f"Initial object from API for validating: {data}")
     allowed = True
     message = "All checks passed"
-    uid = cr["uid"]
+    uid = data["uid"]
 
     # Check name for unique
     sm_dict = get_sitemanagers_dict()
-    existed_cr = sm_dict['services'].get(cr['name'], None)
-    if existed_cr is not None and existed_cr['namespace'] != cr['namespace']:
+    service_name = data['object']['spec']['sitemanager'].get("alias",
+                                                             "%s.%s" % (data.get('name'), data.get('namespace')))
+    existed_cr = sm_dict['services'].get(service_name, None)
+    if existed_cr is not None and existed_cr['namespace'] != data['namespace']:
         allowed = False
-        message = f"CR with name {cr['name']} has already existed in cluster"
+        message = f"Can't use alias {service_name}, this name is used for another service" \
+            if "alias" in data['object']['spec']['sitemanager'] else \
+            f"Can't use service with calculated name {service_name}, this name is used for another service"
         logging.debug(f"CR validation fails: {message}")
 
     return jsonify({"apiVersion": "admission.k8s.io/v1",
@@ -177,25 +195,67 @@ def cr_validate():
 
 @app.route('/convert', methods=['POST'])
 def cr_convert():
-
     logging.debug(f"Initial object from API for converting: {request.json['request']}")
 
     spec = request.json["request"]["objects"]
     modified_spec = copy.deepcopy(spec)
     for i in range(len(modified_spec)):
-        # v1->v2 conversion
-        if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v2":
-            modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
-
+        # v1 -> v2, v3 conversion
+        if modified_spec[i]["apiVersion"] == "netcracker.com/v1":
             if "module" not in modified_spec[i]["spec"]["sitemanager"]:
-                modified_spec[i]["spec"]["sitemanager"]["module"] = modified_spec[i]["spec"]["sitemanager"].get("module", "stateful")
+                modified_spec[i]["spec"]["sitemanager"]["module"] = modified_spec[i]["spec"]["sitemanager"].get(
+                    "module", "stateful")
 
             if "parameters" not in modified_spec[i]["spec"]["sitemanager"]:
                 modified_spec[i]["spec"]["sitemanager"]["parameters"] = {}
-                modified_spec[i]["spec"]["sitemanager"]["parameters"]["serviceEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("serviceEndpoint", "")
-                modified_spec[i]["spec"]["sitemanager"]["parameters"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("ingressEndpoint", "")
-                modified_spec[i]["spec"]["sitemanager"]["parameters"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"].pop("healthzEndpoint", "")
-        # v2->v1 conversion
+                modified_spec[i]["spec"]["sitemanager"]["parameters"]["serviceEndpoint"] = modified_spec[i]["spec"][
+                    "sitemanager"].pop("serviceEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["parameters"]["ingressEndpoint"] = modified_spec[i]["spec"][
+                    "sitemanager"].pop("ingressEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["parameters"]["healthzEndpoint"] = modified_spec[i]["spec"][
+                    "sitemanager"].pop("healthzEndpoint", "")
+
+        # v2 -> v3 conversion
+        if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v3":
+            # TODO: It's needed for automatic conversion not stateful modules
+            if modified_spec[i]["spec"]["sitemanager"]["module"] != "stateful":
+                modified_spec[i]["spec"]["sitemanager"]["alias"] = modified_spec[i]["metadata"]["name"]
+
+            # skip CR, if it doesn't have any dependencies
+            if modified_spec[i]["spec"]["sitemanager"]["before"] or modified_spec[i]["spec"]["sitemanager"]["after"]:
+                sm_dict = get_sitemanagers_dict("v2")
+
+                # Before services
+                for j in range(len(modified_spec[i]["spec"]["sitemanager"]["before"])):
+                    before_service_name = modified_spec[i]["spec"]["sitemanager"]["before"][j]
+                    before_services = [key for key, value in sm_dict["services"].items()
+                                       if value["CRname"] == before_service_name]
+                    if not before_services:
+                        logging.error("Found non-exist before dependency %s for CR %s" %
+                                      (before_service_name, modified_spec[i]["metadata"]["name"]))
+                    else:
+                        modified_spec[i]["spec"]["sitemanager"]["before"][j] = before_services[0]
+
+                # After services
+                for j in range(len(modified_spec[i]["spec"]["sitemanager"]["after"])):
+                    after_service_name = modified_spec[i]["spec"]["sitemanager"]["after"][j]
+                    after_services = [key for key, value in sm_dict["services"].items()
+                                      if value["CRname"] == after_service_name]
+                    if not after_services:
+                        logging.error("Found non-exist after dependency %s for CR %s" %
+                                      (after_service_name, modified_spec[i]["metadata"]["name"]))
+                    else:
+                        modified_spec[i]["spec"]["sitemanager"]["after"][j] = after_services[0]
+
+            if modified_spec[i]["spec"]["sitemanager"].get("parameters", {}).get("ingressEndpoint"):
+                del modified_spec[i]["spec"]["sitemanager"]["parameters"]["ingressEndpoint"]
+            modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
+
+        # v3 -> v2 conversion
+        if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v2":
+            modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
+
+        # v3,v2->v1 conversion
         if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v1":
             modified_spec[i]["apiVersion"] = request.json["request"]["desiredAPIVersion"]
 
@@ -207,6 +267,7 @@ def cr_convert():
                 modified_spec[i]["spec"]["sitemanager"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("ingressEndpoint", "")
                 modified_spec[i]["spec"]["sitemanager"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("healthzEndpoint", "")
                 del modified_spec[i]["spec"]["sitemanager"]["parameters"]
+
 
     logging.debug("CR convertation is started.")
     logging.debug(f"Initial spec: {spec}")
@@ -245,7 +306,7 @@ def sitemanager_get():
     try:
         response = json_response(200, get_sitemanagers_dict())
     except Exception as e:
-        logging.error(str(e))
+        logging.error("Can not get sitemanager structures \n %s" % str(e))
         response = json_response(500, {"message": "Can not get sitemanager structures"})
 
     return response
@@ -277,7 +338,12 @@ def sitemanager_post():
 
     no_wait = True if data.get("no-wait", "") in (1, "1", True, "true", "True") else False
 
-    sm_dict = get_sitemanagers_dict()
+    try:
+        sm_dict = get_sitemanagers_dict()
+    except Exception as e:
+        logging.error("Can not get sitemanager structures: \n %s" % str(e))
+        return json_response(500, {"message": "Can not get sitemanager structures"})
+
     all_services = get_all_services(sm_dict)
 
     if data["procedure"] == "list":

@@ -5,14 +5,18 @@ ARG SM_UID=1001
 
 USER root
 
-COPY sm-client smclient.py utils.py version /app/
+COPY smclient.py version sm-client /app/
+COPY sm_client/ /app/sm_client/
+COPY common/ /app/common/
+
 COPY requirements-sc.txt /app/requirements.txt
 
 WORKDIR /app/
 
 RUN useradd -r -u "${SM_UID}" "${SM_USER}" && \
     pip install --upgrade pip && \
-    pip install -r requirements.txt
+    pip install -r requirements.txt && \
+    chmod 755 /app/sm-client
 
 USER "${SM_USER}"
 

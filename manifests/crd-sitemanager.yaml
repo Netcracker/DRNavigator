@@ -11,9 +11,86 @@ spec:
     singular: sitemanager
   scope: Namespaced
   versions:
-  - name: v2
+  - name: v3
     served: true
     storage: true
+    subresources:
+      status: {}
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              sitemanager:
+                properties:
+                  module:
+                    type: string
+                  alias:
+                    type: string
+                  after:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  before:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  sequence:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  allowedStandbyStateList:
+                    items:
+                      type: string
+                    type: array
+                    default: ["up"]
+                  timeout:
+                    type: integer
+                    minimum: 10
+                    maximum: 1000
+                  parameters:
+                    type: object
+                    properties:
+                      serviceEndpoint:
+                        type: string
+                      healthzEndpoint:
+                        type: string
+                required:
+                - module
+                type: object
+            type: object
+          status:
+            properties:
+              siteManagerStatus:
+                properties:
+                  status:
+                    type: string
+                type: object
+            type: object
+        type: object
+  - name: v2
+    served: true
+    storage: false
+    deprecated: true
+    deprecationWarning: >-
+      netcracker.com/v2 SiteManager is deprecated; use v3 and see actual
+      version on
+      https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful
     subresources:
       status: {}
     schema:

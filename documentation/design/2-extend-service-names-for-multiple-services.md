@@ -126,7 +126,7 @@ In cluster:
 apiVersion: netcracker.com/v3
 kind: SiteManager
 metadata:
-  name: ns1-serviceA.ns1
+  name: ns1-serviceA
   namespace: ns1
 spec:
   sitemanager:
@@ -136,7 +136,7 @@ spec:
 apiVersion: netcracker.com/v3
 kind: SiteManager
 metadata:
-  name: ns2-serviceB.ns2
+  name: ns2-serviceB
   namespace: ns2
 spec:
   sitemanager:
@@ -157,7 +157,7 @@ spec:
     after: []
     before: []
 ---
-apiVersion: netcracker.com/v2
+apiVersion: netcracker.com/v3
 kind: SiteManager
 metadata:
   name: serviceB
@@ -172,7 +172,7 @@ In cluster:
 apiVersion: netcracker.com/v3
 kind: SiteManager
 metadata:
-  name: serviceA.ns1
+  name: serviceA
   namespace: ns1
 spec:
   sitemanager:
@@ -182,7 +182,7 @@ spec:
 apiVersion: netcracker.com/v3
 kind: SiteManager
 metadata:
-  name: serviceB.ns2
+  name: serviceB
   namespace: ns2
 spec:
   sitemanager:
@@ -208,6 +208,206 @@ will recognise the as different services;
 with new name;
 * Requires manually steps outside the cluster;
 * Additional test cases are required;
+
+## Namespace Restriction Bypass
+
+Unfortunately for some services it's important to have different namespaces on different sites of DR cluster. 
+As result after changes in service name rules will be implemented, such service will be define as two different services 
+on different sites, e.g.:
+```commandline
++-----------------------------+--------------------------------------+--------------------------------------+
+| Service                     |                site-1                |                site-2                |
++-----------------------------+--------------------------------------+--------------------------------------+
+|                             | mode | DR status | healthz | message | mode | DR status | healthz | message |
+| --------------------------  | ------------------------------------ | ------------------------------------ |
+| sm-dummy.ns-in-site-1       |     standby / done / up / I'm OK     | -- / -- / -- / Service doesn't exist |
+| sm-dummy.ns-in-site-2       | -- / -- / -- / Service doesn't exist |      active / done / up / I'm OK     |
++-----------------------------+--------------------------------------+--------------------------------------+
+```
+For this reason it's needed to increase functionality to support such situations.
+
+### Considered Options
+
+#### 1. Support aliases in sm-config
+
+Because such situation appears in sm-client and as a result of the out of sync between sites, we can resolve this situation 
+defining aliases for services, that will be used by sm-client:
+```yaml
+aliases:
+  sm-dummy:
+    site-1: sm-dummy.ns-in-site-1
+    site-2: sm-dummy.ns-in-site-2
+```
+
+`sm-dummy` in that case is alias for services `sm-dummy.ns-in-site-1` and `sm-dummy.ns-in-site-2`. Because of this 
+configuration sm-client can understand, that `sm-dummy.ns-in-site-1` and `sm-dummy.ns-in-site-2` represent one service 
+on different sites:
+
+```commandline
++-----------------------------+--------------------------------------+--------------------------------------+
+| Service                     |                site-1                |                site-2                |
++-----------------------------+--------------------------------------+--------------------------------------+
+|                             | mode | DR status | healthz | message | mode | DR status | healthz | message |
+| --------------------------  | ------------------------------------ | ------------------------------------ |
+| sm-dummy                    |     standby / done / up / I'm OK     |      active / done / up / I'm OK     |
++-----------------------------+--------------------------------------+--------------------------------------+
+```
+
+### Positive Consequences
+* It solves the problem with namespace restrictions;
+* Don't touch behaviour of Site-Manager;
+* Can be easily customized by user;
+* Can be userful not only for namespaces but in case of mistakes in CR name for example.
+
+### Negative Consequences
+* Not easy to implement;
+* Requires manually steps outside the cluster to reconfigure existed configuration;
+* Additional test cases are required;
+
+#### 2. Opponent name in CR
+
+We can add special optional field to define service name for opponent site, e.g. for `site-1`:
+```yaml
+apiVersion: netcracker.com/v3
+kind: SiteManager
+metadata:
+  name: sm-dummy
+  namespace: ns-in-site-1
+spec:
+  sitemanager:
+    opponentService: sm-dummy.ns-in-site-2
+    after: []
+    before: []
+```
+
+In sm-client this field can be used to make links between services with different names.
+
+### Positive Consequences
+* It solves the problem with namespace restrictions;
+* Can be userful not only for namespaces but in case of mistakes in CR name for example.
+
+### Negative Consequences
+* Requires implementation in CR and sm-client;
+* It is not obvious what name should be used in sm-client: `--run-services`, `-skip-services`, status table, etc.;
+* Unexpected behaviour, if `opponentService` options aren't consistent in DR sites` CRs.
+* Automatic v2->v3 conversation for already existed services can be wrong;
+* Additional test cases are required;
+
+#### 3. Override service name
+
+We can add special optional field to override service name, e.g. for `site-1`:
+```yaml
+apiVersion: netcracker.com/v3
+kind: SiteManager
+metadata:
+  name: sm-dummy
+  namespace: ns-in-site-1
+spec:
+  sitemanager:
+    serviceName: sm-dummy-true-name
+    after: []
+    before: []
+```
+
+`serviceName` value will be used instead of `<cr-name>.<namespace>` for all operations on this service:
+
+```commandline
++-----------------------------+--------------------------------------+--------------------------------------+
+| Service                     |                site-1                |                site-2                |
++-----------------------------+--------------------------------------+--------------------------------------+
+|                             | mode | DR status | healthz | message | mode | DR status | healthz | message |
+| --------------------------  | ------------------------------------ | ------------------------------------ |
+| sm-dummy-true-name          |        standby / done / up /         |        active / done / up /         |
++-----------------------------+--------------------------------------+--------------------------------------+
+```
+
+### Positive Consequences
+* It solves the problem with namespace restrictions;
+* Can be userful not only for namespaces but in case of mistakes in CR name for example.
+* Easy to implement;
+
+### Negative Consequences
+* Requires to validate, if `serviceName` value is unique on cluster;
+* Сan broken concept "service name like dns name";
+* Automatic v2->v3 conversation for already existed services can be wrong;
+
+#### 4. Turn on/off namespace concatenation
+
+We can add special optional field to turn on/off adding namespace to service name (`isUniqueOnCluster`, default is false):
+```yaml
+apiVersion: netcracker.com/v3
+kind: SiteManager
+metadata:
+  name: sm-dummy
+  namespace: ns-in-site-1
+spec:
+  sitemanager:
+    isUniqueOnCluster: true
+    after: []
+    before: []
+```
+
+If `isUniqueOnCluster` is `true`, it means, that this service has only one exemplar in cluster and for it service name 
+is `<cr-name>` like now:
+
+```commandline
++-----------------------------+--------------------------------------+--------------------------------------+
+| Service                     |                site-1                |                site-2                |
++-----------------------------+--------------------------------------+--------------------------------------+
+|                             | mode | DR status | healthz | message | mode | DR status | healthz | message |
+| --------------------------  | ------------------------------------ | ------------------------------------ |
+| sm-dummy                    |        standby / done / up /         |        active / done / up /         |
++-----------------------------+--------------------------------------+--------------------------------------+
+```
+
+### Positive Consequences
+* It solves the problem with namespace restrictions;
+* Easy to implement;
+
+### Negative Consequences
+* Requires to validate, if service names for unique if `isUniqueOnCluster` is true;
+* Сan broken concept "service name like dns name";
+* Automatic v2->v3 conversation for already existed services can be wrong;
+
+### 5. Different module behaviour
+
+We can add namespaces only for services with specific volumes (e.g. not stateful). As result, services with 
+another module will have the same name:
+```yaml
+apiVersion: netcracker.com/v3
+kind: SiteManager
+metadata:
+  name: sm-dummy
+  namespace: ns-in-site-1
+spec:
+  sitemanager:
+    module: not-stateful
+    after: []
+    before: []
+```
+
+Result:
+
+```commandline
++-----------------------------+--------------------------------------+--------------------------------------+
+| Service                     |                site-1                |                site-2                |
++-----------------------------+--------------------------------------+--------------------------------------+
+|                             | mode | DR status | healthz | message | mode | DR status | healthz | message |
+| --------------------------  | ------------------------------------ | ------------------------------------ |
+| sm-dummy                    |        standby / done / up /         |        active / done / up /         |
++-----------------------------+--------------------------------------+--------------------------------------+
+```
+
+### Positive Consequences
+* It solves the problem with namespace restrictions;
+* Easy to implement;
+
+### Negative Consequences
+* Requires to validate unique of service names;
+* Such situation doesn't relate to module and can appear for stateful services. Changing module for such
+service follows additional problems with dependencies and flow;
+* Сan broken concept "service name like dns name";
+* Automatic v2->v3 conversation for already existed services can be wrong;
 
 ## Summary
 

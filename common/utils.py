@@ -25,7 +25,7 @@ else:
 # Define kubernetes CR objects
 SM_GROUP = os.environ.get("SM_GROUP", "netcracker.com")
 SM_PLURAL = os.environ.get("SM_PLURAL", "sitemanagers")
-SM_VERSION = os.environ.get("SM_VERSION", "v2")
+SM_VERSION = os.environ.get("SM_VERSION", "v3")
 
 # Define services default parameters
 HTTP_SCHEME = os.environ.get("HTTP_SCHEME", "http://")
@@ -59,6 +59,7 @@ class ProcedureException(Exception):
     """
 
     def __init__(self, output):
+        super().__init__(output)
         self.output = output
 
 
@@ -89,7 +90,7 @@ def send_post(url, mode, no_wait):
     return dict.fromkeys(['fatal'], True)
 
 
-def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None, retry=3, use_auth=FRONT_HTTP_AUTH) -> Tuple[bool, Dict, int]:
+def io_make_http_json_request(url="", token="", verify=SM_CACERT, http_body:dict=None, retry=3, use_auth=FRONT_HTTP_AUTH) -> Tuple[bool, Dict, int]:
     """ Sends GET/POST request to service
     @param string url: the URL to service operator
     @param token: Bearer token
