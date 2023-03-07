@@ -151,7 +151,12 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
     @returns: Allowed or not to proceed operation <cmd> on <site>
     @todo warn/fail in case deps are different
     """
-    service_dep_ordered = services_to_run if services_to_run else sm_dict.globals[module]['service_dep_ordered']
+
+    service_dep_ordered = [s for s in services_to_run
+                           if sm_dict[sm_dict.get_available_sites()[0]]['services']
+                           .get(s, {})
+                           .get("module", settings.default_module) == module] \
+        if services_to_run else sm_dict.globals[module]['service_dep_ordered']
 
     if cmd in validation_func:
         validation_func[cmd](sm_dict, cmd, site, service_dep_ordered, module)

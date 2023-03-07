@@ -42,7 +42,7 @@ def test_validate_operation(caplog):
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict, "move", "k8s-1")
     with pytest.raises(NotValid):
-        assert validate_operation(sm_dict, "move", "k8s-1")
+        assert validate_operation(sm_dict, "move", "k8s-2")
 
     # Check stop
     with pytest.raises(NotValid):
@@ -70,6 +70,22 @@ def test_validate_operation(caplog):
         caplog.clear()
         validate_operation(sm_dict_run_stop, "stop", "k8s-2", ["serv1"])
         assert "Ignoring dependency issues for stop command" in caplog.text
+
+    # Check services_to_run for different modules
+    sm_dict_services_to_run = SMClusterState()
+    sm_dict_services_to_run["k8s-2"] = {"status": True, "return_code": None, "services":
+        {"serv1": {"module": "stateful"}, "serv2": {"module": "custom_module"}, "serv3": {"module": "custom_module_2"}}}
+    sm_dict_services_to_run["k8s-1"] = {"status": True, "return_code": None, "services":
+        {"serv1": {"module": "stateful"}, "serv2": {"module": "custom_module"}, "serv3": {"module": "custom_module_2"}}}
+    sm_dict_services_to_run.globals = {"stateful": {"service_dep_ordered": ["serv1"], "deps_issue": False,
+                                             "ts": TopologicalSorter2},
+                                "custom_module": {"service_dep_ordered": ["serv2"], "deps_issue": False,
+                                                  "ts": TopologicalSorter2},
+                                "custom_module_2": {"service_dep_ordered": ["serv3"], "deps_issue": False,
+                                                  "ts": TopologicalSorter2}}
+
+    assert validate_operation(sm_dict_services_to_run, "move", "k8s-1", ["serv1", "serv3"], "stateful") == ["serv1"]
+    assert validate_operation(sm_dict_services_to_run, "move", "k8s-1", ["serv1", "serv3"], "custom_module") == []
 
 
 def test_validate_restrictions(mocker, caplog):
