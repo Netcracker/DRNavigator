@@ -118,3 +118,83 @@ def test_validate_restrictions(mocker, caplog):
 
     # Test active-active restriction for not restricted service
     assert validate_operation(sm_dict, "active", "k8s-1", ["serv1"])
+
+
+def test_deps_consistence_validation(mocker, caplog):
+    init_and_check_config(args_init())
+
+    # Check services_to_run for different modules
+    sm_dict = SMClusterState()
+    sm_dict["k8s-2"] = {"status": True, "return_code": None, "services":
+        {"serv1": {}, "serv2": {"before": "serv1"}, "serv3": {"after": "serv1"}}}
+    sm_dict["k8s-1"] = {"status": True, "return_code": None, "services":
+        {"serv1": {}, "serv2": {}, "serv3": {}}}
+    sm_dict.globals = {"stateful": {"service_dep_ordered": ["serv1", "serv2", "serv3"],
+                                    "deps_issue": False, "ts": TopologicalSorter2}}
+
+    # Check status
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        assert validate_operation(sm_dict, "status", None)
+        assert "Found inconsistent before dependencies for service serv2" in caplog.text
+        assert "Found inconsistent after dependencies for service serv3" in caplog.text
+
+    # Check list
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        assert validate_operation(sm_dict, "list", None)
+        assert "Found inconsistent before dependencies for service serv2" in caplog.text
+        assert "Found inconsistent after dependencies for service serv3" in caplog.text
+
+    # Check stop
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        assert validate_operation(sm_dict, "stop", "k8s-1")
+        assert "Found inconsistent before dependencies for service serv2" in caplog.text
+        assert "Found inconsistent after dependencies for service serv3" in caplog.text
+
+    # Check move
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        with pytest.raises(NotValid):
+            assert validate_operation(sm_dict, "move", "k8s-1")
+        assert "Found inconsistent before dependencies for service serv2" in caplog.text
+        assert "Found inconsistent after dependencies for service serv3" in caplog.text
+
+
+def test_sequence_consistence_validation(mocker, caplog):
+    init_and_check_config(args_init())
+
+    # Check services_to_run for different modules
+    sm_dict_deps = SMClusterState()
+    sm_dict_deps["k8s-2"] = {"status": True, "return_code": None, "services":
+        {"serv1": {"sequence": ["standby", "active"]}, "serv2": {"sequence": ["standby", "active"]}}}
+    sm_dict_deps["k8s-1"] = {"status": True, "return_code": None, "services":
+        {"serv1": {"sequence": ["standby", "active"]}, "serv2": {"sequence": ["active", "standby"]}}}
+    sm_dict_deps.globals = {"stateful": {"service_dep_ordered": ["serv1", "serv2"],
+                                    "deps_issue": False, "ts": TopologicalSorter2}}
+
+    # Check status
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        assert validate_operation(sm_dict_deps, "status", None)
+        assert "Found inconsistent sequence for service serv2" in caplog.text
+
+    # Check list
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        assert validate_operation(sm_dict_deps, "list", None)
+        assert "Found inconsistent sequence for service serv2" in caplog.text
+
+    # Check stop
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        assert validate_operation(sm_dict_deps, "stop", "k8s-1")
+        assert "Found inconsistent sequence for service serv2" in caplog.text
+
+    # Check move
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        with pytest.raises(NotValid):
+            assert validate_operation(sm_dict_deps, "move", "k8s-1")
+        assert "Found inconsistent sequence for service serv2" in caplog.text

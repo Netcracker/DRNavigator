@@ -62,18 +62,13 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site: str = None, 
                     services_to_process and serv not in services_to_process or \
                     settings.ignored_services and serv in settings.ignored_services:
                 continue
-            if serv in services_with_deps:
-                # Add new service dependencies
-                services_with_deps[serv]['before'] += \
-                    [dep for dep in serv_conf['before'] if dep not in services_with_deps[serv]['before']]
-                services_with_deps[serv]['after'] += \
-                    [dep for dep in serv_conf['after'] if dep not in services_with_deps[serv]['after']]
-            else:
-                # Add service with dependencies
-                services_with_deps[serv] = {
-                    'before': serv_conf['before'],
-                    'after': serv_conf['after']
-                }
+            if serv not in services_with_deps:
+                services_with_deps[serv] = {'before': [], 'after': []}
+            # Add new service dependencies
+            services_with_deps[serv]['before'] += \
+                [dep for dep in serv_conf['before'] if dep not in services_with_deps[serv]['before']]
+            services_with_deps[serv]['after'] += \
+                [dep for dep in serv_conf['after'] if dep not in services_with_deps[serv]['after']]
 
     # collect sorted ordered service list
     service_lists = []
