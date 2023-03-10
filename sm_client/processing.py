@@ -78,6 +78,7 @@ def process_module_services(module, states, cmd, site, sm_dict):
 
 
 def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
+    """ Processes the service with specific site cmd with polling """
     global thread_result_queue
 
     service_response = ServiceDRStatus({'services': {service: {}}})
