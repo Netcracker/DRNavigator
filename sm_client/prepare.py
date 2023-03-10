@@ -76,11 +76,11 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site: str = None, 
         service_lists = [i for i in build_after_before_graph(services_with_deps).static_order()]
         for service, depends in after_before_check(services_with_deps).items():  # check deps
             for depend in depends:
-                logging.warning(f"Site {site if site else 'merging'}. Service: {service} has nonexistent "
+                logging.warning(f"Sites: {used_sites}. Service: {service} has nonexistent "
                                 f"{depend} dependencies: {depends[depend]}")
                 ret = False
     except CycleError as e:
-        logging.error(f"Site {site if site else 'merging'} has integrity issues: %s",e)
+        logging.error(f"Sites: {used_sites} has integrity issues: %s",e)
         integrity_error = True
 
     if integrity_error:
