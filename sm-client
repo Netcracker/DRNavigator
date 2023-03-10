@@ -84,7 +84,8 @@ def run(services:[] = None, cmd="", site=""):
         # if can't order all sites services for failover, run it for opposite site
         if ts is None and cmd == "stop":
             logging.warning("Module: {mod_i}, can't order services for available site, try to order for active one...")
-            service_dep_ordered, return_code, ts = make_ordered_services_to_process(sm_dict, site,
+            service_dep_ordered, return_code, ts = make_ordered_services_to_process(sm_dict,
+                                                                                    settings.sm_conf.get_opposite_site(site),
                                                                                     services_to_process=services,
                                                                                     module=mod_i)
 
