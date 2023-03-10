@@ -91,9 +91,9 @@ def run(services:[] = None, cmd="", site=""):
                                                                                     services_to_process=services,
                                                                                     module=mod_i)
         if ts:
-            logging.info(f"Module: {mod_i}, Successful service order creation")
+            logging.info(f"Module: {mod_i}, Service order creation finished successfully")
         else:
-            logging.error(f"Module: {mod_i}, Failed service order creation")
+            logging.error(f"Module: {mod_i}, Service order creation failed")
 
         sm_dict.globals[mod_i]['service_dep_ordered'] = service_dep_ordered
         sm_dict.globals[mod_i]['ts'] = ts
