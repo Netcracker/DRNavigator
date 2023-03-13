@@ -102,7 +102,7 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
                 force = settings.force
 
             if service not in sm_dict[site_to_process].get("services", []):
-                logging.warning(f"Service {service} doesn't exist on site {site_to_process}, skip it")
+                logging.warning(f"Skip procedure {cmd} for service {service} on site {site_to_process}")
             elif sm_dict[site_to_process]['status']:  # to process only available sites
                 sm_process_service(site_to_process, service, mode, False if 'move' in cmd else True)
                 service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force)
