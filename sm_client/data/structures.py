@@ -158,6 +158,8 @@ class ServiceDRStatus:
         # https://github.com/Netcracker/DRNavigator/blob/b4161fb15271485974abf5862e7272abc386fbc8/modules/stateful.py#L16
 
         def set_service_status(smdict, site, mode):
+            if self.message == "Service doesn't exist":
+                return True
             failed_healthz = ['down', 'degraded', '--']
 
             if mode and mode in 'standby' and smdict[site]['services'][self.service].get('allowedStandbyStateList'):

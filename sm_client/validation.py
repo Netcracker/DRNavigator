@@ -20,19 +20,20 @@ def check_site_ssl_available(checked_site: str, sm_dict: SMClusterState):
     return True
 
 
-def check_services_on_site(services: list, site: str, sm_dict: SMClusterState):
-    """ Check if required services are exists on needed site
+def check_services_on_sites(services: list, sites: list, sm_dict: SMClusterState):
+    """ Check if required services are exists on needed sites
     @param services: services list to process
-    @param site: site to process
+    @param sites: list of sites to process
     @param sm_dict: populated sm_dict
     @returns: Returns true, if all required services exist on site
     """
 
     ret = True
-    for s in services:
-        if s not in sm_dict[site]["services"].keys():  # need to rework to support modules, run-services as well
-            logging.warning(f"Service '{s}' does not exist on '{site}' site")
-            ret = False
+    for site in sites:
+        for s in services:
+            if s not in sm_dict[site]["services"].keys():  # need to rework to support modules, run-services as well
+                logging.warning(f"Service '{s}' does not exist on '{site}' site")
+                ret = False
     return ret
 
 
@@ -200,7 +201,7 @@ def validate_stop_operation(sm_dict: SMClusterState, cmd, site=None, service_dep
     if not check_site_ssl_available(settings.sm_conf.get_opposite_site(site), sm_dict) or \
             not check_dep_issue(sm_dict, cmd, module):
         raise NotValid
-    check_services_on_site(service_dep_ordered, settings.sm_conf.get_opposite_site(site), sm_dict)
+    check_services_on_sites(service_dep_ordered, settings.sm_conf.keys(), sm_dict)
 
 
 def validate_move_operation(sm_dict: SMClusterState, cmd, site=None, service_dep_ordered=None,
@@ -214,8 +215,7 @@ def validate_move_operation(sm_dict: SMClusterState, cmd, site=None, service_dep
     @returns: Allowed or not to proceed operation <cmd> on <site>
     """
     if not all(check_site_ssl_available(site_i, sm_dict) for site_i in settings.sm_conf.keys()) or \
-            not all(
-                check_services_on_site(service_dep_ordered, site_i, sm_dict) for site_i in settings.sm_conf.keys()) or \
+            not check_services_on_sites(service_dep_ordered,  settings.sm_conf.keys(), sm_dict) or \
             not check_dep_issue(sm_dict, cmd, module) or \
             not check_deps_consistency(sm_dict, service_dep_ordered, sm_dict.get_available_sites()) or \
             not check_sequence_consistency(sm_dict, service_dep_ordered, sm_dict.get_available_sites()):
@@ -257,7 +257,7 @@ def validate_sites_operation(sm_dict: SMClusterState, cmd, site=None, service_de
     """
 
     if not check_site_ssl_available(site, sm_dict) or \
-            not check_services_on_site(service_dep_ordered, site, sm_dict) or \
+            not check_services_on_sites(service_dep_ordered, [site], sm_dict) or \
             not check_dep_issue(sm_dict, cmd, module) or \
             not check_state_restrictions(service_dep_ordered, site, cmd):
         raise NotValid

@@ -84,11 +84,13 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
     service_response = ServiceDRStatus({'services': {service: {}}})
 
     logging.info(f"Processing {service} in thread start...")
-    if cmd in settings.site_cmds:
+    if service not in sm_dict[site]['services']:
+        logging.warning(f"Skip processing service {service} on site {site}")
+        service_response = ServiceDRStatus({'services': {service: {"message": "Service doesn't exist"}}})
+    elif cmd in settings.site_cmds:
         mode = settings.sm_conf.convert_sitecmd_to_dr_mode(cmd)
         sm_process_service(site, service, mode)
         service_response = sm_poll_service_required_status(site, service, mode, sm_dict)
-        thread_result_queue.put(service_response)
     elif cmd in settings.dr_procedures:
         # todo to handle False(no service on this site)
         for site_to_process, mode in sm_dict.get_dr_operation_sequence(service, cmd, site):
@@ -107,7 +109,7 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
                     logging.info(f"Service {service} failed on {site_to_process}, skipping it on another site...")
                     break
 
-        thread_result_queue.put(service_response)
+    thread_result_queue.put(service_response)
 
     logging.info(f"Processing {service} in thread finished")
 
