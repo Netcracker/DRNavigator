@@ -47,7 +47,7 @@ def check_dep_issue(sm_dict: SMClusterState, cmd: str, module: str):
 
     if sm_dict.globals[module]['deps_issue']:
         logging.warning(f"Module: {module}, found dependency issue")
-        if cmd == "stop" and (sm_dict.globals[module]['ts'] is not None and
+        if (cmd == "stop" or cmd in settings.readonly_cmd) and (sm_dict.globals[module]['ts'] is not None and
                               sm_dict.globals[module]['service_dep_ordered'] != []):  # not integrity_error
             logging.warning(f"Ignoring dependency issues for {cmd} command")
         else:
