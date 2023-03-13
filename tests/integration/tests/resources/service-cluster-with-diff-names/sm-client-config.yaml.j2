@@ -10,3 +10,8 @@ sites:
     cacert: {{ env.config_dir }}{{ env.os_path_sep }}secrets{{ env.os_path_sep }}ca.crt
 sm-client:
   http_auth: True
+
+flow:
+  - custom_module: [standby,disable]
+  - stateful:
+  - custom_module: [active]

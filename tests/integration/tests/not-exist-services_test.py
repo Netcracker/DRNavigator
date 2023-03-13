@@ -9,7 +9,7 @@ import os
 import test_utils
 
 test_dir = os.path.dirname(__file__)
-docker_config_dir = "/resources/service-a-b-cluster-with-diff-names"
+docker_config_dir = "/resources/service-cluster-with-diff-names"
 
 template_env = {
     "sites": {
@@ -17,7 +17,9 @@ template_env = {
             "exposed_ports": {
                 "service": {
                     "serviceASite1": 9001,
-                    "serviceB": 9002
+                    "serviceB": 9002,
+                    "serviceC": 9003,
+                    "serviceDSite1": 9004,
                 },
                 "site_manager": 9011
             },
@@ -26,8 +28,11 @@ template_env = {
         "site_2": {
             "exposed_ports": {
                 "service": {
-                    "serviceASite2": 9003,
-                    "serviceB": 9004
+                    "serviceASite2": 9005,
+                    "serviceB": 9006,
+                    "serviceC": 9007,
+                    "serviceDSite2": 9008
+
                 },
                 "site_manager": 9012
             },
@@ -52,7 +57,9 @@ class NotExistServicesTestCase:
                                    {"healthz": "up", "status": "done", "message": "",
                                     "mode": "active" if template_env["active_site"] == site else "standby"}
                                   if (service != "serviceASite1" or site != "site_2") and
-                                     (service != "serviceASite2" or site != "site_1") else
+                                     (service != "serviceASite2" or site != "site_1") and
+                                     (service != "serviceDSite1" or site != "site_2") and
+                                     (service != "serviceDSite2" or site != "site_1") else
                                    {"healthz": "--", "status": "--", "message": "Service doesn't exist", "mode": "--"})
 
 
@@ -77,7 +84,9 @@ class NotExistServicesTestCase:
         test_utils.check_statuses(capfd, template_env, lambda site, service:
                                    {"healthz": "up", "status": "done", "message": "", "mode": "active"}
                                   if (service != "serviceASite1" or site != "site_2") and
-                                     (service != "serviceASite2" or site != "site_1") else
+                                     (service != "serviceASite2" or site != "site_1") and
+                                     (service != "serviceDSite1" or site != "site_2") and
+                                     (service != "serviceDSite2" or site != "site_1") else
                                    {"healthz": "--", "status": "--", "message": "Service doesn't exist", "mode": "--"})
 
 
@@ -91,7 +100,9 @@ class NotExistServicesTestCase:
                                    {"healthz": "up", "status": "done", "message": "",
                                     "mode": "active" if template_env["active_site"] == site else "standby"}
                                   if (service != "serviceASite1" or site != "site_2") and
-                                     (service != "serviceASite2" or site != "site_1") else
+                                     (service != "serviceASite2" or site != "site_1") and
+                                     (service != "serviceDSite1" or site != "site_2") and
+                                     (service != "serviceDSite2" or site != "site_1") else
                                    {"healthz": "--", "status": "--", "message": "Service doesn't exist", "mode": "--"})
 
 
@@ -105,5 +116,7 @@ class NotExistServicesTestCase:
                                    {"healthz": "up", "status": "done", "message": "",
                                     "mode": "active" if template_env["active_site"] != site else "standby"}
                                   if (service != "serviceASite1" or site != "site_2") and
-                                     (service != "serviceASite2" or site != "site_1") else
+                                     (service != "serviceASite2" or site != "site_1") and
+                                     (service != "serviceDSite1" or site != "site_2") and
+                                     (service != "serviceDSite2" or site != "site_1") else
                                    {"healthz": "--", "status": "--", "message": "Service doesn't exist", "mode": "--"})

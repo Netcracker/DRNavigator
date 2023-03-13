@@ -38,6 +38,36 @@ services:
     networks:
       - site-1
 
+  serviceC-site-1:
+    image: sm-dummy
+    container_name: serviceC-site-1
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE={{ 'active' if env.active_site == "site_1" else 'standby' }}
+      - SMA_TIMEOUT={{ env.service_timeout }}
+    expose:
+      - 8080
+    ports:
+      - "{{ env.sites.site_1.exposed_ports.service.serviceC }}:8080"
+    networks:
+      - site-1
+
+  serviceD-site-1:
+    image: sm-dummy
+    container_name: serviceD-site-1
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE={{ 'active' if env.active_site == "site_1" else 'standby' }}
+      - SMA_TIMEOUT={{ env.service_timeout }}
+    expose:
+      - 8080
+    ports:
+      - "{{ env.sites.site_1.exposed_ports.service.serviceDSite1 }}:8080"
+    networks:
+      - site-1
+
   site-manager-site-1:
     image: site-manager
     container_name: site-manager-site-1
@@ -94,6 +124,36 @@ services:
       - 8080
     ports:
       - "{{ env.sites.site_2.exposed_ports.service.serviceB }}:8080"
+    networks:
+      - site-2
+
+  serviceC-site-2:
+    image: sm-dummy
+    container_name: serviceC-site-2
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE={{ 'active' if env.active_site == "site_2" else 'standby' }}
+      - SMA_TIMEOUT={{ env.service_timeout }}
+    expose:
+      - 8080
+    ports:
+      - "{{ env.sites.site_2.exposed_ports.service.serviceC }}:8080"
+    networks:
+      - site-2
+
+  serviceD-site-2:
+    image: sm-dummy
+    container_name: serviceD-site-2
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE={{ 'active' if env.active_site == "site_2" else 'standby' }}
+      - SMA_TIMEOUT={{ env.service_timeout }}
+    expose:
+      - 8080
+    ports:
+      - "{{ env.sites.site_2.exposed_ports.service.serviceDSite2 }}:8080"
     networks:
       - site-2
 

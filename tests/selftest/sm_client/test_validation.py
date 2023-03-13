@@ -88,6 +88,62 @@ def test_validate_operation(caplog):
     assert validate_operation(sm_dict_services_to_run, "move", "k8s-1", ["serv1", "serv3"], "custom_module") == []
 
 
+def test_validate_services_exist_validation(mocker, caplog):
+    init_and_check_config(args_init())
+
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {"status": True, "return_code": None, "services": {"serv1": {}, "serv2": {}}}
+    sm_dict["k8s-2"] = {"status": True, "return_code": None, "services": {"serv1": {}, "serv3": {}}}
+    sm_dict.globals = {"stateful": {"service_dep_ordered": [], "deps_issue": False, "ts": TopologicalSorter2}}
+
+    # Check active
+    assert validate_operation(sm_dict, "active", "k8s-1", ["serv1"])
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        with pytest.raises(NotValid):
+            assert validate_operation(sm_dict, "active", "k8s-1", ["serv1", "serv2", "serv3"])
+        assert "Service 'serv3' does not exist on 'k8s-1' site" in caplog.text
+
+    # Check standby
+    assert validate_operation(sm_dict, "standby", "k8s-1", ["serv1"])
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        with pytest.raises(NotValid):
+            assert validate_operation(sm_dict, "standby", "k8s-1", ["serv1", "serv2", "serv3"])
+        assert "Service 'serv3' does not exist on 'k8s-1' site" in caplog.text
+
+    # Check disable
+    assert validate_operation(sm_dict, "disable", "k8s-1", ["serv1"])
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        with pytest.raises(NotValid):
+            assert validate_operation(sm_dict, "disable", "k8s-1", ["serv1", "serv2", "serv3"])
+        assert "Service 'serv3' does not exist on 'k8s-1' site" in caplog.text
+
+    # Check return
+    assert validate_operation(sm_dict, "return", "k8s-1", ["serv1"])
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        with pytest.raises(NotValid):
+            assert validate_operation(sm_dict, "return", "k8s-1", ["serv1", "serv2", "serv3"])
+        assert "Service 'serv3' does not exist on 'k8s-1' site" in caplog.text
+
+    # Check move
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        with pytest.raises(NotValid):
+            assert validate_operation(sm_dict, "move", "k8s-1", ["serv1", "serv2", "serv3"])
+        assert "Service 'serv3' does not exist on 'k8s-1' site" in caplog.text
+        assert "Service 'serv2' does not exist on 'k8s-2' site" in caplog.text
+
+    # Check stop
+    with caplog.at_level(logging.WARNING):
+        caplog.clear()
+        assert validate_operation(sm_dict, "stop", "k8s-1", ["serv1", "serv2", "serv3"])
+        assert "Service 'serv3' does not exist on 'k8s-1' site" in caplog.text
+        assert "Service 'serv2' does not exist on 'k8s-2' site" in caplog.text
+
+
 def test_validate_restrictions(mocker, caplog):
     init_and_check_config(args_init(test_restrictions_config_path))
     sm_dict = SMClusterState()

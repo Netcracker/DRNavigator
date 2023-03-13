@@ -53,3 +53,33 @@ testing:
         - standby
         - active
         timeout: 5
+      serviceC:
+        after: [ ]
+        allowedStandbyStateList:
+          - up
+        before: [ ]
+        namespace: serviceC-ns
+        module: custom_module
+        parameters:
+          healthzEndpoint: http://serviceC-site-2:8080/healthz
+          ingressEndpoint: ""
+          serviceEndpoint: http://serviceC-site-2:8080/sitemanager
+        sequence:
+          - standby
+          - active
+        timeout: 5
+      serviceDSite2:
+        after: [ serviceC]
+        allowedStandbyStateList:
+          - up
+        before: [ ]
+        namespace: serviceD-ns
+        module: custom_module
+        parameters:
+          healthzEndpoint: http://serviceD-site-2:8080/healthz
+          ingressEndpoint: ""
+          serviceEndpoint: http://serviceD-site-2:8080/sitemanager
+        sequence:
+          - standby
+          - active
+        timeout: 5
