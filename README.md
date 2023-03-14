@@ -1229,7 +1229,8 @@ To renew a certificate:
     ```
     $ kubectl -n site-manager create secret tls sm-certs --cert site-manager-tls.crt --key site-manager-tls.key
     ```
-
+4. Update `config.yml` (Token and path cacert).
+ 
 ### Installation 
  
    Install `site-manager` helm chart:
