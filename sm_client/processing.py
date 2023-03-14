@@ -1,3 +1,4 @@
+import copy
 import logging
 import threading
 from queue import Queue
@@ -22,6 +23,9 @@ def process_ts_services(ts: TopologicalSorter2, process_func, *run_args: ()) -> 
     failed_successors = []
     serv_thread_pool = []
     global thread_result_queue
+
+    # Make deep copy for ts to process modules by flow on different sites separately
+    ts = copy.deepcopy(ts)
 
     while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
         for serv in ts.get_ready():
@@ -68,22 +72,26 @@ def process_module_services(module, states, cmd, site, sm_dict):
 
     logging.info(f"Processing {module} module by cmd: {get_cmd()} on site: {get_site()}")
 
-    process_ts_services(sm_dict[settings.sm_conf.get_opposite_site(site) if get_cmd() in 'stop' else get_site()][module]["ts"],
+    process_ts_services(sm_dict.globals[module]["ts"],
                         sm_process_service_with_polling,
                         get_site(), get_cmd(), sm_dict)
 
 
 def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
+    """ Processes the service with specific site cmd with polling """
     global thread_result_queue
 
     service_response = ServiceDRStatus({'services': {service: {}}})
 
     logging.info(f"Processing {service} in thread start...")
     if cmd in settings.site_cmds:
-        mode = settings.sm_conf.convert_sitecmd_to_dr_mode(cmd)
-        sm_process_service(site, service, mode)
-        service_response = sm_poll_service_required_status(site, service, mode, sm_dict)
-        thread_result_queue.put(service_response)
+        if service in sm_dict[site]['services']:
+            mode = settings.sm_conf.convert_sitecmd_to_dr_mode(cmd)
+            sm_process_service(site, service, mode)
+            service_response = sm_poll_service_required_status(site, service, mode, sm_dict)
+        else:
+            logging.warning(f"Skip procedure {cmd} for service {service} on site {site}")
+            service_response = ServiceDRStatus({'services': {service: {"message": "Service doesn't exist"}}})
     elif cmd in settings.dr_procedures:
         # todo to handle False(no service on this site)
         for site_to_process, mode in sm_dict.get_dr_operation_sequence(service, cmd, site):
@@ -93,14 +101,17 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
             else:
                 force = settings.force
 
-            if sm_dict[site_to_process]['status']:  # to process only available sites
+            if service not in sm_dict[site_to_process].get("services", []):
+                logging.warning(f"Skip procedure {cmd} for service {service} on site {site_to_process}")
+                service_response = ServiceDRStatus({'services': {service: {"message": "Service doesn't exist"}}})
+            elif sm_dict[site_to_process]['status']:  # to process only available sites
                 sm_process_service(site_to_process, service, mode, False if 'move' in cmd else True)
                 service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force)
                 if cmd in 'move' and not service_response.is_ok():
                     logging.info(f"Service {service} failed on {site_to_process}, skipping it on another site...")
                     break
 
-        thread_result_queue.put(service_response)
+    thread_result_queue.put(service_response)
 
     logging.info(f"Processing {service} in thread finished")
 

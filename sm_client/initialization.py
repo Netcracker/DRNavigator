@@ -82,6 +82,7 @@ def init_and_check_config(args) -> bool:
         settings.skip_services.clear()
 
     settings.failed_services.clear()
+    settings.done_services.clear()
 
     settings.force = args.force
 

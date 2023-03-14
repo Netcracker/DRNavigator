@@ -76,23 +76,41 @@ def run(services:[] = None, cmd="", site=""):
     sm_dict = sm_get_cluster_state(None)
 
     # assemble ordered service list to proceed, keeping in services specified in cli
-    for site_i in sm_dict.get_available_sites():
-        for mod_i in settings.sm_conf.get_modules():
-            service_dep_ordered, return_code, ts = make_ordered_services_to_process(sm_dict, site_i, services,mod_i)
-            sm_dict[site_i][mod_i]['service_dep_ordered'].extend(service_dep_ordered)
-            sm_dict[site_i][mod_i]['ts'] = ts
-            sm_dict[site_i][mod_i]['deps_issue'] = not return_code
-            logging.debug(f"Site:{site_i} module:{mod_i} list:{sm_dict[site_i][mod_i]['service_dep_ordered']} "
-                          f"deps_issue:{sm_dict[site_i][mod_i]['deps_issue']}")
+    site_to_order = site if cmd not in ["stop", "move"] else None
+
+    for mod_i in settings.sm_conf.get_modules():
+        service_dep_ordered, return_code, ts = make_ordered_services_to_process(
+            sm_dict, site_to_order, services_to_process = services, module=mod_i)
+        # if can't order all sites services for failover, run it for opposite site
+        if ts is None and cmd == "stop":
+            opposite_site = settings.sm_conf.get_opposite_site(site)
+            logging.warning(f"Module: {mod_i}, can't make services order for available site, "
+                            f"trying to make order for site {opposite_site}...")
+            service_dep_ordered, return_code, ts = make_ordered_services_to_process(sm_dict,
+                                                                                    opposite_site,
+                                                                                    services_to_process=services,
+                                                                                    module=mod_i)
+        if ts:
+            logging.info(f"Module: {mod_i}, Service order creation finished successfully")
+        elif return_code:
+            logging.info(f"Module: {mod_i}, Service order creation finished, no running services have desired module")
+        else:
+            logging.error(f"Module: {mod_i}, Service order creation failed")
+
+        sm_dict.globals[mod_i]['service_dep_ordered'] = service_dep_ordered
+        sm_dict.globals[mod_i]['ts'] = ts
+        sm_dict.globals[mod_i]['deps_issue'] = not return_code
+        logging.debug(f"Module:{mod_i} list:{sm_dict.globals[mod_i]['service_dep_ordered']} "
+                      f"deps_issue:{sm_dict.globals[mod_i]['deps_issue']}")
 
     # validation to satisfy cmd and current site status
     service_dep_ordered = []; ts = None
     try:
         for mod_i in settings.sm_conf.get_modules():
-            services_list, ts_i = validate_operation(sm_dict, cmd, site, services, mod_i)
+            services_list = validate_operation(sm_dict, cmd, site, services, mod_i)
             service_dep_ordered.extend(services_list)
             if mod_i in settings.default_module:
-                ts = ts_i
+                ts = sm_dict.globals[mod_i]['ts']
         logging.debug(f"Service order {service_dep_ordered}")
     except NotValid:
         exit(1)
@@ -269,11 +287,11 @@ def parse_command_line(command_args) -> argparse.Namespace:
     parser_6.set_defaults(command='standby')
 
     parser_7 = subparsers.add_parser('list', help='list all services from Active-Standby scheme managed by site-manager with dependencies')
-    parser_7.add_argument('site', nargs='?', default="", help=SITE_HELP_SECTION)
+    parser_7.add_argument('site', nargs='?', default=None, help=SITE_HELP_SECTION)
     parser_7.set_defaults(command='list')
 
     parser_8 = subparsers.add_parser('status', help='show current status of clusters and all services')
-    parser_8.add_argument('site', nargs='?', default="", help=SITE_HELP_SECTION)  # todo to update help
+    parser_8.add_argument('site', nargs='?', default=None, help=SITE_HELP_SECTION)  # todo to update help
     parser_8.set_defaults(command='status')
 
     parser_9 = subparsers.add_parser('version', help='get current version')

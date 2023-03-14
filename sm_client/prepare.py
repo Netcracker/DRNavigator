@@ -6,7 +6,7 @@ from typing import Tuple, Optional
 from sm_client.data.structures import *
 
 
-def make_ordered_services_to_process(sm_dict: SMClusterState, site, services_to_process: list = None,
+def make_ordered_services_to_process(sm_dict: SMClusterState, site: str = None, services_to_process: list = None,
                                      module = settings.default_module ) -> Tuple[list, bool, Optional[TopologicalSorter2]]:
     """ Make ordered and validated services list from all sites in sm_dict
     @returns: ordered list or empty if not possible to assemble(integrity issue), True or False  in case minor issue
@@ -36,48 +36,57 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site, services_to_
         """
         wrong_dep_list={}
         for i in ll.keys():
-            if ll[i]['after'] and  ll[i]['after'][0] not in [ii for ii in ll.keys()]: #if wrong dep - collect them
+            wrong_deps = [dep for dep in ll[i]['after'] if dep not in ll]
+            if wrong_deps:
                 if not wrong_dep_list.get(i):
-                    wrong_dep_list[i]={}
-                wrong_dep_list[i]['after'] = ll[i]['after']
+                    wrong_dep_list[i] = {}
+                wrong_dep_list[i]['after'] = wrong_deps
 
-            if ll[i]['before'] and ll[i]['before'][0] not in [ii for ii in ll.keys()]: #if wrong dep - collect them
+            wrong_deps = [dep for dep in ll[i]['before'] if dep not in ll]
+            if wrong_deps:
                 if not wrong_dep_list.get(i):
-                    wrong_dep_list[i]={}
-                wrong_dep_list[i]['before'] = ll[i]['before']
+                    wrong_dep_list[i] = {}
+                    wrong_dep_list[i]['before'] = wrong_deps
 
         return wrong_dep_list
 
     ret = True
     integrity_error = False
-    temp_dict = copy.deepcopy(sm_dict)
+    used_sites = [site] if site is not None else sm_dict.get_available_sites()
+    services_with_deps = {}
 
-    # leave only services listed in service_to_process, not skipped/ignored and belong to module
-    for serv in temp_dict[site]['services'].copy().keys():
-        if temp_dict[site]['services'][serv].get('module',"") not in module:
-            temp_dict[site]['services'].pop(serv, None)
-        if services_to_process and serv not in services_to_process:
-            temp_dict[site]['services'].pop(serv,None)
-        if settings.ignored_services and serv in settings.ignored_services: # remove skipped/ignored
-            temp_dict[site]['services'].pop(serv, None)
+    for site_name in used_sites:
+        for serv, serv_conf in sm_dict[site_name]['services'].items():
+            # leave only services listed in service_to_process, not skipped/ignored and belong to module
+            if serv_conf.get('module', "") not in module or \
+                    services_to_process and serv not in services_to_process or \
+                    settings.ignored_services and serv in settings.ignored_services:
+                continue
+            if serv not in services_with_deps:
+                services_with_deps[serv] = {'before': [], 'after': []}
+            # Add new service dependencies
+            services_with_deps[serv]['before'] += \
+                [dep for dep in serv_conf['before'] if dep not in services_with_deps[serv]['before']]
+            services_with_deps[serv]['after'] += \
+                [dep for dep in serv_conf['after'] if dep not in services_with_deps[serv]['after']]
 
     # collect sorted ordered service list
     service_lists = []
     try:
-        service_lists = [i for i in build_after_before_graph(temp_dict[site]['services']).static_order()]
-        for service, depends in after_before_check(temp_dict[site]['services']).items():  # check deps
+        service_lists = [i for i in build_after_before_graph(services_with_deps).static_order()]
+        for service, depends in after_before_check(services_with_deps).items():  # check deps
             for depend in depends:
-                logging.warning(f"Site: {site}. Service: {service} has nonexistent "
-                                f"{depend} dependency: {depends[depend]}")
+                logging.warning(f"Sites: {used_sites}. Service: {service} has nonexistent "
+                                f"{depend} dependencies: {depends[depend]}")
                 ret = False
     except CycleError as e:
-        logging.error(f"Site {site} has integrity issues: %s",e)
+        logging.error(f"Sites: {used_sites} has integrity issues: %s",e)
         integrity_error = True
 
     if integrity_error:
         return [], False, type(None) # return error, integrity issue
 
     # check services equality on all sites
-    ts = build_after_before_graph(temp_dict[site]['services'])
+    ts = build_after_before_graph(services_with_deps)
     ts.prepare()
     return service_lists, ret, ts

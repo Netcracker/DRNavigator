@@ -16,9 +16,16 @@ def test_SMClusterState_init():
     with pytest.raises(ValueError) as e:
         SMClusterState("not valid site")
     assert str(e.value) in "Unknown site name"
-    assert "services" and "deps_issue" and settings.default_module in SMClusterState("k8s-2")["k8s-2"]
-    assert "services" and "deps_issue" and settings.default_module in \
-           SMClusterState({"k8s-3": {"services": {"serv1": {}}, "status": False}, "k8s-1": {}})["k8s-3"]
+    sm_dict = SMClusterState("k8s-2")
+    assert "services" in sm_dict["k8s-2"]
+    assert settings.default_module in sm_dict.globals
+    assert all(key in sm_dict.globals[settings.default_module] for key in ["deps_issue", "service_dep_ordered", "ts"])
+
+    sm_dict = SMClusterState({"k8s-3": {"services": {"serv1": {}}, "status": False}, "k8s-1": {}})
+    assert "services" in sm_dict["k8s-3"]
+    assert settings.default_module in sm_dict.globals
+    assert all(key in sm_dict.globals[settings.default_module] for key in ["deps_issue", "service_dep_ordered", "ts"])
+
     sm_dict = SMClusterState({'k8s-1':
         {"services": {
             "serv1": {"module": 'stateful'},

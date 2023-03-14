@@ -43,33 +43,34 @@ class SMConf(dict):  # global config.yaml and some RO config parameters and args
 
 class SMClusterState:
     def __init__(self, site=None):
-        def init_default(site_name, modules: [] = None):
+        def init_default(site_name):
             if len(self.sm.keys()) == 2:
                 raise ValueError("Only two sites in clusters are supported")
             self.sm[site_name] = {}
             self.sm[site_name]["services"] = {}
             self.sm[site_name]["return_code"] = None
             self.sm[site_name]["status"] = False  # ServiceDRStatus
-            if not modules:
-                modules = [settings.default_module]
-            for module in modules:
-                self.sm[site_name][module] = {}
-                self.sm[site_name][module]["deps_issue"] = None
-                self.sm[site_name][module]["service_dep_ordered"] = []
-                self.sm[site_name][module]["ts"] = None
 
         if not site or (site and isinstance(site, str)):  # @todo rework
             if site and site not in settings.sm_conf.keys():
                 raise ValueError("Unknown site name")
             self.sm = {}
             for cur_site in [s for s in settings.sm_conf.keys() if site == s] if site else settings.sm_conf.keys():
-                init_default(cur_site, settings.sm_conf.get_modules())
+                init_default(cur_site)
         elif isinstance(site, dict):  # for dev/testing purposes
             self.sm = {}
             for key in site.keys():
                 init_default(key)
                 for k, v in site[key].items():
                     self.sm[key][k] = v
+
+        # Init global service order and global ts
+        self.globals = {}
+        for module in settings.sm_conf.get_modules():
+            self.globals[module] = {}
+            self.globals[module]["deps_issue"] = None
+            self.globals[module]["service_dep_ordered"] = []
+            self.globals[module]["ts"] = None
 
     def __getitem__(self, key):
         return self.sm[key]
@@ -97,7 +98,8 @@ class SMClusterState:
             elif mode == 'active':
                 site_sequence = [[site, 'active'], [opposite_site, 'standby']]
         elif procedure == 'stop':  # failover
-            mode, = self.sm[opposite_site]['services'][serv]['sequence'][0:1] or ['standby']
+            site_to_check = opposite_site if serv in self.sm[opposite_site]['services'] else site
+            mode, = self.sm[site_to_check]['services'][serv]['sequence'][0:1] or ['standby']
             if mode == 'standby':
                 site_sequence = [[site, 'standby'], [opposite_site, 'active']]
             elif mode == 'active':
@@ -156,6 +158,8 @@ class ServiceDRStatus:
         # https://github.com/Netcracker/DRNavigator/blob/b4161fb15271485974abf5862e7272abc386fbc8/modules/stateful.py#L16
 
         def set_service_status(smdict, site, mode):
+            if self.message == "Service doesn't exist":
+                return True
             failed_healthz = ['down', 'degraded', '--']
 
             if mode and mode in 'standby' and smdict[site]['services'][self.service].get('allowedStandbyStateList'):
