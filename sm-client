@@ -92,6 +92,8 @@ def run(services:[] = None, cmd="", site=""):
                                                                                     module=mod_i)
         if ts:
             logging.info(f"Module: {mod_i}, Service order creation finished successfully")
+        elif return_code:
+            logging.info(f"Module: {mod_i}, Service order creation finished, no running services have desired module")
         else:
             logging.error(f"Module: {mod_i}, Service order creation failed")
 
