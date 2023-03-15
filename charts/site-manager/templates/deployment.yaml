@@ -24,7 +24,7 @@ spec:
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
         args:
           - "--bind=0.0.0.0:8443"
-          - "--config=flank_exporter_config.py"
+          - "--config=site_manager/flank_exporter_config.py"
           - '--worker-class=gevent'
           - "--certfile=/certs/tls.crt"
           - "--keyfile=/certs/tls.key"

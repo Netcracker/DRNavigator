@@ -25,4 +25,4 @@ USER "${SM_USER}"
 
 ENTRYPOINT ["gunicorn"]
 
-CMD ["--bind=0.0.0.0:8443", "--config=flank_exporter_config.py", "--preload", "--worker-class=gevent", "-w 4", "site-manager:app"]
+CMD ["--bind=0.0.0.0:8443", "--config=site_manager/flank_exporter_config.py", "--preload", "--worker-class=gevent", "-w 4", "site-manager:app"]
