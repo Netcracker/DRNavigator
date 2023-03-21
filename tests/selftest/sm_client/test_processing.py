@@ -13,7 +13,7 @@ from common.utils import io_make_http_json_request
 from sm_client.data.structures import *
 from sm_client.initialization import init_and_check_config
 from sm_client.processing import sm_process_service, thread_result_queue, process_ts_services, \
-    sm_poll_service_required_status, sm_process_service_with_polling, process_module_services
+    sm_poll_service_required_status, sm_process_service_with_polling, process_module_services, run_dr_or_site_procedure
 from tests.selftest.sm_client.common.test_utils import *
 
 
@@ -109,7 +109,8 @@ def test_runservice_engine(caplog):
     logging.info(f"failed_services: {settings.failed_services}")
     logging.info(f"done_services: {settings.done_services}")
     assert settings.done_services in [['aa', 'cc', 'cc1'], ['cc', 'aa', 'cc1'], ['cc', 'cc1', 'aa']] \
-           and settings.failed_services == ['bb', 'bb1']
+           and settings.failed_services == ['bb'] \
+           and settings.skipped_due_deps_services == ['bb1']
 
 
 def test_sm_poll_service_required_status(mocker, caplog):
@@ -326,3 +327,180 @@ def test_process_module_services(mocker, caplog):
     settings.done_services.clear()
     process_module_services("stateful", "", "active", "k8s-2", sm_dict)
     assert "serv1" in settings.done_services
+
+
+def test_process_module_services_with_failed_service(mocker, caplog):
+    def mock_sm_process_service(site, service, site_cmd, no_wait=True, force=False):
+        mode = 'active' if site == 'k8s-1' else 'standby'
+        status = 'done' if service != 'serv1' else 'failed'
+        return {"services": {service: {'healthz': 'up', 'mode': mode, 'status': status}}}, True, 200
+
+    caplog.set_level(logging.INFO)
+    smclient.args = args_init()
+    init_and_check_config(args_init())
+    caplog.set_level(logging.DEBUG)
+    mocker.patch("sm_client.processing.sm_process_service", side_effect=mock_sm_process_service)
+
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {
+        "services": {
+            "serv1": {"timeout": 1, "sequence": ['standby', 'active']},
+            "serv2": {"timeout": 1, "sequence": ['standby', 'active']}},
+        "status": True}
+    sm_dict["k8s-2"] = {
+        "services": {
+            "serv1": {"timeout": 1, "sequence": ['standby', 'active'], "allowedStandbyStateList": "up"},
+            "serv2": {"timeout": 1, "sequence": ['standby', 'active'], "allowedStandbyStateList": "up"}},
+        "status": True}
+
+    # Check, when services are independent
+    ts = TopologicalSorter2()
+    ts.add("serv1")
+    ts.add("serv2")
+    ts.prepare()
+    sm_dict.globals = {"stateful": {"ts": ts}}
+
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    process_module_services("stateful", "", "move", "k8s-1", sm_dict)
+    assert ["serv1"] == settings.failed_services
+    assert ["serv2"] == settings.done_services
+    assert [] == settings.skipped_due_deps_services
+
+    # Check, when worked service depends on problem one
+    ts = TopologicalSorter2()
+    ts.add("serv2", "serv1")
+    ts.prepare()
+    sm_dict.globals = {"stateful": {"ts": ts}}
+
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    process_module_services("stateful", "", "move", "k8s-1", sm_dict)
+    assert [] == settings.done_services
+    assert ["serv1"] == settings.failed_services
+    assert ["serv2"] == settings.skipped_due_deps_services
+
+    # Check, when problem service depends on worked one
+    ts = TopologicalSorter2()
+    ts.add("serv1", "serv2")
+    ts.prepare()
+    sm_dict.globals = {"stateful": {"ts": ts}}
+
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    process_module_services("stateful", "", "move", "k8s-1", sm_dict)
+    assert ["serv1"] == settings.failed_services
+    assert ["serv2"] == settings.done_services
+    assert [] == settings.skipped_due_deps_services
+
+
+def test_run_dr_or_site_procedure(mocker, caplog):
+    caplog.set_level(logging.INFO)
+    smclient.args = args_init()
+    init_and_check_config(args_init())
+    caplog.set_level(logging.DEBUG)
+
+    settings.module_flow = [{"notstateful": ["standby"]}, {"stateful": None}, {"notstateful": ["active"]}]
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {
+        "services": {
+            "serv1": {"timeout": 1, "sequence": ['standby', 'active'], "module": "stateful"},
+            "serv2": {"timeout": 1, "sequence": ['standby', 'active'], "module": "stateful"},
+            "notstateful-serv1": {"timeout": 1, "sequence": ['standby', 'active'], "module": "notstateful"},
+            "notstateful-serv2": {"timeout": 1, "sequence": ['standby', 'active'], "module": "notstateful"}},
+        "status": True}
+    sm_dict["k8s-2"] = {
+        "services": {
+            "serv1": {"timeout": 1, "sequence": ['standby', 'active'],
+                      "allowedStandbyStateList": "up", "module": "stateful"},
+            "serv2": {"timeout": 1, "sequence": ['standby', 'active'],
+                      "allowedStandbyStateList": "up", "module": "stateful"},
+            "notstateful-serv1": {"timeout": 1, "sequence": ['standby', 'active'],
+                                  "allowedStandbyStateList": "up", "module": "notstateful"},
+            "notstateful-serv2": {"timeout": 1, "sequence": ['standby', 'active'],
+                                  "allowedStandbyStateList": "up", "module": "notstateful"}},
+        "status": True}
+
+    ts_stateful = TopologicalSorter2()
+    ts_stateful.add("serv2", "serv1")
+    ts_stateful.prepare()
+    ts_notstateful = TopologicalSorter2()
+    ts_notstateful.add("notstateful-serv2", "notstateful-serv1")
+    ts_notstateful.prepare()
+    sm_dict.globals = {"stateful": {"ts": ts_stateful}, "notstateful": {"ts": ts_notstateful}}
+
+    def mock_sm_process_service(site, service, site_cmd, no_wait=True, force=False):
+        mode = 'active' if site == 'k8s-1' else 'standby'
+        status = 'done' if service != failed_service or site != failed_site else 'failed'
+        return {"services": {service: {'healthz': 'up', 'mode': mode, 'status': status}}}, True, 200
+
+    mocker.patch("sm_client.processing.sm_process_service", side_effect=mock_sm_process_service)
+
+    # Check, when first stateful service fails
+    failed_service = "serv1"
+    failed_site = "k8s-1"
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    run_dr_or_site_procedure(sm_dict,  "move", "k8s-1")
+    assert [] == settings.done_services
+    assert ["serv1"] == settings.failed_services
+    assert ["serv2", "notstateful-serv1", "notstateful-serv2"] == settings.skipped_due_deps_services
+
+    # Check, when second stateful service fails
+    failed_service = "serv2"
+    failed_site = "k8s-1"
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    run_dr_or_site_procedure(sm_dict,  "move", "k8s-1")
+    assert ["serv1"] == settings.done_services
+    assert ["serv2"] == settings.failed_services
+    assert ["notstateful-serv1", "notstateful-serv2"] == settings.skipped_due_deps_services
+
+    # Check, when first notstateful service fails on standby site
+    failed_service = "notstateful-serv1"
+    failed_site = "k8s-2"
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    run_dr_or_site_procedure(sm_dict,  "move", "k8s-1")
+    assert [] == settings.done_services
+    assert ["notstateful-serv1"] == settings.failed_services
+    assert ["notstateful-serv2", "serv1", "serv2"] == settings.skipped_due_deps_services
+
+    # Check, when second notstateful service fails on standby site
+    failed_service = "notstateful-serv2"
+    failed_site = "k8s-2"
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    run_dr_or_site_procedure(sm_dict,  "move", "k8s-1")
+    assert [] == settings.done_services
+    assert ["notstateful-serv2"] == settings.failed_services
+    assert ["serv1", "serv2", "notstateful-serv1"] == settings.skipped_due_deps_services
+
+    # Check, when first notstateful service fails on active site
+    failed_service = "notstateful-serv1"
+    failed_site = "k8s-1"
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    run_dr_or_site_procedure(sm_dict,  "move", "k8s-1")
+    assert ["serv1", "serv2"] == settings.done_services
+    assert ["notstateful-serv1"] == settings.failed_services
+    assert ["notstateful-serv2"] == settings.skipped_due_deps_services
+
+    # Check, when second notstateful service fails on active site
+    failed_service = "notstateful-serv2"
+    failed_site = "k8s-1"
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    run_dr_or_site_procedure(sm_dict,  "move", "k8s-1")
+    assert ["notstateful-serv1", "serv1", "serv2"] == settings.done_services
+    assert ["notstateful-serv2"] == settings.failed_services
+    assert [] == settings.skipped_due_deps_services

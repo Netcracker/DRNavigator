@@ -13,6 +13,55 @@ thread_pool = []
 thread_result_queue = Queue(maxsize=-1)
 
 
+def run_status_procedure(sm_dict: SMClusterState, service_dep_ordered: list):
+    """ Runs status procedure for defined services"""
+
+    for serv in service_dep_ordered:
+        def run_in_thread(site, serv, sm_dict):  # to run each status service in parallel
+            response, _, return_code = sm_process_service(site, serv, "status")
+            if not sm_dict[site]['services'].get(serv):
+                sm_dict[site]['services'][serv] = {}
+            sm_dict[site]['services'][serv]['status'] = ServiceDRStatus(response) if return_code else False
+
+        for site_i in sm_dict.get_available_sites():
+            thread = threading.Thread(target=run_in_thread, args=(site_i, serv, sm_dict))
+            thread.name = f"Thread: {serv}"
+            thread.start()
+            thread_pool.append(thread)
+    for thread in thread_pool:
+        thread.join()
+
+
+def run_dr_or_site_procedure(sm_dict: SMClusterState, cmd: str, site: str):
+    """ Runs dr or site procedure"""
+    dr_status = True
+    for elem in settings.module_flow:
+        module, states = list(elem.items())[0]
+        if not dr_status:  # fail rest of services in case failed before
+            for i in sm_dict.get_module_services(sm_dict.get_available_sites()[0], module):
+                skip_service_due_deps(i)
+            continue
+        if cmd in ['standby', 'disable', 'return'] and (states and states == ['active']):
+            break
+        if cmd in 'active' and (states and set(states) == {'standby', 'disable'}):
+            continue
+        process_module_services(module, states, cmd, site, sm_dict)
+        if settings.failed_services:
+            logging.debug(f"Module {module} failed. Failed services {settings.failed_services}")
+            logging.error(f"Module {module} failed, skipping rest of services, exiting")
+            dr_status = False
+
+
+def skip_service_due_deps(service: str):
+    """
+    If service was skipped due dependencies or flow problems, it should be marked as not skipped due dependency
+    """
+    if service in settings.failed_services:
+        return
+    settings.skipped_due_deps_services.append(service) if service not in settings.skipped_due_deps_services else None
+    settings.done_services.remove(service) if service in settings.done_services else None
+
+
 def process_ts_services(ts: TopologicalSorter2, process_func, *run_args: ()) -> None:
     """ Runs services in ts object one-by-one on both sites using process_func method.
     process_func have to put  ServiceDRStatus result in thread_result_queue  queue
@@ -31,6 +80,7 @@ def process_ts_services(ts: TopologicalSorter2, process_func, *run_args: ()) -> 
         for serv in ts.get_ready():
             if serv in failed_successors:
                 logging.info(f"Service {serv} marked as failed due to dependencies")
+                skip_service_due_deps(serv)
                 thread_result_queue.put(ServiceDRStatus({'services': {serv: {}}}))
                 break
             thread = threading.Thread(target=process_func,
@@ -45,7 +95,8 @@ def process_ts_services(ts: TopologicalSorter2, process_func, *run_args: ()) -> 
                 logging.debug(f"Found successor {s} for failed {service_response.service} ")
                 failed_successors.append(s)
         ts.done(service_response.service)
-        service_response.sortout_service_results()
+        if service_response.service not in settings.skipped_due_deps_services:
+            service_response.sortout_service_results()
     for thread in serv_thread_pool:
         thread.join()
 
