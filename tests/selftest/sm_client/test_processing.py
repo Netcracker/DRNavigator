@@ -504,3 +504,106 @@ def test_run_dr_or_site_procedure(mocker, caplog):
     assert ["notstateful-serv1", "serv1", "serv2"] == settings.done_services
     assert ["notstateful-serv2"] == settings.failed_services
     assert [] == settings.skipped_due_deps_services
+
+
+def test_dr_procedure_with_failed_services(mocker, caplog):
+    caplog.set_level(logging.INFO)
+    smclient.args = args_init()
+    init_and_check_config(args_init())
+    caplog.set_level(logging.DEBUG)
+
+    settings.module_flow = [{"notstateful": ["standby"]}, {"stateful": None}, {"notstateful": ["active"]}]
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {
+        "services": {
+            "serv1": {"timeout": 1, "sequence": ['standby', 'active'], "module": "stateful"},
+            "serv2": {"timeout": 1, "sequence": ['standby', 'active'], "module": "stateful"},
+            "notstateful-serv1": {"timeout": 1, "sequence": ['standby', 'active'], "module": "notstateful"},
+            "notstateful-serv2": {"timeout": 1, "sequence": ['standby', 'active'], "module": "notstateful"}},
+        "status": True}
+    sm_dict["k8s-2"] = {
+        "services": {
+            "serv1": {"timeout": 1, "sequence": ['standby', 'active'],
+                      "allowedStandbyStateList": "up", "module": "stateful"},
+            "serv2": {"timeout": 1, "sequence": ['standby', 'active'],
+                      "allowedStandbyStateList": "up", "module": "stateful"},
+            "notstateful-serv1": {"timeout": 1, "sequence": ['standby', 'active'],
+                                  "allowedStandbyStateList": "up", "module": "notstateful"},
+            "notstateful-serv2": {"timeout": 1, "sequence": ['standby', 'active'],
+                                  "allowedStandbyStateList": "up", "module": "notstateful"}},
+        "status": True}
+
+    ts_stateful = TopologicalSorter2()
+    ts_stateful.add("serv2", "serv1")
+    ts_stateful.prepare()
+    ts_notstateful = TopologicalSorter2()
+    ts_notstateful.add("notstateful-serv2", "notstateful-serv1")
+    ts_notstateful.prepare()
+    sm_dict.globals = {"stateful": {"ts": ts_stateful}, "notstateful": {"ts": ts_notstateful}}
+
+    def mock_sm_process_service(site, service, site_cmd, no_wait=True, force=False):
+        mode = 'active' if site == 'k8s-1' else 'standby'
+        status = 'done' if site not in failed_service_site.get(service, []) else 'failed'
+        return {"services": {service: {'healthz': 'up', 'mode': mode, 'status': status}}}, True, 200
+
+    mocker.patch("sm_client.processing.sm_process_service", side_effect=mock_sm_process_service)
+
+    # Check failover with failed standby site
+    failed_service_site = {"serv1": ["k8s-2"], "notstateful-serv1": ["k8s-2"]}
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    settings.warned_services.clear()
+    run_dr_or_site_procedure(sm_dict,  "stop", "k8s-2")
+    assert ["notstateful-serv2", "serv2"] == settings.done_services
+    assert ["notstateful-serv1", "serv1"] == settings.warned_services
+    assert [] == settings.failed_services
+    assert [] == settings.skipped_due_deps_services
+
+    # Check switchover with failed standby site on notstateful service
+    failed_service_site = {"notstateful-serv1": ["k8s-2"]}
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    settings.warned_services.clear()
+    run_dr_or_site_procedure(sm_dict,  "move", "k8s-1")
+    assert [] == settings.done_services
+    assert [] == settings.warned_services
+    assert ["notstateful-serv1"] == settings.failed_services
+    assert ["notstateful-serv2", "serv1", "serv2"] == settings.skipped_due_deps_services
+
+    # Check switchover with failed standby site on stateful service
+    failed_service_site = {"serv1": ["k8s-2"]}
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    settings.warned_services.clear()
+    run_dr_or_site_procedure(sm_dict,  "move", "k8s-1")
+    assert [] == settings.done_services
+    assert [] == settings.warned_services
+    assert ["serv1"] == settings.failed_services
+    assert ["serv2", "notstateful-serv1", "notstateful-serv2"] == settings.skipped_due_deps_services
+
+    # Check failover with failed on both sites for notstateful service
+    failed_service_site = {"notstateful-serv1": ["k8s-1", "k8s-2"]}
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    settings.warned_services.clear()
+    run_dr_or_site_procedure(sm_dict,  "stop", "k8s-2")
+    assert ["serv1", "serv2"] == settings.done_services
+    assert [] == settings.warned_services
+    assert ["notstateful-serv1"] == settings.failed_services
+    assert ["notstateful-serv2"] == settings.skipped_due_deps_services
+
+    # Check failover with failed on both sites for stateful service
+    failed_service_site = {"serv1": ["k8s-1", "k8s-2"]}
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    settings.warned_services.clear()
+    run_dr_or_site_procedure(sm_dict,  "stop", "k8s-2")
+    assert [] == settings.done_services
+    assert [] == settings.warned_services
+    assert ["serv1"] == settings.failed_services
+    assert ["serv2", "notstateful-serv1", "notstateful-serv2"] == settings.skipped_due_deps_services

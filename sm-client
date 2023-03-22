@@ -157,6 +157,7 @@ def print_service_operation_summary(part, sm_dict: SMClusterState, services_to_r
         logging.info("Summary:")
         logging.info(f"services that successfully done:          {list(dict.fromkeys(settings.done_services))}")
         logging.info(f"services that failed:                     {settings.failed_services}")
+        logging.info(f"services that warned:                     {settings.warned_services}")
         logging.info(f"services that skipped due to dependency:  {settings.skipped_due_deps_services}")
         logging.info(f"services that ignored:                    {settings.ignored_services}")
         logging.info("---------------------------------------------------------------------")
