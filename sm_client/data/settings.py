@@ -17,7 +17,6 @@ ignored_services = []
 failed_services = []
 warned_services = []
 skipped_due_deps_services = []
-not_finished_due_deps_services = []
 run_services = []
 skip_services = []
 force = False
