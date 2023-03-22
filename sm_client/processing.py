@@ -60,6 +60,7 @@ def skip_service_due_deps(service: str):
         return
     settings.skipped_due_deps_services.append(service) if service not in settings.skipped_due_deps_services else None
     settings.done_services.remove(service) if service in settings.done_services else None
+    settings.warned_services.remove(service) if service in settings.warned_services else None
 
 
 def process_ts_services(ts: TopologicalSorter2, process_func, *run_args: ()) -> None:
