@@ -6,7 +6,7 @@ import time
 
 import yaml
 from common import utils
-from kubernetes import client, config, watch
+from kubernetes import client, config, watch  # type: ignore
 
 # Define kubernetes CR objects
 SM_GROUP = os.environ.get("SM_GROUP", "netcracker.com")

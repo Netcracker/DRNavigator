@@ -1,4 +1,4 @@
-from prometheus_flask_exporter.multiprocess import GunicornInternalPrometheusMetrics
+from prometheus_flask_exporter.multiprocess import GunicornInternalPrometheusMetrics  # type: ignore
 
 
 def child_exit(server, worker):

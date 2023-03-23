@@ -11,10 +11,10 @@ import threading
 import http
 import copy
 
-from kubernetes.client import ApiException
+from kubernetes.client import ApiException  # type: ignore
 
 from flask import Flask, request, jsonify, make_response
-from prometheus_flask_exporter.multiprocess import GunicornInternalPrometheusMetrics
+from prometheus_flask_exporter.multiprocess import GunicornInternalPrometheusMetrics  # type: ignore
 from prometheus_client import Gauge
 
 from site_manager import server_utils
