@@ -1,6 +1,7 @@
 import logging
 import ssl
 
+from sm_client.data import settings
 from sm_client.processing import sm_process_service
 from sm_client.data.structures import *
 
@@ -201,7 +202,7 @@ def validate_stop_operation(sm_dict: SMClusterState, cmd, site=None, service_dep
     if not check_site_ssl_available(settings.sm_conf.get_opposite_site(site), sm_dict) or \
             not check_dep_issue(sm_dict, cmd, module):
         raise NotValid
-    check_services_on_sites(service_dep_ordered, settings.sm_conf.keys(), sm_dict)
+    check_services_on_sites(service_dep_ordered, list(settings.sm_conf.keys()), sm_dict)
 
 
 def validate_move_operation(sm_dict: SMClusterState, cmd, site=None, service_dep_ordered=None,
@@ -215,7 +216,7 @@ def validate_move_operation(sm_dict: SMClusterState, cmd, site=None, service_dep
     @returns: Allowed or not to proceed operation <cmd> on <site>
     """
     if not all(check_site_ssl_available(site_i, sm_dict) for site_i in settings.sm_conf.keys()) or \
-            not check_services_on_sites(service_dep_ordered,  settings.sm_conf.keys(), sm_dict) or \
+            not check_services_on_sites(service_dep_ordered,  list(settings.sm_conf.keys()), sm_dict) or \
             not check_dep_issue(sm_dict, cmd, module) or \
             not check_deps_consistency(sm_dict, service_dep_ordered, sm_dict.get_available_sites()) or \
             not check_sequence_consistency(sm_dict, service_dep_ordered, sm_dict.get_available_sites()):

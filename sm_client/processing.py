@@ -7,13 +7,14 @@ from http import HTTPStatus
 from typing import Tuple, Dict
 
 from common import utils
+from sm_client.data import settings
 from sm_client.data.structures import *
 
-thread_pool = []
-thread_result_queue = Queue(maxsize=-1)
+thread_pool: list = []
+thread_result_queue: Queue = Queue(maxsize=-1)
 
 
-def process_ts_services(ts: TopologicalSorter2, process_func, *run_args: ()) -> None:
+def process_ts_services(ts: TopologicalSorter2, process_func, *run_args) -> None:
     """ Runs services in ts object one-by-one on both sites using process_func method.
     process_func have to put  ServiceDRStatus result in thread_result_queue  queue
     @param ts: TopologicalSorter2
@@ -121,7 +122,7 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
         @param force: True/False --force mode to ignore healthz
     """
 
-    def service_status_polling(site, service, expected_state: {}, error_states: [], delay=5) -> Dict:
+    def service_status_polling(site, service, expected_state: dict, error_states: list, delay=5) -> Dict:
         """  Polls "site-manager status" <service> command till <expected_state> dict or
         error_state dict returns during <timeout> period with <delay>
         @param expected_state:  expected dict state from site-manager service status command. {"status": ["up"]}
@@ -133,7 +134,7 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
 
         init_time = int(time.time())
         count = 0
-        data = {'services': {service: {}}}
+        data: dict = {'services': {service: {}}}
         while int(time.time()) <= init_time + int(timeout):
             count += 1
 

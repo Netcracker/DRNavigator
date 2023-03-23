@@ -46,4 +46,4 @@ jobs:
         if: (success() || failure()) && steps.pylint_check.outcome != 'skipped'
         run: |
           mkdir .mypy_cache
-          mypy --install-types --non-interactive ${{ matrix.dir-list }}
+          mypy --install-types --non-interactive --explicit-package-bases --implicit-optional --allow-redefinition ${{ matrix.dir-list }}

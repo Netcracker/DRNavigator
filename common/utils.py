@@ -5,6 +5,8 @@ from typing import Tuple, Dict
 
 import requests.packages
 import os
+
+import urllib3
 from requests.adapters import HTTPAdapter, Retry
 from urllib3.exceptions import InsecureRequestWarning
 
@@ -36,7 +38,7 @@ def io_make_http_json_request(url="", token=None, verify=True, http_body:dict=No
     """
     if not os.getenv("DEBUG"):
         # Disable warnings about self-signed certificates from requests library
-        requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
+        urllib3.disable_warnings(InsecureRequestWarning)
 
     if token and use_auth:
         headers = {"Authorization": f"Bearer {token}"}

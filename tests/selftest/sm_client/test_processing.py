@@ -10,6 +10,7 @@ import pytest
 
 import smclient
 from common.utils import io_make_http_json_request
+from sm_client.data import settings
 from sm_client.data.structures import *
 from sm_client.initialization import init_and_check_config
 from sm_client.processing import sm_process_service, thread_result_queue, process_ts_services, \

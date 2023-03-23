@@ -3,6 +3,7 @@ import warnings
 
 import pytest
 
+from sm_client.data import settings
 from sm_client.data.structures import *
 from sm_client.initialization import init_and_check_config
 from tests.selftest.sm_client.common.test_utils import *

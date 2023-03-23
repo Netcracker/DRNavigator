@@ -4,6 +4,7 @@ from graphlib import CycleError
 from typing import Tuple, Optional
 
 from sm_client.data.structures import *
+from sm_client.data import settings
 
 
 def make_ordered_services_to_process(sm_dict: SMClusterState, site: str = None, services_to_process: list = None,
@@ -29,12 +30,12 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site: str = None, 
                 ts.add(dep_list[item]['before'][0], item)
         return ts
 
-    def after_before_check(ll: dict) -> {}:
+    def after_before_check(ll: dict) -> dict:
         """ Check AFTER and BEFORE dependency integrity
         @returns: dict of services if any with non exist deps , see format in @note
         @note: the return dict format {service:{'before':wrong_dep}}}
         """
-        wrong_dep_list={}
+        wrong_dep_list: dict = {}
         for i in ll.keys():
             wrong_deps = [dep for dep in ll[i]['after'] if dep not in ll]
             if wrong_deps:
@@ -53,7 +54,7 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site: str = None, 
     ret = True
     integrity_error = False
     used_sites = [site] if site is not None else sm_dict.get_available_sites()
-    services_with_deps = {}
+    services_with_deps: dict = {}
 
     for site_name in used_sites:
         for serv, serv_conf in sm_dict[site_name]['services'].items():
@@ -84,7 +85,7 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site: str = None, 
         integrity_error = True
 
     if integrity_error:
-        return [], False, type(None) # return error, integrity issue
+        return [], False, None # return error, integrity issue
 
     # check services equality on all sites
     ts = build_after_before_graph(services_with_deps)

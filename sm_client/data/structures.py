@@ -1,10 +1,6 @@
 from graphlib import TopologicalSorter
 
-from sm_client.data import settings
-
-
 class SMConf(dict):  # global config.yaml and some RO config parameters and args, cmd manipulation
-
     def get_active_site(self, cmd, site):
         if cmd in ["active", "move"]:
             return site
@@ -34,6 +30,8 @@ class SMConf(dict):  # global config.yaml and some RO config parameters and args
 
     @staticmethod
     def get_modules():
+        from sm_client.data import settings
+
         mod_list = set()
         for elem in settings.module_flow:
             for module in elem.keys():
@@ -43,6 +41,7 @@ class SMConf(dict):  # global config.yaml and some RO config parameters and args
 
 class SMClusterState:
     def __init__(self, site=None):
+        from sm_client.data import settings
         def init_default(site_name):
             if len(self.sm.keys()) == 2:
                 raise ValueError("Only two sites in clusters are supported")
@@ -84,11 +83,12 @@ class SMClusterState:
     def keys(self):
         return self.sm.keys()
 
-    def get_dr_operation_sequence(self, serv, procedure, site) -> [[], []]:  # move active, stop standby
+    def get_dr_operation_sequence(self, serv, procedure, site) -> list:  # move active, stop standby
         """ Get DR operation(cmd) site sequence in the correct order for specific service for provided DR procedure
         @returns: [['site1','standby'],['site2','active']] - default in case sequence is empty
         @todo to rework when sm_dict[site|opposite]['services'][serv] serv is not present on one site
         """
+        from sm_client.data import settings
         opposite_site = settings.sm_conf.get_opposite_site(site)
         site_sequence = []
         if procedure == 'move':  # switchover
@@ -109,25 +109,26 @@ class SMClusterState:
 
         return site_sequence
 
-    def get_available_sites(self) -> []:
+    def get_available_sites(self) -> list:
         """ Return list of available sites """
         return [site for site in self.sm.keys() if self.sm[site]['status']]
 
-    def get_services_list_for_ok_site(self) -> []:
-        final_set = set()
+    def get_services_list_for_ok_site(self) -> list:
+        final_set: set = set()
         for site in self.sm.values():
             final_set = final_set.union(set(list(site['services'].keys())))
         return list(final_set)
 
-    def get_module_services(self, site, module) -> []:
+    def get_module_services(self, site, module) -> list:
         module_list = []
         for serv in self.sm[site]['services'].keys():
             if self.sm[site]['services'][serv].get('module') and module == self.sm[site]['services'][serv]['module']:
                 module_list.append(serv)
         return module_list
 
-    def make_ignored_services(self, service_dep_ordered: list) -> []:
+    def make_ignored_services(self, service_dep_ordered: list) -> list:
         """ Make list of services which are not intended to run, ignored."""
+        from sm_client.data import settings
         ignored_list = []
         for site in self.sm.keys():
             for serv in self.sm[site]['services']:
@@ -179,6 +180,7 @@ class ServiceDRStatus:
 
     def sortout_service_results(self):
         """ Put service name in appropriate list(failed or done) """
+        from sm_client.data import settings
         if self.is_ok():  # return Ok - done_service
             if self.service not in settings.failed_services:
                 settings.done_services.append(self.service) if self.service not in settings.done_services else None
