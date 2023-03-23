@@ -14,9 +14,10 @@ import copy
 from kubernetes.client import ApiException
 
 from flask import Flask, request, jsonify, make_response
-from kubernetes import client, config
 from prometheus_flask_exporter.multiprocess import GunicornInternalPrometheusMetrics
 from prometheus_client import Gauge
+
+from site_manager import server_utils
 from site_manager.server_utils import *
 
 
@@ -25,13 +26,13 @@ command_list = ["active", "standby", "disable", "list", "status"]
 
 app = Flask(__name__)
 
-app.config['DEBUG'] = utils.SM_DEBUG
+app.config['DEBUG'] = server_utils.SM_DEBUG
 app.config['JSONIFY_PRETTYPRINT_REGULAR'] = True
 metrics = GunicornInternalPrometheusMetrics(app)
 
 site_manager_health = Gauge('site_manager_health', 'SM pod health')
 
-if utils.SM_DEBUG:
+if server_utils.SM_DEBUG:
     logging_level = logging.DEBUG
     logging_format = "[%(asctime)s] [%(process)d] [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"
 else:
@@ -42,46 +43,45 @@ logging.basicConfig(format=logging_format, level=logging_level)
 
 lock = threading.Lock()
 
-if utils.FRONT_HTTP_AUTH or utils.BACK_HTTP_AUTH:
-    utils.get_token(False)
+if server_utils.FRONT_HTTP_AUTH or server_utils.BACK_HTTP_AUTH:
+    server_utils.get_token(False)
 
-    w_thread = threading.Thread(target=utils.get_token,
+    w_thread = threading.Thread(target=server_utils.get_token,
                                 args=[True, ])
     w_thread.start()
 
 
-def get_sitemanagers_dict(api_version=utils.SM_VERSION):
+def get_sitemanagers_dict(api_version=server_utils.SM_VERSION):
     """
     Method creates dictionary of donwloaded data from sitemanager CRs
     """
 
     # In testing mode return stab
-    if utils.SM_CONFIG.get("testing", {}).get("enabled", False) and \
-       utils.SM_CONFIG.get("testing", {}).get("sm_dict", {}) != {}:
+    if server_utils.SM_CONFIG.get("testing", {}).get("enabled", False) and \
+       server_utils.SM_CONFIG.get("testing", {}).get("sm_dict", {}) != {}:
+       return server_utils.SM_CONFIG["testing"]["sm_dict"]
 
-       return utils.SM_CONFIG["testing"]["sm_dict"]
-
-    if utils.SM_KUBECONFIG_FILE != "":
-        k8s_api_client = config.load_kube_config(config_file=utils.SM_KUBECONFIG_FILE)
+    if server_utils.SM_KUBECONFIG_FILE != "":
+        k8s_api_client = config.load_kube_config(config_file=server_utils.SM_KUBECONFIG_FILE)
 
     else:
         k8s_api_client = config.load_incluster_config()
 
     try:
-        response = client.CustomObjectsApi(api_client=k8s_api_client).list_cluster_custom_object(group=utils.SM_GROUP,
+        response = client.CustomObjectsApi(api_client=k8s_api_client).list_cluster_custom_object(group=server_utils.SM_GROUP,
                                                                                                  version=api_version,
-                                                                                                 plural=utils.SM_PLURAL,
+                                                                                                 plural=server_utils.SM_PLURAL,
                                                                                                  _request_timeout=10)
 
     except ApiException as e:
         if e.status == 404:
             logging.error(f"Can't get sitemanager objects: Desired CRD not found:\n"
-                          f"\tplural={utils.SM_PLURAL}\n"
-                          f"\tgroup={utils.SM_GROUP}\n"
+                          f"\tplural={server_utils.SM_PLURAL}\n"
+                          f"\tgroup={server_utils.SM_GROUP}\n"
                           f"\tversion={api_version}")
             raise utils.ProcedureException(output={"message": "Can't get sitemanager objects: Desired CRD not found",
-                                                   "plural": utils.SM_PLURAL,
-                                                   "group": utils.SM_GROUP,
+                                                   "plural": server_utils.SM_PLURAL,
+                                                   "group": server_utils.SM_GROUP,
                                                    "version": api_version})
         else:
             raise e
@@ -122,7 +122,7 @@ def get_module_specific_cr(item):
                 item["spec"]["sitemanager"]['parameters']["serviceEndpoint"].startswith("https://"):
             service_endpoint = item["spec"]["sitemanager"]['parameters']["serviceEndpoint"]
         else:
-            service_endpoint = utils.HTTP_SCHEME + item["spec"]["sitemanager"]['parameters']["serviceEndpoint"]
+            service_endpoint = server_utils.HTTP_SCHEME + item["spec"]["sitemanager"]['parameters']["serviceEndpoint"]
     else:
         service_endpoint = ''
 
@@ -132,7 +132,7 @@ def get_module_specific_cr(item):
                 item['spec']['sitemanager']['parameters']['healthzEndpoint'].startswith("https://"):
             healthz_endpoint = item['spec']['sitemanager']['parameters']['healthzEndpoint']
         else:
-            healthz_endpoint = utils.HTTP_SCHEME + item['spec']['sitemanager']['parameters']['healthzEndpoint']
+            healthz_endpoint = server_utils.HTTP_SCHEME + item['spec']['sitemanager']['parameters']['healthzEndpoint']
     else:
         healthz_endpoint = ''
     allowed_standby_state_list = [i.lower() for i in item['spec']['sitemanager'].get('allowedStandbyStateList', ["up"])]
@@ -374,7 +374,7 @@ def sitemanager_post():
     mode = data["procedure"]
     url = sm_dict["services"][run_service]['parameters']['serviceEndpoint']
     logging.info(f"Service: {run_service}. Set mode {mode}. serviceEndpoint = {url}. No-wait {no_wait}")
-    resp = utils.send_post(url=url, mode=mode, no_wait=no_wait)
+    resp = server_utils.send_post(url=url, mode=mode, no_wait=no_wait)
     if resp.get("bad_response") or resp.get("fatal"):
         return json_response(500, {"message": f"Procedure {data['procedure']} failed",
                                    "service": run_service,
@@ -386,10 +386,10 @@ def sitemanager_post():
 
 
 def check_authorization(request):
-    if utils.FRONT_HTTP_AUTH:
+    if server_utils.FRONT_HTTP_AUTH:
         if "Authorization" not in request.headers:
             return json_response(401, {"message": "You should use Bearer for authorization"})
 
         if len(request.headers["Authorization"].split(" ")) != 2 or \
-           request.headers["Authorization"].split(" ")[1] != utils.SM_AUTH_TOKEN:
+           request.headers["Authorization"].split(" ")[1] != server_utils.SM_AUTH_TOKEN:
             return json_response(403, {"message": "Bearer is empty or wrong"})
