@@ -4,11 +4,7 @@ import ssl
 from typing import Tuple, Dict
 
 import requests.packages
-import time
 import os
-import yaml
-import base64
-from kubernetes import client, config, watch
 from requests.adapters import HTTPAdapter, Retry
 from urllib3.exceptions import InsecureRequestWarning
 

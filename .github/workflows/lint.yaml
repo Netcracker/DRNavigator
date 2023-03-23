@@ -44,4 +44,4 @@ jobs:
       - name: Import check with mypy
         id: mypy_check
         if: (success() || failure()) && steps.pylint_check.outcome != 'skipped'
-        run: mypy ${{ matrix.dir-list }}
+        run: mypy --install-types --non-interactive ${{ matrix.dir-list }}
