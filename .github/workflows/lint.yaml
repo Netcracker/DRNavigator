@@ -12,6 +12,12 @@ jobs:
     strategy:
       matrix:
         python-version: [ "3.9" ]
+        application: [sm-client, site-manager]
+        include:
+          - dir-list: common sm_client sm-client
+            application: sm-client
+          - dir-list: common site_manager site-manager.py
+            application: site-manager
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
@@ -20,6 +26,10 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install software
-        run: pip install bandit
+        run: pip install bandit pylint mypy
       - name: Security check with bandit
-        run: bandit -r common sm_client sm-client
+        run: bandit -r ${{ matrix.dir-list }}
+      - name: Lint check with pylint
+        run: pylint --max-line-length=120 ${{ matrix.dir-list }}
+      - name: Import check with mypy
+        run: mypy ${{ matrix.dir-list }}
