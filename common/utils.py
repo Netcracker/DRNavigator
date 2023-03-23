@@ -28,7 +28,7 @@ class ProcedureException(Exception):
         self.output = output
 
 
-def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None, retry=3, use_auth=True) -> Tuple[bool, Dict, int]:
+def io_make_http_json_request(url="", token=None, verify=True, http_body:dict=None, retry=3, use_auth=True) -> Tuple[bool, Dict, int]:
     """ Sends GET/POST request to service
     @param string url: the URL to service operator
     @param token: Bearer token
@@ -42,7 +42,7 @@ def io_make_http_json_request(url="", token="", verify=True, http_body:dict=None
         # Disable warnings about self-signed certificates from requests library
         requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
-    if token != "" and use_auth:
+    if token and use_auth:
         headers = {"Authorization": f"Bearer {token}"}
     else:
         headers = {}

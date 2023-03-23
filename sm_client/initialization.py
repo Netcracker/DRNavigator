@@ -55,7 +55,7 @@ def init_and_check_config(args) -> bool:
         exit(1)
 
     try:
-        conf_parsed = yaml.load(open(conf_file), Loader=yaml.FullLoader)
+        conf_parsed = yaml.safe_load(open(conf_file))
     except:
         logging.fatal("Can not parse configuration file!")
         return False

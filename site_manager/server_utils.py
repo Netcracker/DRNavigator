@@ -30,7 +30,7 @@ SM_DEBUG = os.environ.get("SM_DEBUG", False) in (1, True, "Yes", "yes", "True", 
 SM_CONFIG_FILE = os.environ.get("SM_CONFIG_FILE", "")
 if SM_CONFIG_FILE != "":
     try:
-        SM_CONFIG = yaml.load(open(SM_CONFIG_FILE), Loader=yaml.FullLoader)
+        SM_CONFIG = yaml.safe_load(open(SM_CONFIG_FILE))
     except Exception as e:
         logging.fatal("Can not parse configuration file!: \n %s" % str(e))
         exit(1)
@@ -38,7 +38,7 @@ else:
     SM_CONFIG = {}
 
 # Token
-SM_AUTH_TOKEN = ""
+SM_AUTH_TOKEN = None
 
 # Trust CA cert
 SM_CACERT = os.environ.get("SM_CACERT", True)
@@ -227,6 +227,7 @@ def get_token(api_watch=False):
                         try:
                             secret_name = [s for s in event['object'].secrets if 'token' in s.name][0].name
                         except: # hit here when secret for appropriate  SA is not ready yet
+                            logging.warning("Secret for appropriate SA is not ready yet")
                             continue
 
                         btoken = client.CoreV1Api(api_client=k8s_api_client).read_namespaced_secret(
