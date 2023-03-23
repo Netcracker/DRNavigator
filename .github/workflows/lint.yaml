@@ -32,9 +32,9 @@ jobs:
         run: bandit -r ${{ matrix.dir-list }}
       - name: Lint check with pylint
         id: pylint_check
-        if: steps.bandit_check.outcome == 'success' || steps.bandit_check.outcome == 'failure'
+        if: (success() || failure()) && steps.bandit_check.outcome != 'skipped'
         run: pylint --max-line-length=120 ${{ matrix.dir-list }}
       - name: Import check with mypy
         id: mypy_check
-        if: steps.pylint_check.outcome == 'success' || steps.pylint_check.outcome == 'failure'
+        if: (success() || failure()) && steps.pylint_check.outcome != 'skipped'
         run: mypy ${{ matrix.dir-list }}
