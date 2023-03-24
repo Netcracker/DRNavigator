@@ -14,7 +14,7 @@ from sm_client.data import settings
 from sm_client.data.structures import *
 from sm_client.initialization import init_and_check_config
 from sm_client.processing import sm_process_service, thread_result_queue, process_ts_services, \
-    sm_poll_service_required_status, sm_process_service_with_polling, process_module_services
+    sm_poll_service_required_status, sm_process_service_with_polling, process_module_services, run_dr_or_site_procedure
 from tests.selftest.sm_client.common.test_utils import *
 
 
@@ -110,7 +110,8 @@ def test_runservice_engine(caplog):
     logging.info(f"failed_services: {settings.failed_services}")
     logging.info(f"done_services: {settings.done_services}")
     assert settings.done_services in [['aa', 'cc', 'cc1'], ['cc', 'aa', 'cc1'], ['cc', 'cc1', 'aa']] \
-           and settings.failed_services == ['bb', 'bb1']
+           and settings.failed_services == ['bb'] \
+           and settings.skipped_due_deps_services == ['bb1']
 
 
 def test_sm_poll_service_required_status(mocker, caplog):
@@ -327,3 +328,71 @@ def test_process_module_services(mocker, caplog):
     settings.done_services.clear()
     process_module_services("stateful", "", "active", "k8s-2", sm_dict)
     assert "serv1" in settings.done_services
+
+
+def test_process_module_services_with_failed_service(mocker, caplog):
+    def mock_sm_process_service(site, service, site_cmd, no_wait=True, force=False):
+        mode = 'active' if site == 'k8s-1' else 'standby'
+        status = 'done' if service != 'serv1' else 'failed'
+        return {"services": {service: {'healthz': 'up', 'mode': mode, 'status': status}}}, True, 200
+
+    caplog.set_level(logging.INFO)
+    smclient.args = args_init()
+    init_and_check_config(args_init())
+    caplog.set_level(logging.DEBUG)
+    mocker.patch("sm_client.processing.sm_process_service", side_effect=mock_sm_process_service)
+
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {
+        "services": {
+            "serv1": {"timeout": 1, "sequence": ['standby', 'active']},
+            "serv2": {"timeout": 1, "sequence": ['standby', 'active']}},
+        "status": True}
+    sm_dict["k8s-2"] = {
+        "services": {
+            "serv1": {"timeout": 1, "sequence": ['standby', 'active'], "allowedStandbyStateList": "up"},
+            "serv2": {"timeout": 1, "sequence": ['standby', 'active'], "allowedStandbyStateList": "up"}},
+        "status": True}
+
+    # Check, when services are independent
+    ts = TopologicalSorter2()
+    ts.add("serv1")
+    ts.add("serv2")
+    ts.prepare()
+    sm_dict.globals = {"stateful": {"ts": ts}}
+
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    process_module_services("stateful", "", "move", "k8s-1", sm_dict)
+    assert ["serv1"] == settings.failed_services
+    assert ["serv2"] == settings.done_services
+    assert [] == settings.skipped_due_deps_services
+
+    # Check, when worked service depends on problem one
+    ts = TopologicalSorter2()
+    ts.add("serv2", "serv1")
+    ts.prepare()
+    sm_dict.globals = {"stateful": {"ts": ts}}
+
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    process_module_services("stateful", "", "move", "k8s-1", sm_dict)
+    assert [] == settings.done_services
+    assert ["serv1"] == settings.failed_services
+    assert ["serv2"] == settings.skipped_due_deps_services
+
+    # Check, when problem service depends on worked one
+    ts = TopologicalSorter2()
+    ts.add("serv1", "serv2")
+    ts.prepare()
+    sm_dict.globals = {"stateful": {"ts": ts}}
+
+    settings.done_services.clear()
+    settings.failed_services.clear()
+    settings.skipped_due_deps_services.clear()
+    process_module_services("stateful", "", "move", "k8s-1", sm_dict)
+    assert ["serv1"] == settings.failed_services
+    assert ["serv2"] == settings.done_services
+    assert [] == settings.skipped_due_deps_services

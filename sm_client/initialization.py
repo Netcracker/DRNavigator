@@ -86,6 +86,7 @@ def init_and_check_config(args) -> bool:
 
     settings.failed_services.clear()
     settings.done_services.clear()
+    settings.skipped_due_deps_services.clear()
 
     settings.force = args.force
 

@@ -24,7 +24,7 @@ from sm_client.data import settings
 from sm_client.data.structures import TopologicalSorter2, SMClusterState, ServiceDRStatus, NotValid
 from sm_client.initialization import sm_get_cluster_state, init_and_check_config
 from sm_client.prepare import make_ordered_services_to_process
-from sm_client.processing import sm_process_service, thread_pool, process_module_services
+from sm_client.processing import run_status_procedure, run_dr_or_site_procedure
 from sm_client.validation import validate_operation
 
 MAIN_HELP_SECTION = """
@@ -121,22 +121,9 @@ def run(services: list = None, cmd="", site=""):
 
     # main flow by command
     if cmd in "status":
-        for serv in service_dep_ordered:
-            def run_in_thread(site, serv, sm_dict):  # to run each status service in parallel
-                response, _, return_code=sm_process_service(site, serv, "status")
-                if not sm_dict[site]['services'].get(serv):
-                    sm_dict[site]['services'][serv]={}
-                sm_dict[site]['services'][serv]['status']=ServiceDRStatus(response) if return_code else False
-
-            for site_i in sm_dict.get_available_sites():
-                thread=threading.Thread(target=run_in_thread, args=(site_i, serv, sm_dict))
-                thread.name = f"Thread: {serv}"
-                thread.start()
-                thread_pool.append(thread)
-        for thread in thread_pool:
-            thread.join()
-        print_service_order(ts, sm_dict)
-        print_main_table(sm_dict, service_dep_ordered, [site] if site else list(settings.sm_conf.keys()))
+        run_status_procedure(sm_dict, service_dep_ordered)
+        print_service_order(ts,sm_dict)
+        print_main_table(sm_dict, service_dep_ordered, [site] if site else [_ for _ in settings.sm_conf.keys()])
     elif cmd in "list":
         print("---------------------------------------------------------------------\n" +
               f"Sites managed by site-manager:               {list(sm_dict.keys())}\n\n" +
@@ -145,24 +132,8 @@ def run(services: list = None, cmd="", site=""):
               "---------------------------------------------------------------------")
     elif cmd in settings.site_cmds + settings.dr_procedures:  # per site command or DR procedure
         print_service_operation_summary("top", sm_dict, service_dep_ordered, cmd, site)
-        dr_status = True
-        for elem in settings.module_flow:
-            module, states = list(elem.items())[0]
-            if not dr_status:  # fail rest of services in case failed before
-                for i in sm_dict.get_module_services(sm_dict.get_available_sites()[0], module):
-                    if i in service_dep_ordered:
-                        ServiceDRStatus({'services':{i:{'status':'failed'}}}).sortout_service_results()
-                break
-            if cmd in ['standby', 'disable', 'return'] and (states and states == ['active']):
-                break
-            if cmd in 'active' and (states and set(states) == {'standby', 'disable'}):
-                continue
-            process_module_services(module, states, cmd, site, sm_dict)
-            if settings.failed_services:
-                logging.debug(f"Module {module} failed. Failed services {settings.failed_services}")
-                logging.error(f"Module {module} failed, skipping rest of services, exiting")
-                break
-        print_service_operation_summary("tail",sm_dict, service_dep_ordered, cmd, site )
+        run_dr_or_site_procedure(sm_dict, cmd, site)
+        print_service_operation_summary("tail",sm_dict, service_dep_ordered, cmd, site)
     else:
         logging.error(f"Unknown combination of {cmd} {site} options")
         sys.exit(1)
@@ -187,9 +158,11 @@ def print_service_operation_summary(part, sm_dict: SMClusterState, services_to_r
     elif part in "tail":
         logging.info("---------------------------------------------------------------------")
         logging.info("Summary:")
-        logging.info(f"services that successfully done: {list(dict.fromkeys(settings.done_services))}")
-        logging.info(f"services that failed:            {settings.failed_services}")
-        logging.info(f"services that ignored:           {settings.ignored_services}")
+        logging.info(f"services that successfully done:          {list(dict.fromkeys(settings.done_services))}")
+        logging.info(f"services that failed:                     {settings.failed_services}")
+        logging.info(f"services that warned:                     {settings.warned_services}")
+        logging.info(f"services that skipped due to dependency:  {settings.skipped_due_deps_services}")
+        logging.info(f"services that ignored:                    {settings.ignored_services}")
         logging.info("---------------------------------------------------------------------")
 
 
