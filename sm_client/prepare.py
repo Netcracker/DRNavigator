@@ -1,10 +1,10 @@
-import copy
+"""Functions that are used for prepare process"""
 import logging
 from graphlib import CycleError
 from typing import Tuple, Optional
 
-from sm_client.data.structures import *
 from sm_client.data import settings
+from sm_client.data.structures import TopologicalSorter2, SMClusterState
 
 
 def make_ordered_services_to_process(sm_dict: SMClusterState, site: str = None, services_to_process: list = None,
@@ -24,9 +24,9 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site: str = None, 
         ts = TopologicalSorter2()
         for item in dep_list.keys():
             ts.add(item)
-            if dep_list[item].get('after') and dep_list[item]['after'][0] in [ii for ii in dep_list.keys()]:
+            if dep_list[item].get('after') and dep_list[item]['after'][0] in list(dep_list.keys()):
                 ts.add(item, dep_list[item]['after'][0]) #if dep[AFTER,BEFORE] is present and exist in the dep_list - add it
-            if dep_list[item].get('before') and dep_list[item]['before'][0] in [ii for ii in dep_list.keys()]:
+            if dep_list[item].get('before') and dep_list[item]['before'][0] in list(dep_list.keys()):
                 ts.add(dep_list[item]['before'][0], item)
         return ts
 
@@ -74,7 +74,7 @@ def make_ordered_services_to_process(sm_dict: SMClusterState, site: str = None, 
     # collect sorted ordered service list
     service_lists = []
     try:
-        service_lists = [i for i in build_after_before_graph(services_with_deps).static_order()]
+        service_lists = list(build_after_before_graph(services_with_deps).static_order())
         for service, depends in after_before_check(services_with_deps).items():  # check deps
             for depend in depends:
                 logging.warning(f"Sites: {used_sites}. Service: {service} has nonexistent "

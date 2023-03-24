@@ -1,7 +1,7 @@
-# consts
-
+"""Module, that contains parameters for other modules"""
 from sm_client.data.structures import SMConf
 
+# consts
 default_module = 'stateful'
 readonly_cmd = ("status", "list")
 dr_procedures = ("move", "stop") + readonly_cmd  # DR procedures: switchover, failover

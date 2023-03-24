@@ -1,3 +1,4 @@
+"""Functions that are used for initialization process"""
 import logging
 import os
 import pathlib
@@ -7,7 +8,7 @@ import yaml
 
 from common import utils
 from sm_client.data import settings
-from sm_client.data.structures import *
+from sm_client.data.structures import SMClusterState, SMConf
 from sm_client.processing import sm_process_service
 
 
@@ -20,15 +21,15 @@ def init_and_check_config(args) -> bool:
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
 
-    ch = logging.StreamHandler()
+    stream_handler = logging.StreamHandler()
     if args.verbose:
-        ch.setLevel(logging.DEBUG)
-        ch.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"))
+        stream_handler.setLevel(logging.DEBUG)
+        stream_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"))
     else:
-        ch.setLevel(logging.INFO)
-        ch.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s: %(message)s"))
+        stream_handler.setLevel(logging.INFO)
+        stream_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s: %(message)s"))
 
-    logging.basicConfig(handlers=[ch])
+    logging.basicConfig(handlers=[stream_handler])
     if args.output:
         log_output = None
         if pathlib.Path(args.output).is_file():
@@ -40,12 +41,12 @@ def init_and_check_config(args) -> bool:
         if not log_output:
             logging.critical(f"Cannot write to {args.output} file. Printing stdout ...")
         else:
-            fh = logging.FileHandler(log_output)
-            fh.setLevel(logging.DEBUG)
-            fh.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"))
-            fh.emit(logging.LogRecord("",logging.INFO,sys.argv[0], 0, args.command,None,None)) # add delimeter in logfile
+            file_handler = logging.FileHandler(log_output)
+            file_handler.setLevel(logging.DEBUG)
+            file_handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(filename)s.%(funcName)s(%(lineno)d): %(message)s"))
+            file_handler.emit(logging.LogRecord("",logging.INFO,sys.argv[0], 0, args.command,None,None)) # add delimeter in logfile
 
-            logger.addHandler(fh)
+            logger.addHandler(file_handler)
 
     logging.debug(f"Script arguments: {args}")
 
@@ -53,13 +54,14 @@ def init_and_check_config(args) -> bool:
     conf_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../config.yaml") if args.config == "" else args.config
     if not os.path.isfile(conf_file):
         logging.fatal("You should define configuration file for site-manager or copy it to config.yaml in site-manager main directory")
-        exit(1)
+        sys.exit(1)
 
-    try:
-        conf_parsed = yaml.safe_load(open(conf_file))
-    except:
-        logging.fatal("Can not parse configuration file!")
-        return False
+    with open(conf_file) as file:
+        try:
+            conf_parsed = yaml.safe_load(file)
+        except:
+            logging.fatal("Can not parse configuration file!")
+            return False
 
     logging.debug(f"Parsed config: {conf_parsed}")
 
@@ -116,7 +118,7 @@ def init_and_check_config(args) -> bool:
                 site_token = i.get("token", "")
         site_cacert = [ i.get("cacert", True) for i in conf_parsed["sites"] if i ["name"] == site ][0]
 
-        if site_cacert != True and not os.path.isfile(site_cacert):
+        if site_cacert is not True and not os.path.isfile(site_cacert):
             logging.fatal(f"You should define correct path to CA certificate for site {site}")
             return False
         settings.sm_conf[site] = {}
@@ -127,7 +129,7 @@ def init_and_check_config(args) -> bool:
     # Check state restrictions
     for restrictions_list in settings.state_restrictions.values():
         if any(state_str.count('-') + 1 != len(settings.sm_conf) for state_str in restrictions_list):
-            logging.error(f"Check configuration file. Some state restrictions don't suitable for the current number of sites")
+            logging.error("Check configuration file. Some state restrictions don't suitable for the current number of sites")
             return False
 
     return True
@@ -137,7 +139,7 @@ def sm_get_cluster_state(site=None) -> SMClusterState:
     """ Get cluster status or per specific site and init sm_dict object
     """
     sm_dict = SMClusterState(site)
-    for site_name in sm_dict.keys():
+    for site_name, _ in sm_dict.keys():
         response, ret, code = sm_process_service(site_name, "site-manager", "status")
         sm_dict[site_name]["return_code"] = code # HTTP or SSL
         sm_dict[site_name]["status"] = ret

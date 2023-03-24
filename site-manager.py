@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Company:     NetCracker
 Author:      Core PaaS Group
@@ -7,18 +6,20 @@ Date:        2021-11-19
 Description: Service for management of microservices in active-standby scheme of kubernetes cluster
 """
 
+import logging
 import threading
 import http
 import copy
 
+from kubernetes import client, config       # type: ignore
 from kubernetes.client import ApiException  # type: ignore
 
 from flask import Flask, request, jsonify, make_response
 from prometheus_flask_exporter.multiprocess import GunicornInternalPrometheusMetrics  # type: ignore
 from prometheus_client import Gauge
 
+from common import utils
 from site_manager import server_utils
-from site_manager.server_utils import *
 
 
 # List of possible procedures
@@ -58,20 +59,20 @@ def get_sitemanagers_dict(api_version=server_utils.SM_VERSION):
 
     # In testing mode return stab
     if server_utils.SM_CONFIG.get("testing", {}).get("enabled", False) and \
-       server_utils.SM_CONFIG.get("testing", {}).get("sm_dict", {}) != {}:
-       return server_utils.SM_CONFIG["testing"]["sm_dict"]
+            server_utils.SM_CONFIG.get("testing", {}).get("sm_dict", {}) != {}:
+        return server_utils.SM_CONFIG["testing"]["sm_dict"]
 
     if server_utils.SM_KUBECONFIG_FILE != "":
-        k8s_api_client = config.load_kube_config(config_file=server_utils.SM_KUBECONFIG_FILE)
+        config.load_kube_config(config_file=server_utils.SM_KUBECONFIG_FILE)
 
     else:
-        k8s_api_client = config.load_incluster_config()
+        config.load_incluster_config()
 
     try:
-        response = client.CustomObjectsApi(api_client=k8s_api_client).list_cluster_custom_object(group=server_utils.SM_GROUP,
-                                                                                                 version=api_version,
-                                                                                                 plural=server_utils.SM_PLURAL,
-                                                                                                 _request_timeout=10)
+        response = client.CustomObjectsApi().list_cluster_custom_object(group=server_utils.SM_GROUP,
+                                                                        version=api_version,
+                                                                        plural=server_utils.SM_PLURAL,
+                                                                        _request_timeout=10)
 
     except ApiException as e:
         if e.status == 404:
@@ -83,15 +84,13 @@ def get_sitemanagers_dict(api_version=server_utils.SM_VERSION):
                                                    "plural": server_utils.SM_PLURAL,
                                                    "group": server_utils.SM_GROUP,
                                                    "version": api_version})
-        else:
-            raise e
+        raise e
 
-    output = dict()
-    output['services'] = {}
+    output = {'services': {}}
     for item in response["items"]:
-        serviceName = item['spec']['sitemanager'].get("alias",
+        service_name = item['spec']['sitemanager'].get("alias",
                                            "%s.%s" % (item['metadata'].get('name'), item['metadata'].get('namespace')))
-        output['services'][serviceName] = \
+        output['services'][service_name] = \
             get_module_specific_cr(item)
 
     return output
@@ -167,6 +166,7 @@ def root_get():
 
 @app.route('/validate', methods=['POST'])
 def cr_validate():
+    """CR validation function"""
     data = request.json["request"]
     logging.debug(f"Initial object from API for validating: {data}")
     allowed = True
@@ -195,11 +195,12 @@ def cr_validate():
 
 @app.route('/convert', methods=['POST'])
 def cr_convert():
+    """Convertation CR versions"""
     logging.debug(f"Initial object from API for converting: {request.json['request']}")
 
     spec = request.json["request"]["objects"]
     modified_spec = copy.deepcopy(spec)
-    for i in range(len(modified_spec)):
+    for i in enumerate(modified_spec):
         # v1 -> v2, v3 conversion
         if modified_spec[i]["apiVersion"] == "netcracker.com/v1":
             if "module" not in modified_spec[i]["spec"]["sitemanager"]:
@@ -217,7 +218,7 @@ def cr_convert():
 
         # v2 -> v3 conversion
         if request.json["request"]["desiredAPIVersion"] == "netcracker.com/v3":
-            # TODO: It's needed for automatic conversion not stateful modules
+            # It's needed for automatic conversion not stateful modules
             if modified_spec[i]["spec"]["sitemanager"]["module"] != "stateful":
                 modified_spec[i]["spec"]["sitemanager"]["alias"] = modified_spec[i]["metadata"]["name"]
 
@@ -263,9 +264,12 @@ def cr_convert():
                 del modified_spec[i]["spec"]["sitemanager"]["module"]
 
             if "parameters" in modified_spec[i]["spec"]["sitemanager"]:
-                modified_spec[i]["spec"]["sitemanager"]["serviceEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("serviceEndpoint", "")
-                modified_spec[i]["spec"]["sitemanager"]["ingressEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("ingressEndpoint", "")
-                modified_spec[i]["spec"]["sitemanager"]["healthzEndpoint"] = modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("healthzEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["serviceEndpoint"] = \
+                    modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("serviceEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["ingressEndpoint"] = \
+                    modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("ingressEndpoint", "")
+                modified_spec[i]["spec"]["sitemanager"]["healthzEndpoint"] = \
+                    modified_spec[i]["spec"]["sitemanager"]["parameters"].pop("healthzEndpoint", "")
                 del modified_spec[i]["spec"]["sitemanager"]["parameters"]
 
 
@@ -290,6 +294,7 @@ def cr_convert():
 
 @app.route("/health", methods=["GET"])
 def health():
+    """Health endpoint"""
     site_manager_health.set(1)
     return ("", http.HTTPStatus.NO_CONTENT)
 
@@ -326,7 +331,7 @@ def sitemanager_post():
         data = request.get_json()
 
     except Exception as e:
-        logging.error("Some problem occurred: \n %s" % str(e))
+        logging.error(f"Some problem occurred: \n {str(e)}")
         return json_response(400, {"message": "No valid JSON data was received"})
 
     logging.info(f"Data was received: {data}")
@@ -336,15 +341,15 @@ def sitemanager_post():
 
         return json_response(400, {"message": f"You should define procedure from list: {command_list}"})
 
-    no_wait = True if data.get("no-wait", "") in (1, "1", True, "true", "True") else False
+    no_wait = data.get("no-wait", "") in (1, "1", True, "true", "True")
 
     try:
         sm_dict = get_sitemanagers_dict()
     except Exception as e:
-        logging.error("Can not get sitemanager structures: \n %s" % str(e))
+        logging.error(f"Can not get sitemanager structures: \n {str(e)}")
         return json_response(500, {"message": "Can not get sitemanager structures"})
 
-    all_services = get_all_services(sm_dict)
+    all_services = server_utils.get_all_services(sm_dict)
 
     if data["procedure"] == "list":
         return json_response(200, {"all-services": all_services})
@@ -353,20 +358,21 @@ def sitemanager_post():
     if isinstance(data.get("run-service", None), str):
         run_service = data["run-service"]
     else:
-        return json_response(400, {"message": f"run-service value should be defined and have String type"})
+        return json_response(400, {"message": "run-service value should be defined and have String type"})
 
     # Check for service what does not exist in cluster
     if run_service not in all_services:
 
-        return json_response(400, {"message": f"Service doesn't exist",
+        return json_response(400, {"message": "Service doesn't exist",
                                    "wrong-service": run_service})
 
     logging.info(f"Following service will be processed: {run_service}")
 
     if data["procedure"] == "status":
         try:
-            output = dict()
-            output["services"] = get_status_with_deps(run_service, sm_dict, **data)
+            output = {
+                "services": server_utils.get_status_with_deps(run_service, sm_dict, **data)
+            }
             return json_response(200, output)
         except utils.ProcedureException as e:
             return json_response(400, e.output)
@@ -379,17 +385,18 @@ def sitemanager_post():
         return json_response(500, {"message": f"Procedure {data['procedure']} failed",
                                    "service": run_service,
                                    "procedure": data['procedure']})
-    else:
-        return json_response(200, {"message": f"Procedure {data['procedure']} is started",
+    return json_response(200, {"message": f"Procedure {data['procedure']} is started",
                                    "service": run_service,
                                    "procedure": data['procedure']})
 
 
-def check_authorization(request):
+def check_authorization(req):
+    """Checks authorization token"""
     if server_utils.FRONT_HTTP_AUTH:
-        if "Authorization" not in request.headers:
+        if "Authorization" not in req.headers:
             return json_response(401, {"message": "You should use Bearer for authorization"})
 
-        if len(request.headers["Authorization"].split(" ")) != 2 or \
-           request.headers["Authorization"].split(" ")[1] != server_utils.SM_AUTH_TOKEN:
+        if len(req.headers["Authorization"].split(" ")) != 2 or \
+           req.headers["Authorization"].split(" ")[1] != server_utils.SM_AUTH_TOKEN:
             return json_response(403, {"message": "Bearer is empty or wrong"})
+    return None

@@ -1,3 +1,4 @@
+"""Functions that are used for procedure processing"""
 import copy
 import logging
 import threading
@@ -8,7 +9,7 @@ from typing import Tuple, Dict
 
 from common import utils
 from sm_client.data import settings
-from sm_client.data.structures import *
+from sm_client.data.structures import TopologicalSorter2, ServiceDRStatus
 
 thread_pool: list = []
 thread_result_queue: Queue = Queue(maxsize=-1)
@@ -23,7 +24,7 @@ def process_ts_services(ts: TopologicalSorter2, process_func, *run_args) -> None
     """
     failed_successors = []
     serv_thread_pool = []
-    global thread_result_queue
+    # global thread_result_queue
 
     # Make deep copy for ts to process modules by flow on different sites separately
     ts = copy.deepcopy(ts)
@@ -58,8 +59,7 @@ def process_module_services(module, states, cmd, site, sm_dict):
         if states:  #  [standby,disable] or ['active']
             if cmd in ['move', 'stop']:
                 return states[0]
-            else:
-                return settings.sm_conf.convert_sitecmd_to_dr_mode(cmd)
+            return settings.sm_conf.convert_sitecmd_to_dr_mode(cmd)
         return cmd
 
     def get_site():
@@ -68,8 +68,7 @@ def process_module_services(module, states, cmd, site, sm_dict):
                 (get_cmd() in 'active' and cmd in 'stop' or
                  get_cmd() not in 'active' and cmd in 'move'):
             return settings.sm_conf.get_opposite_site(site)
-        else:
-            return site
+        return site
 
     logging.info(f"Processing {module} module by cmd: {get_cmd()} on site: {get_site()}")
 
@@ -80,7 +79,7 @@ def process_module_services(module, states, cmd, site, sm_dict):
 
 def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
     """ Processes the service with specific site cmd with polling """
-    global thread_result_queue
+    #global thread_result_queue
 
     service_response = ServiceDRStatus({'services': {service: {}}})
 
@@ -94,7 +93,6 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
             logging.warning(f"Skip procedure {cmd} for service {service} on site {site}")
             service_response = ServiceDRStatus({'services': {service: {"message": "Service doesn't exist"}}})
     elif cmd in settings.dr_procedures:
-        # todo to handle False(no service on this site)
         for site_to_process, mode in sm_dict.get_dr_operation_sequence(service, cmd, site):
             if cmd == "stop" and mode == "standby":
                 force = True
@@ -106,12 +104,11 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict) -> None:
                 logging.warning(f"Skip procedure {cmd} for service {service} on site {site_to_process}")
                 service_response = ServiceDRStatus({'services': {service: {"message": "Service doesn't exist"}}})
             elif sm_dict[site_to_process]['status']:  # to process only available sites
-                sm_process_service(site_to_process, service, mode, False if 'move' in cmd else True)
+                sm_process_service(site_to_process, service, mode, 'move' not in cmd)
                 service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force)
                 if cmd in 'move' and not service_response.is_ok():
                     logging.info(f"Service {service} failed on {site_to_process}, skipping it on another site...")
                     break
-
     thread_result_queue.put(service_response)
 
     logging.info(f"Processing {service} in thread finished")
@@ -152,16 +149,14 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
                     if all(data["services"][service][key] in val for key, val in expected_state.items()):
                         logging.info(f"Service: {service}. Site: {site}. Expected state {expected_state} occurred.")
                         return True
-                    elif all(data["services"][service][key] in val for key, val in error_state.items()):
+                    if all(data["services"][service][key] in val for key, val in error_state.items()):
                         logging.info(f"Service: {service}. Site: {site}. Error state {error_state} occurred.")
                         return True
                 return False
 
             if ret and check_state():
                 return data
-            else:
-                time.sleep(delay)
-                continue
+            time.sleep(delay)
 
         logging.info(f"Service: {service}. Site: {site}. Timeout expired.")
         data['services'][service]['healthz'] = "--"
@@ -196,9 +191,9 @@ def sm_process_service(site, service, site_cmd: str, no_wait=True, force=False) 
         body = {"procedure": settings.sm_conf.convert_sitecmd_to_dr_mode(site_cmd), "run-service": service,
                 "no-wait": no_wait, "force": force}
 
-    ret, response, return_code = utils.io_make_http_json_request(settings.sm_conf[site]["url"],
+    _, response, return_code = utils.io_make_http_json_request(settings.sm_conf[site]["url"],
                                                                  settings.sm_conf[site]["token"],
                                                                  settings.sm_conf[site]["cacert"],
                                                                  body,
                                                                  use_auth=settings.FRONT_HTTP_AUTH)
-    return response, True if return_code == HTTPStatus.OK else False, return_code
+    return response, return_code == HTTPStatus.OK, return_code

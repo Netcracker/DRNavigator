@@ -14,16 +14,17 @@ Description: Client util to communicate with site-manager in kubernetes based cl
 
 import argparse
 import logging
+import sys
 import threading
 from typing import Optional
 
 from prettytable import PrettyTable  # type: ignore
 
 from sm_client.data import settings
+from sm_client.data.structures import TopologicalSorter2, SMClusterState, ServiceDRStatus, NotValid
 from sm_client.initialization import sm_get_cluster_state, init_and_check_config
 from sm_client.prepare import make_ordered_services_to_process
 from sm_client.processing import sm_process_service, thread_pool, process_module_services
-from sm_client.data.structures import *
 from sm_client.validation import validate_operation
 
 MAIN_HELP_SECTION = """
@@ -114,7 +115,7 @@ def run(services: list = None, cmd="", site=""):
             service_dep_ordered.extend(services_list)
         logging.debug(f"Service order {service_dep_ordered}")
     except NotValid:
-        exit(1)
+        sys.exit(1)
 
     settings.ignored_services.extend(sm_dict.make_ignored_services(service_dep_ordered))
 
@@ -135,13 +136,13 @@ def run(services: list = None, cmd="", site=""):
         for thread in thread_pool:
             thread.join()
         print_service_order(ts, sm_dict)
-        print_main_table(sm_dict, service_dep_ordered, [site] if site else [_ for _ in settings.sm_conf.keys()])
+        print_main_table(sm_dict, service_dep_ordered, [site] if site else list(settings.sm_conf.keys()))
     elif cmd in "list":
-        print(f"---------------------------------------------------------------------\n" +
-              f"Sites managed by site-manager:               {[site for site in sm_dict.keys()]}\n\n" +
+        print("---------------------------------------------------------------------\n" +
+              f"Sites managed by site-manager:               {list(sm_dict.keys())}\n\n" +
               f"Kubernetes services managed by site-manager: {sm_dict.get_services_list_for_ok_site()}\n" +
               f"Kubernetes services that will be processed:  {service_dep_ordered}\n" +
-              f"---------------------------------------------------------------------")
+              "---------------------------------------------------------------------")
     elif cmd in settings.site_cmds + settings.dr_procedures:  # per site command or DR procedure
         print_service_operation_summary("top", sm_dict, service_dep_ordered, cmd, site)
         dr_status = True
@@ -164,16 +165,17 @@ def run(services: list = None, cmd="", site=""):
         print_service_operation_summary("tail",sm_dict, service_dep_ordered, cmd, site )
     else:
         logging.error(f"Unknown combination of {cmd} {site} options")
-        exit(1)
+        sys.exit(1)
 
     if len(settings.failed_services) != 0:
         logging.fatal(f"Some services finished {cmd} with failed status")
-        exit(1)
+        sys.exit(1)
 
     return True
 
 
 def print_service_operation_summary(part, sm_dict: SMClusterState, services_to_run: list, cmd="", site=""):
+    """Print summary info"""
     if part in "top":
         logging.info("---------------------------------------------------------------------")
         logging.info(f"Procedure:     {cmd}")
@@ -225,7 +227,7 @@ def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: list)
         return pt
     pt = make_table("mode | DR status | healthz | message", sites_name)
     for service_item in services_to_run:
-        service_pt_row = list()
+        service_pt_row = []
         service_pt_row.append(service_item)
         for sites_item in sites_name:
             if sm_dict[sites_item]['status'] and sm_dict[sites_item]['services'].get(service_item) and \
@@ -302,24 +304,25 @@ def parse_command_line(command_args) -> argparse.Namespace:
 
 
 def main(command_args=None):
+    """Main function"""
     global args
     args = parse_command_line(command_args)
 
     # get version command
     if args.command in "version":
         with open('./version', 'r') as f:
-            print('SM-client %s' % f.read())
-        exit(0)
+            print(f"SM-client {f.read()}")
+        sys.exit(0)
 
     if not init_and_check_config(args):
-        exit(1)
+        sys.exit(1)
 
     settings.ignored_services.extend(settings.skip_services)
 
     if not run([i for i in settings.run_services if i not in settings.skip_services], args.command,
                 args.site if hasattr(args, 'site') else False):
-        exit(1)
-    exit(0)
+        sys.exit(1)
+    sys.exit(0)
 
 
 if __name__ == "__main__":

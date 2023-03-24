@@ -1,15 +1,19 @@
+"""Module, that contains differents classes and structures, that are used in other modules"""
 from graphlib import TopologicalSorter
 
+
 class SMConf(dict):  # global config.yaml and some RO config parameters and args, cmd manipulation
+    """config.yaml content"""
     def get_active_site(self, cmd, site):
+        """Returns active site after procedure processing"""
         if cmd in ["active", "move"]:
             return site
-        elif cmd in ["stop", "standby", 'disable']:
+        if cmd in ["stop", "standby", 'disable']:
             return self.get_opposite_site(site)
-        else:
-            return None
+        return None
 
     def get_opposite_site(self, site):
+        """Returns opposite site"""
         if site not in self.keys():
             return None
         opposite_site = None
@@ -25,11 +29,12 @@ class SMConf(dict):  # global config.yaml and some RO config parameters and args
         """
         if site_cmd == "return":
             return "standby"
-        else:  # "active","standby" are modes.
-            return site_cmd
+        # "active","standby" are modes.
+        return site_cmd
 
     @staticmethod
     def get_modules():
+        """Returns module list"""
         from sm_client.data import settings
 
         mod_list = set()
@@ -40,8 +45,10 @@ class SMConf(dict):  # global config.yaml and some RO config parameters and args
 
 
 class SMClusterState:
+    """Cluster content"""
     def __init__(self, site=None):
         from sm_client.data import settings
+
         def init_default(site_name):
             if len(self.sm.keys()) == 2:
                 raise ValueError("Only two sites in clusters are supported")
@@ -81,7 +88,12 @@ class SMClusterState:
         return str(self.sm)
 
     def keys(self):
+        """Dict keys() function"""
         return self.sm.keys()
+
+    def items(self):
+        """Dict items() function"""
+        return self.sm.items()
 
     def get_dr_operation_sequence(self, serv, procedure, site) -> list:  # move active, stop standby
         """ Get DR operation(cmd) site sequence in the correct order for specific service for provided DR procedure
@@ -111,15 +123,17 @@ class SMClusterState:
 
     def get_available_sites(self) -> list:
         """ Return list of available sites """
-        return [site for site in self.sm.keys() if self.sm[site]['status']]
+        return [site for site, _ in self.sm.items() if self.sm[site]['status']]
 
     def get_services_list_for_ok_site(self) -> list:
+        """Returns list of services for available sites"""
         final_set: set = set()
         for site in self.sm.values():
             final_set = final_set.union(set(list(site['services'].keys())))
         return list(final_set)
 
     def get_module_services(self, site, module) -> list:
+        """Get services list for specified module on site"""
         module_list = []
         for serv in self.sm[site]['services'].keys():
             if self.sm[site]['services'][serv].get('module') and module == self.sm[site]['services'][serv]['module']:
@@ -130,7 +144,7 @@ class SMClusterState:
         """ Make list of services which are not intended to run, ignored."""
         from sm_client.data import settings
         ignored_list = []
-        for site in self.sm.keys():
+        for site, _ in self.sm.items():
             for serv in self.sm[site]['services']:
                 if serv not in service_dep_ordered and serv not in settings.ignored_services:
                     ignored_list.append(serv)
@@ -138,6 +152,7 @@ class SMClusterState:
 
 
 class ServiceDRStatus:
+    """Service status"""
     def __getitem__(self, key):
         return self.__getattribute__(key)
 
@@ -167,15 +182,13 @@ class ServiceDRStatus:
                 failed_healthz = set(failed_healthz) - set(
                     smdict[site]['services'][self.service].get('allowedStandbyStateList'))
 
-            if self.healthz in failed_healthz or self.status in ['failed']:
-                return False
-            else:
-                return True
+            return self.healthz not in failed_healthz and self.status not in ['failed']
 
         # separate service status field, since healthz may be treated differently depending on running mode - allowedStandbyStateList
         self.service_status = set_service_status(smdict, site, mode)
 
     def is_ok(self):
+        """Returns if service status is ok"""
         return self.service_status
 
     def sortout_service_results(self):
@@ -191,13 +204,13 @@ class ServiceDRStatus:
 
 class NotValid(Exception):
     """ Raised when it is not possible to process specified command on current cluster state"""
-    pass
 
 
 class TopologicalSorter2(TopologicalSorter):
     """ added method to get successors of specific node """
 
     def successors(self, node):
+        """Get node successors"""
         for i in self._node2info.values():
             if i.node == node:
                 return i.successors

@@ -1,10 +1,10 @@
-#!/usr/bin/env python3
+"""Functions and parameters, that are used in server and client sites"""
 import logging
 import ssl
+import os
 from typing import Tuple, Dict
 
 import requests.packages
-import os
 
 import urllib3
 from requests.adapters import HTTPAdapter, Retry
@@ -69,7 +69,7 @@ def io_make_http_json_request(url="", token=None, verify=True, http_body:dict=No
         #TODO in more accurate manner error handling manner
         if "SSLCertVerificationError" in str(e.args): ## SSL Verification fails ; SSLCertVerificationError(1, '[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1125)')
             return False, {}, ssl.SSLErrorNumber.SSL_ERROR_SSL.__int__() # - 1
-        elif "SSLEOFError" in str(e.args): # SSL connect error, SSL resource is not accessible vi ha-proxy  ; SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
+        if "SSLEOFError" in str(e.args): # SSL connect error, SSL resource is not accessible vi ha-proxy  ; SSLEOFError(8, 'EOF occurred in violation of protocol (_ssl.c:1091)')
             #TODO need a test for this case
             return False, {}, ssl.SSLErrorNumber.SSL_ERROR_EOF.__int__() # - 8
     except requests.exceptions.JSONDecodeError as e:
@@ -80,4 +80,3 @@ def io_make_http_json_request(url="", token=None, verify=True, http_body:dict=No
         logging.error("General error %s",e)
 
     return False,{},False
-
