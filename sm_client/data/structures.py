@@ -141,7 +141,7 @@ class ServiceDRStatus:
         return self.__getattribute__(key)
 
     def __init__(self, data: dict = None, smdict = None, site: str = None,
-                 mode: str = None):  # {'services':{service_name:{}}}
+                 mode: str = None, force = False, allow_failure = False):  # {'services':{service_name:{}}}
         if data and data.get("services") and isinstance(data['services'], dict):
             self.service = list(data['services'].keys())[0]
         elif data and data.get("wrong-service") and isinstance(data['wrong-service'], str):
@@ -157,7 +157,7 @@ class ServiceDRStatus:
 
         # https://github.com/Netcracker/DRNavigator/blob/b4161fb15271485974abf5862e7272abc386fbc8/modules/stateful.py#L16
 
-        def set_service_status(smdict, site, mode):
+        def set_service_status(smdict, site, mode, force):
             if self.message == "Service doesn't exist":
                 return True
             failed_healthz = ['down', 'degraded', '--']
@@ -166,24 +166,31 @@ class ServiceDRStatus:
                 failed_healthz = set(failed_healthz) - set(
                     smdict[site]['services'][self.service].get('allowedStandbyStateList'))
 
-            if self.healthz in failed_healthz or self.status in ['failed']:
+            if (self.healthz in failed_healthz and not force) or self.status in ['failed']:
                 return False
             else:
                 return True
 
         # separate service status field, since healthz may be treated differently depending on running mode - allowedStandbyStateList
-        self.service_status = set_service_status(smdict, site, mode)
+        self.service_status = set_service_status(smdict, site, mode, force)
+
+        self.allow_failure = allow_failure  # Will be changed to True for failover on standby site
 
     def is_ok(self):
-        return self.service_status
+        return self.service_status or self.allow_failure
 
     def sortout_service_results(self):
         """ Put service name in appropriate list(failed or done) """
-        if self.is_ok():  # return Ok - done_service
-            if self.service not in settings.failed_services:
+        if self.service_status:  # return Ok - done_service
+            if self.service not in settings.failed_services and self.service not in settings.warned_services:
                 settings.done_services.append(self.service) if self.service not in settings.done_services else None
+        elif self.allow_failure:
+            if self.service not in settings.failed_services:
+                settings.warned_services.append(self.service) if self.service not in settings.warned_services else None
+                settings.done_services.remove(self.service) if self.service in settings.done_services else None
         else:
             settings.failed_services.append(self.service) if self.service not in settings.failed_services else None
+            settings.warned_services.remove(self.service) if self.service in settings.warned_services else None
             settings.done_services.remove(self.service) if self.service in settings.done_services else None
 
 
