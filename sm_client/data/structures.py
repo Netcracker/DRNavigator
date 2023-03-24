@@ -123,7 +123,7 @@ class SMClusterState:
 
     def get_available_sites(self) -> list:
         """ Return list of available sites """
-        return [site for site, _ in self.sm.items() if self.sm[site]['status']]
+        return [site for site in self.sm.keys() if self.sm[site]['status']]
 
     def get_services_list_for_ok_site(self) -> list:
         """Returns list of services for available sites"""
@@ -144,7 +144,7 @@ class SMClusterState:
         """ Make list of services which are not intended to run, ignored."""
         from sm_client.data import settings
         ignored_list = []
-        for site, _ in self.sm.items():
+        for site in self.sm.keys():
             for serv in self.sm[site]['services']:
                 if serv not in service_dep_ordered and serv not in settings.ignored_services:
                     ignored_list.append(serv)
@@ -196,17 +196,23 @@ class ServiceDRStatus:
     def sortout_service_results(self):
         """ Put service name in appropriate list(failed or done) """
         from sm_client.data import settings
-        if self.service_status():  # return Ok - done_service
-            if self.service not in settings.failed_services and self.service not in settings.warned_services:
-                settings.done_services.append(self.service) if self.service not in settings.done_services else None
+        if self.service_status:  # return Ok - done_service
+            if self.service not in settings.failed_services and self.service not in settings.warned_services \
+                    and self.service not in settings.done_services:
+                settings.done_services.append(self.service)
         elif self.allow_failure:
             if self.service not in settings.failed_services:
-                settings.warned_services.append(self.service) if self.service not in settings.warned_services else None
-                settings.done_services.remove(self.service) if self.service in settings.done_services else None
+                if self.service not in settings.warned_services:
+                    settings.warned_services.append(self.service)
+                if self.service in settings.done_services:
+                    settings.done_services.remove(self.service)
         else:
-            settings.failed_services.append(self.service) if self.service not in settings.failed_services else None
-            settings.warned_services.remove(self.service) if self.service in settings.warned_services else None
-            settings.done_services.remove(self.service) if self.service in settings.done_services else None
+            if self.service not in settings.failed_services:
+                settings.failed_services.append(self.service)
+            if self.service in settings.warned_services:
+                settings.warned_services.remove(self.service)
+            if self.service in settings.done_services:
+                settings.done_services.remove(self.service)
 
 
 class NotValid(Exception):

@@ -1,3 +1,4 @@
+"""Functions that are used for procedure processing"""
 import copy
 import logging
 import threading
@@ -8,7 +9,7 @@ from typing import Tuple, Dict
 
 from common import utils
 from sm_client.data import settings
-from sm_client.data.structures import TopologicalSorter2, ServiceDRStatus
+from sm_client.data.structures import TopologicalSorter2, ServiceDRStatus, SMClusterState
 
 thread_pool: list = []
 thread_result_queue: Queue = Queue(maxsize=-1)
@@ -59,9 +60,12 @@ def skip_service_due_deps(service: str):
     """
     if service in settings.failed_services:
         return
-    settings.skipped_due_deps_services.append(service) if service not in settings.skipped_due_deps_services else None
-    settings.done_services.remove(service) if service in settings.done_services else None
-    settings.warned_services.remove(service) if service in settings.warned_services else None
+    if service not in settings.skipped_due_deps_services:
+        settings.skipped_due_deps_services.append(service)
+    if service in settings.done_services:
+        settings.done_services.remove(service)
+    if service in settings.warned_services:
+        settings.warned_services.remove(service)
 
 
 def process_ts_services(ts: TopologicalSorter2, process_func, *run_args) -> None:

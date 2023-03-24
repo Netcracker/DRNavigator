@@ -142,7 +142,7 @@ def sm_get_cluster_state(site=None) -> SMClusterState:
     sm_dict = SMClusterState(site)
     for site_name, _ in sm_dict.keys():
         response, ret, code = sm_process_service(site_name, "site-manager", "status")
-        sm_dict[site_name]["return_code"] = code # HTTP or SSL
+        sm_dict[site_name]["return_code"] = code  # HTTP or SSL
         sm_dict[site_name]["status"] = ret
         sm_dict[site_name].update(response)
     return sm_dict
