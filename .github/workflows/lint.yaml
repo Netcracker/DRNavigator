@@ -33,7 +33,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r ${{ matrix.req-file }}
       - name: Install software
-        run: pip install bandit pylint mypy xenon
+        run: pip install bandit pylint mypy radon xenon
       - name: Security check with bandit
         id: bandit_check
         run: bandit -r ${{ matrix.dir-list }}
@@ -51,5 +51,7 @@ jobs:
         id: radon_check
         if: (success() || failure()) && steps.mypy_check.outcome != 'skipped'
         # Use `radon cc {pathes} -a` locally for full report per function
+        # xenon checks, if radon absolute result will be A or B
         run: |
-          xenon -a b ${{ matrix.dir-list }}
+          radon cc ${{ matrix.dir-list }} -a  
+          xenon -a B ${{ matrix.dir-list }}
