@@ -54,4 +54,4 @@ jobs:
         # xenon checks, if radon absolute result will be A or B
         run: |
           radon cc ${{ matrix.dir-list }} -a  
-          xenon -a B ${{ matrix.dir-list }}
+          xenon -a A ${{ matrix.dir-list }}
