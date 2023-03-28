@@ -33,7 +33,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r ${{ matrix.req-file }}
       - name: Install software
-        run: pip install bandit pylint mypy
+        run: pip install bandit pylint mypy xenon
       - name: Security check with bandit
         id: bandit_check
         run: bandit -r ${{ matrix.dir-list }}
@@ -47,3 +47,9 @@ jobs:
         run: |
           mkdir .mypy_cache
           mypy --install-types --non-interactive --explicit-package-bases --implicit-optional --allow-redefinition ${{ matrix.dir-list }}
+      - name: Cyclic complexity check with radon/xenon
+        id: radon_check
+        if: (success() || failure()) && steps.mypy_check.outcome != 'skipped'
+        # Use `radon cc {pathes} -a` locally for full report per function
+        run: |
+          xenon -a b ${{ matrix.dir-list }}
