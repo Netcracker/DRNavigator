@@ -1,19 +1,19 @@
+"""Module, that contains differents classes and structures, that are used in other modules"""
 from graphlib import TopologicalSorter
-
-from sm_client.data import settings
 
 
 class SMConf(dict):  # global config.yaml and some RO config parameters and args, cmd manipulation
-
+    """config.yaml content"""
     def get_active_site(self, cmd, site):
+        """Returns active site after procedure processing"""
         if cmd in ["active", "move"]:
             return site
-        elif cmd in ["stop", "standby", 'disable']:
+        if cmd in ["stop", "standby", 'disable']:
             return self.get_opposite_site(site)
-        else:
-            return None
+        return None
 
     def get_opposite_site(self, site):
+        """Returns opposite site"""
         if site not in self.keys():
             return None
         opposite_site = None
@@ -29,11 +29,14 @@ class SMConf(dict):  # global config.yaml and some RO config parameters and args
         """
         if site_cmd == "return":
             return "standby"
-        else:  # "active","standby" are modes.
-            return site_cmd
+        # "active","standby" are modes.
+        return site_cmd
 
     @staticmethod
     def get_modules():
+        """Returns module list"""
+        from sm_client.data import settings
+
         mod_list = set()
         for elem in settings.module_flow:
             for module in elem.keys():
@@ -42,7 +45,10 @@ class SMConf(dict):  # global config.yaml and some RO config parameters and args
 
 
 class SMClusterState:
+    """Cluster content"""
     def __init__(self, site=None):
+        from sm_client.data import settings
+
         def init_default(site_name):
             if len(self.sm.keys()) == 2:
                 raise ValueError("Only two sites in clusters are supported")
@@ -82,13 +88,19 @@ class SMClusterState:
         return str(self.sm)
 
     def keys(self):
+        """Dict keys() function"""
         return self.sm.keys()
 
-    def get_dr_operation_sequence(self, serv, procedure, site) -> [[], []]:  # move active, stop standby
+    def items(self):
+        """Dict items() function"""
+        return self.sm.items()
+
+    def get_dr_operation_sequence(self, serv, procedure, site) -> list:  # move active, stop standby
         """ Get DR operation(cmd) site sequence in the correct order for specific service for provided DR procedure
         @returns: [['site1','standby'],['site2','active']] - default in case sequence is empty
         @todo to rework when sm_dict[site|opposite]['services'][serv] serv is not present on one site
         """
+        from sm_client.data import settings
         opposite_site = settings.sm_conf.get_opposite_site(site)
         site_sequence = []
         if procedure == 'move':  # switchover
@@ -109,25 +121,28 @@ class SMClusterState:
 
         return site_sequence
 
-    def get_available_sites(self) -> []:
+    def get_available_sites(self) -> list:
         """ Return list of available sites """
         return [site for site in self.sm.keys() if self.sm[site]['status']]
 
-    def get_services_list_for_ok_site(self) -> []:
-        final_set = set()
+    def get_services_list_for_ok_site(self) -> list:
+        """Returns list of services for available sites"""
+        final_set: set = set()
         for site in self.sm.values():
             final_set = final_set.union(set(list(site['services'].keys())))
         return list(final_set)
 
-    def get_module_services(self, site, module) -> []:
+    def get_module_services(self, site, module) -> list:
+        """Get services list for specified module on site"""
         module_list = []
         for serv in self.sm[site]['services'].keys():
             if self.sm[site]['services'][serv].get('module') and module == self.sm[site]['services'][serv]['module']:
                 module_list.append(serv)
         return module_list
 
-    def make_ignored_services(self, service_dep_ordered: list) -> []:
+    def make_ignored_services(self, service_dep_ordered: list) -> list:
         """ Make list of services which are not intended to run, ignored."""
+        from sm_client.data import settings
         ignored_list = []
         for site in self.sm.keys():
             for serv in self.sm[site]['services']:
@@ -137,6 +152,7 @@ class SMClusterState:
 
 
 class ServiceDRStatus:
+    """Service status"""
     def __getitem__(self, key):
         return self.__getattribute__(key)
 
@@ -166,10 +182,7 @@ class ServiceDRStatus:
                 failed_healthz = set(failed_healthz) - set(
                     smdict[site]['services'][self.service].get('allowedStandbyStateList'))
 
-            if (self.healthz in failed_healthz and not force) or self.status in ['failed']:
-                return False
-            else:
-                return True
+            return (self.healthz not in failed_healthz or force) and self.status not in ['failed']
 
         # separate service status field, since healthz may be treated differently depending on running mode - allowedStandbyStateList
         self.service_status = set_service_status(smdict, site, mode, force)
@@ -177,32 +190,40 @@ class ServiceDRStatus:
         self.allow_failure = allow_failure  # Will be changed to True for failover on standby site
 
     def is_ok(self):
+        """Returns if service status is ok"""
         return self.service_status or self.allow_failure
 
     def sortout_service_results(self):
         """ Put service name in appropriate list(failed or done) """
+        from sm_client.data import settings
         if self.service_status:  # return Ok - done_service
-            if self.service not in settings.failed_services and self.service not in settings.warned_services:
-                settings.done_services.append(self.service) if self.service not in settings.done_services else None
+            if self.service not in settings.failed_services and self.service not in settings.warned_services \
+                    and self.service not in settings.done_services:
+                settings.done_services.append(self.service)
         elif self.allow_failure:
             if self.service not in settings.failed_services:
-                settings.warned_services.append(self.service) if self.service not in settings.warned_services else None
-                settings.done_services.remove(self.service) if self.service in settings.done_services else None
+                if self.service not in settings.warned_services:
+                    settings.warned_services.append(self.service)
+                if self.service in settings.done_services:
+                    settings.done_services.remove(self.service)
         else:
-            settings.failed_services.append(self.service) if self.service not in settings.failed_services else None
-            settings.warned_services.remove(self.service) if self.service in settings.warned_services else None
-            settings.done_services.remove(self.service) if self.service in settings.done_services else None
+            if self.service not in settings.failed_services:
+                settings.failed_services.append(self.service)
+            if self.service in settings.warned_services:
+                settings.warned_services.remove(self.service)
+            if self.service in settings.done_services:
+                settings.done_services.remove(self.service)
 
 
 class NotValid(Exception):
     """ Raised when it is not possible to process specified command on current cluster state"""
-    pass
 
 
 class TopologicalSorter2(TopologicalSorter):
     """ added method to get successors of specific node """
 
     def successors(self, node):
+        """Get node successors"""
         for i in self._node2info.values():
             if i.node == node:
                 return i.successors

@@ -22,3 +22,4 @@ BACKUP/*
 test-dump
 self-signed-fake.pem
 pytest.log
+.mypy_cache/*

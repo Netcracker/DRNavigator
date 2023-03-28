@@ -1,8 +1,10 @@
+"""Functions that are used for validation"""
 import logging
 import ssl
 
+from sm_client.data import settings
+from sm_client.data.structures import SMClusterState, ServiceDRStatus, NotValid
 from sm_client.processing import sm_process_service
-from sm_client.data.structures import *
 
 
 def check_site_ssl_available(checked_site: str, sm_dict: SMClusterState):
@@ -97,7 +99,7 @@ def check_state_restrictions(services: list, site: str, cmd: str):
             logging.error(f"Final state {state} for service {service} is restricted")
             state_is_valid = False
     if not state_is_valid:
-        logging.error(f"State restrictions validation fail. To skip it use --ignore-restrictions option")
+        logging.error("State restrictions validation fail. To skip it use --ignore-restrictions option")
     return state_is_valid
 
 
@@ -121,17 +123,16 @@ def check_deps_consistency(sm_dict: SMClusterState, services: list, sites: list)
             if service not in sm_dict[site]['services']:
                 continue
             # Mark first site as compared with
-            elif site_to_compare is None:
+            if site_to_compare is None:
                 site_to_compare = site
                 continue
-            else:
-                # Check dependencies
-                if set(sm_dict[site_to_compare]['services'][service].get('before', [])) != \
-                        set(sm_dict[site]['services'][service].get('before', [])):
-                    before_issue = True
-                if set(sm_dict[site_to_compare]['services'][service].get('after', [])) != \
-                        set(sm_dict[site]['services'][service].get('after', [])):
-                    after_issue = True
+            # Check dependencies
+            if set(sm_dict[site_to_compare]['services'][service].get('before', [])) != \
+                    set(sm_dict[site]['services'][service].get('before', [])):
+                before_issue = True
+            if set(sm_dict[site_to_compare]['services'][service].get('after', [])) != \
+                    set(sm_dict[site]['services'][service].get('after', [])):
+                after_issue = True
 
         if before_issue:
             message = "\n".join(f"\t{site}: {sm_dict[site]['services'][service].get('before', [])}" if \
@@ -167,19 +168,18 @@ def check_sequence_consistency(sm_dict: SMClusterState, services: list, sites: l
             if service not in sm_dict[site]['services']:
                 continue
             # Mark first site as compared with
-            elif site_to_compare is None:
+            if site_to_compare is None:
                 site_to_compare = site
                 continue
-            else:
-                # Check sequence
-                if sm_dict[site_to_compare]['services'][service].get('sequence', []) != \
-                        sm_dict[site]['services'][service].get('sequence', []):
-                    message = "\n".join(f"\t{site}: {sm_dict[site]['services'][service].get('sequence', [])}" if \
-                                            service in sm_dict[site]['services'] else f"\t{site}: Service doesn't exist"
-                                        for site in sites)
-                    logging.warning(f"Found inconsistent sequence for service {service}: \n{message}")
-                    is_consistent = False
-                    break
+            # Check sequence
+            if sm_dict[site_to_compare]['services'][service].get('sequence', []) != \
+                    sm_dict[site]['services'][service].get('sequence', []):
+                message = "\n".join(f"\t{site}: {sm_dict[site]['services'][service].get('sequence', [])}" if \
+                                        service in sm_dict[site]['services'] else f"\t{site}: Service doesn't exist"
+                                    for site in sites)
+                logging.warning(f"Found inconsistent sequence for service {service}: \n{message}")
+                is_consistent = False
+                break
 
     return is_consistent
 
@@ -201,7 +201,7 @@ def validate_stop_operation(sm_dict: SMClusterState, cmd, site=None, service_dep
     if not check_site_ssl_available(settings.sm_conf.get_opposite_site(site), sm_dict) or \
             not check_dep_issue(sm_dict, cmd, module):
         raise NotValid
-    check_services_on_sites(service_dep_ordered, settings.sm_conf.keys(), sm_dict)
+    check_services_on_sites(service_dep_ordered, list(settings.sm_conf.keys()), sm_dict)
 
 
 def validate_move_operation(sm_dict: SMClusterState, cmd, site=None, service_dep_ordered=None,
@@ -215,7 +215,7 @@ def validate_move_operation(sm_dict: SMClusterState, cmd, site=None, service_dep
     @returns: Allowed or not to proceed operation <cmd> on <site>
     """
     if not all(check_site_ssl_available(site_i, sm_dict) for site_i in settings.sm_conf.keys()) or \
-            not check_services_on_sites(service_dep_ordered,  settings.sm_conf.keys(), sm_dict) or \
+            not check_services_on_sites(service_dep_ordered,  list(settings.sm_conf.keys()), sm_dict) or \
             not check_dep_issue(sm_dict, cmd, module) or \
             not check_deps_consistency(sm_dict, service_dep_ordered, sm_dict.get_available_sites()) or \
             not check_sequence_consistency(sm_dict, service_dep_ordered, sm_dict.get_available_sites()):
@@ -291,8 +291,8 @@ def validate_operation(sm_dict: SMClusterState, cmd, site=None, services_to_run=
                            .get("module", settings.default_module) == module] \
         if services_to_run else sm_dict.globals[module]['service_dep_ordered']
 
-    if cmd in validation_func:
-        validation_func[cmd](sm_dict, cmd, site, service_dep_ordered, module)
-        return service_dep_ordered
-    else:
+    if cmd not in validation_func:
         raise NotValid
+
+    validation_func[cmd](sm_dict, cmd, site, service_dep_ordered, module)
+    return service_dep_ordered
