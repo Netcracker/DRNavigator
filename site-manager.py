@@ -200,7 +200,7 @@ def cr_convert():
 
     spec = request.json["request"]["objects"]
     modified_spec = copy.deepcopy(spec)
-    for i in enumerate(modified_spec):
+    for i, _ in enumerate(modified_spec):
         # v1 -> v2, v3 conversion
         if modified_spec[i]["apiVersion"] == "netcracker.com/v1":
             if "module" not in modified_spec[i]["spec"]["sitemanager"]:
