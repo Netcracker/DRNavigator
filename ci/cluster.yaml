@@ -1,5 +1,5 @@
 node_defaults:
-  keyfile: /secrets/id_rsa
+  keyfile: ~/.ssh/id_rsa
   username: runner
 
 nodes:

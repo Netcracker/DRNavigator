@@ -81,25 +81,12 @@ jobs:
           ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa -q
           cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
           ssh-keyscan -H 172.17.0.1 >> ~/.ssh/known_hosts
-          cp ~/.ssh/id_rsa ./ci/id_rsa
       - name: Remove moby-runc to resolve conflicts
         run: sudo apt remove moby-runc
       - name: Install kubemarine
         run: pip3 install kubemarine
       - name: Kubemarine install
-        run: kubemarine -h
-      #- name: Kubemarine install
-     #  run: |
-      #    docker run --name kubemarine-install \
-      #    --mount type=bind,source="$(pwd)"/ci/id_rsa,target=/secrets/id_rsa \
-      #    --mount type=bind,source="$(pwd)"/ci/cluster.yaml,target=/data/cluster.yaml \
-      #    ghcr.io/netcracker/kubemarine:main install -c /data/cluster.yaml --disable-cumulative-points
-      #- name: Load dump files from containers
-       # if: failure()
-      #  run: |
-      #    mkdir -p results/kubemarine
-      #    docker cp kubemarine-check:/opt/kubemarine/dump ./results/kubemarine/check_connectivity_dump
-     #     docker cp kubemarine-install:/opt/kubemarine/dump ./results/kubemarine/install_dump
+        run: kubemarine install -c /ci/cluster.yaml --disable-cumulative-points --dump-location ./results/kubemarine/
       - name: Collect artifacts
         if: failure()
         uses: actions/upload-artifact@v3
