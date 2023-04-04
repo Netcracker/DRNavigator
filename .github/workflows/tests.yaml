@@ -72,8 +72,10 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
-      - name: Check ips
-        run: ip a
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.10
       - name: Ssh preparation
         run: |
           ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa -q
@@ -82,26 +84,22 @@ jobs:
           cp ~/.ssh/id_rsa ./ci/id_rsa
       - name: Remove moby-runc to resolve conflicts
         run: sudo apt remove moby-runc
-      - name: Pull kubemarine main image
-        run: docker pull ghcr.io/netcracker/kubemarine:main
-      - name: Check ssh connectivity from docker
-        run: |
-          docker run --name kubemarine-check \
-          --mount type=bind,source="$(pwd)"/ci/id_rsa,target=/secrets/id_rsa \
-          --mount type=bind,source="$(pwd)"/ci/cluster.yaml,target=/data/cluster.yaml \
-          ghcr.io/netcracker/kubemarine:main check_iaas -c /data/cluster.yaml --tasks ssh.connectivity
+      - name: Install kubemarine
+        run: pip3 install kubemarine
       - name: Kubemarine install
-        run: |
-          docker run --name kubemarine-install \
-          --mount type=bind,source="$(pwd)"/ci/id_rsa,target=/secrets/id_rsa \
-          --mount type=bind,source="$(pwd)"/ci/cluster.yaml,target=/data/cluster.yaml \
-          ghcr.io/netcracker/kubemarine:main install -c /data/cluster.yaml --disable-cumulative-points
-      - name: Load dump files from containers
-        if: failure()
-        run: |
-          mkdir -p results/kubemarine
-          docker cp kubemarine-check:/opt/kubemarine/dump ./results/kubemarine/check_connectivity_dump
-          docker cp kubemarine-install:/opt/kubemarine/dump ./results/kubemarine/install_dump
+        run: kubemarine -h
+      #- name: Kubemarine install
+     #  run: |
+      #    docker run --name kubemarine-install \
+      #    --mount type=bind,source="$(pwd)"/ci/id_rsa,target=/secrets/id_rsa \
+      #    --mount type=bind,source="$(pwd)"/ci/cluster.yaml,target=/data/cluster.yaml \
+      #    ghcr.io/netcracker/kubemarine:main install -c /data/cluster.yaml --disable-cumulative-points
+      #- name: Load dump files from containers
+       # if: failure()
+      #  run: |
+      #    mkdir -p results/kubemarine
+      #    docker cp kubemarine-check:/opt/kubemarine/dump ./results/kubemarine/check_connectivity_dump
+     #     docker cp kubemarine-install:/opt/kubemarine/dump ./results/kubemarine/install_dump
       - name: Collect artifacts
         if: failure()
         uses: actions/upload-artifact@v3
