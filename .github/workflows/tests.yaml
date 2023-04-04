@@ -5,7 +5,6 @@ on:
       - '**'
 
   unittests:
-    needs: build-image
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -35,7 +34,6 @@ on:
           retention-days: 7
 
   integration-tests:
-    needs: build-image
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -65,3 +63,17 @@ on:
           name: integration-tests-logs
           path: test-dump/
           retention-days: 7
+
+  cloud-tests:
+    needs: build-image
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.9" ]
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+      - name: pull kubemarine main image
+        run: docker pull ghcr.io/netcracker/kubemarine:main
+      - name: Test run image
+        run: docker run --name kubemarine kubemarine install -h
