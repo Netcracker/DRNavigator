@@ -67,13 +67,10 @@ jobs:
 
   cloud-tests:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python-version: [ "3.9" ]
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
       - name: pull kubemarine main image
         run: docker pull ghcr.io/netcracker/kubemarine:main
       - name: Test run image
-        run: docker run --name kubemarine kubemarine install -h
+        run: docker run --name kubemarine kubemarine:main install -h
