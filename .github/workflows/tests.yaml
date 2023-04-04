@@ -80,7 +80,9 @@ jobs:
           cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
           ssh-keyscan -H 172.17.0.1 >> ~/.ssh/known_hosts
           cp ~/.ssh/id_rsa ./ci/id_rsa
-      - name: pull kubemarine main image
+      - name: Remove moby-runc to resolve conflicts
+        run: sudo apt remove moby-runc
+      - name: Pull kubemarine main image
         run: docker pull ghcr.io/netcracker/kubemarine:main
       - name: Check ssh connectivity from docker
         run: |
