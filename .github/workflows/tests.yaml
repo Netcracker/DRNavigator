@@ -68,11 +68,22 @@ jobs:
           retention-days: 7
 
   cloud-tests:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
+      - name: Check ips
+        run: ip a
+      - name: Ssh preparation
+        run: |
+          ssh-keygen -t rsa -b 4096 -N "" -f ./ci/id_rsa -q
+          cp ./ci/id_rsa.pub ~/.ssh/authorized_keys
+          ssh-keyscan -H 172.17.0.1 >> ~/.ssh/known_hosts
       - name: pull kubemarine main image
         run: docker pull ghcr.io/netcracker/kubemarine:main
       - name: Test run image
-        run: docker run --name kubemarine ghcr.io/netcracker/kubemarine:main install -h
+        run: |
+          docker run --name kubemarine-check \
+          --mount type=bind,source="$(pwd)"/ci/id_rsa,target=/secrets/id_rsa \
+          --mount type=bind,source="$(pwd)"/ci/cluster.yaml,target=/data/cluster.yaml \
+          ghcr.io/netcracker/kubemarine:main check_iaas -c /data/cluster.yaml --tasks ssh.connectivity
