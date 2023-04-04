@@ -86,7 +86,7 @@ jobs:
       - name: Install kubemarine
         run: pip3 install kubemarine
       - name: Kubemarine install
-        run: kubemarine install -c /ci/cluster.yaml --disable-cumulative-points --dump-location ./results/kubemarine/
+        run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --dump-location ./results/kubemarine/
       - name: Collect artifacts
         if: failure()
         uses: actions/upload-artifact@v3
