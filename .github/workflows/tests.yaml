@@ -95,6 +95,7 @@ jobs:
           --mount type=bind,source="$(pwd)"/ci/cluster.yaml,target=/data/cluster.yaml \
           ghcr.io/netcracker/kubemarine:main install -c /data/cluster.yaml --disable-cumulative-points
       - name: Load dump files from containers
+        if: failure()
         run: |
           docker cp kubemarine-check:/opt/kubemarine/dump ./results/kubemarine/check_connectivity_dump
           docker cp kubemarine-install:/opt/kubemarine/dump ./results/kubemarine/install_dump
