@@ -76,9 +76,10 @@ jobs:
         run: ip a
       - name: Ssh preparation
         run: |
-          ssh-keygen -t rsa -b 4096 -N "" -f ./ci/id_rsa -q
-          cp ./ci/id_rsa.pub ~/.ssh/authorized_keys
+          ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa -q
+          cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
           ssh-keyscan -H 172.17.0.1 >> ~/.ssh/known_hosts
+          cp ~/.ssh/id_rsa ./ci/id_rsa
       - name: pull kubemarine main image
         run: docker pull ghcr.io/netcracker/kubemarine:main
       - name: Test run image
