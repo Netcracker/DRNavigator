@@ -82,9 +82,22 @@ jobs:
           cp ~/.ssh/id_rsa ./ci/id_rsa
       - name: pull kubemarine main image
         run: docker pull ghcr.io/netcracker/kubemarine:main
-      - name: Test run image
+      - name: Check ssh connectivity from docker
         run: |
           docker run --name kubemarine-check \
           --mount type=bind,source="$(pwd)"/ci/id_rsa,target=/secrets/id_rsa \
           --mount type=bind,source="$(pwd)"/ci/cluster.yaml,target=/data/cluster.yaml \
-          ghcr.io/netcracker/kubemarine:main check_iaas -c /data/cluster.yaml --tasks ssh.connectivity
+          ghcr.io/netcracker/kubemarine:main check_iaas -c /data/cluster.yaml --tasks ssh.connectivity --dump-location ./results/kubemarine/check_iaas_dump/
+      - name: Kubemarine install
+        run: |
+          docker run --name kubemarine-install \
+          --mount type=bind,source="$(pwd)"/ci/id_rsa,target=/secrets/id_rsa \
+          --mount type=bind,source="$(pwd)"/ci/cluster.yaml,target=/data/cluster.yaml \
+          ghcr.io/netcracker/kubemarine:main install -c /data/cluster.yaml --disable-cumulative-points --dump-location ./results/kubemarine/install_dump/
+      - name: Collect artifacts
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: kubemarine dumps
+          path: ./results/kubemarine/
+          retention-days: 7
