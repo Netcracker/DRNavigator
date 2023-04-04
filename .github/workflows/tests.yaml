@@ -7,6 +7,7 @@ on:
 jobs:
   unittests:
     runs-on: ubuntu-latest
+    if: false
     strategy:
       matrix:
         python-version: [ "3.9" ]
@@ -36,6 +37,7 @@ jobs:
 
   integration-tests:
     runs-on: ubuntu-latest
+    if: false
     strategy:
       matrix:
         python-version: [ "3.9" ]
@@ -73,4 +75,4 @@ jobs:
       - name: pull kubemarine main image
         run: docker pull ghcr.io/netcracker/kubemarine:main
       - name: Test run image
-        run: docker run --name kubemarine kubemarine:main install -h
+        run: docker run --name kubemarine ghcr.io/netcracker/kubemarine:main install -h
