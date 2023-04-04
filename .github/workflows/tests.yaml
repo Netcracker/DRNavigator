@@ -87,13 +87,17 @@ jobs:
           docker run --name kubemarine-check \
           --mount type=bind,source="$(pwd)"/ci/id_rsa,target=/secrets/id_rsa \
           --mount type=bind,source="$(pwd)"/ci/cluster.yaml,target=/data/cluster.yaml \
-          ghcr.io/netcracker/kubemarine:main check_iaas -c /data/cluster.yaml --tasks ssh.connectivity --dump-location ./results/kubemarine/check_iaas_dump/
+          ghcr.io/netcracker/kubemarine:main check_iaas -c /data/cluster.yaml --tasks ssh.connectivity
       - name: Kubemarine install
         run: |
           docker run --name kubemarine-install \
           --mount type=bind,source="$(pwd)"/ci/id_rsa,target=/secrets/id_rsa \
           --mount type=bind,source="$(pwd)"/ci/cluster.yaml,target=/data/cluster.yaml \
-          ghcr.io/netcracker/kubemarine:main install -c /data/cluster.yaml --disable-cumulative-points --dump-location ./results/kubemarine/install_dump/
+          ghcr.io/netcracker/kubemarine:main install -c /data/cluster.yaml --disable-cumulative-points
+      - name: Load dump files from containers
+        run: |
+          docker cp kubemarine-check:/opt/kubemarine/dump ./results/kubemarine/check_connectivity_dump
+          docker cp kubemarine-install:/opt/kubemarine/dump ./results/kubemarine/install_dump
       - name: Collect artifacts
         if: failure()
         uses: actions/upload-artifact@v3
