@@ -4,6 +4,7 @@ on:
     branches:
       - '**'
 
+jobs:
   unittests:
     runs-on: ubuntu-latest
     strategy:
@@ -65,7 +66,6 @@ on:
           retention-days: 7
 
   cloud-tests:
-    needs: build-image
     runs-on: ubuntu-latest
     strategy:
       matrix:
