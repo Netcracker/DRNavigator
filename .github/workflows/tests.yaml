@@ -85,7 +85,7 @@ jobs:
         run: sudo apt remove moby-runc
       - name: Install kubemarine
         run: pip3 install kubemarine
-      - name: Kubemarine install
+      - name: Run kubemarine install
         run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --dump-location ./results/kubemarine/
       - name: Collect artifacts
         if: failure()
