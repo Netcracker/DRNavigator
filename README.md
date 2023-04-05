@@ -1148,7 +1148,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     EOF
     ```
    
-    *Important*: don't forget specify there other ips and DNS names, what you plan to use to connect to site-manager,
+    *Important*: Don't forget to specify any other IP addresses and DNS names that you plan to use to connect to the site-manager.,
     e.g. it's required to specify ingress name (`ingress.name` value from helm installation), to use this certificate
     to connect outside the cloud (from sm-client).  
     For this specify additional `DNS.#` and `IP.#` fields.
