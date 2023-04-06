@@ -81,6 +81,7 @@ jobs:
           ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa -q
           cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
           ssh-keyscan -H 172.17.0.1 >> ~/.ssh/known_hosts
+          mkdir results
       - name: Remove moby-runc to resolve conflicts
         run: sudo apt remove moby-runc
       - name: Install kubemarine
