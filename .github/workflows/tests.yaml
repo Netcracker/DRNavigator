@@ -85,12 +85,15 @@ jobs:
         run: sudo apt remove moby-runc
       - name: Install kubemarine
         run: pip3 install kubemarine
+      - name: Add registry credentials to cluster.yaml
+        run: sed -i "s/<REGISTRY_USER>/${GITHUB_ACTOR}/; s/<REGISTRY_PASSWORD>/${{secrets.GITHUB_TOKEN}}/" ci/cluster.yaml
       - name: Run kubemarine install
         run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --dump-location ./results/kubemarine/
       - name: Run kubemarine overview
+        if: true
         run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --tasks overview --dump-location ./results/kubemarine/overview
       - name: Collect artifacts
-        if: failure()
+        if: false
         uses: actions/upload-artifact@v3
         with:
           name: kubemarine dumps
