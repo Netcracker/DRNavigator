@@ -22,7 +22,7 @@ plugins:
   site-manager:
     install: true
     installation:
-      priority: 0
+      priority: 2
       procedures:
         - shell:
             command: mkdir -p /etc/site-manager
