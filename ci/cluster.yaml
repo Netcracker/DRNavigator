@@ -64,7 +64,9 @@ plugins:
                 name: site-manager.test-local-k8s.com
               image:
                 repository: ghcr.io/netcracker/site-manager
-                tag: main
+                tag: <SM_TAG>
+              env:
+                SM_DEBUG: 'true'
             namespace: site-manager
             release: site-manager
         - expect:

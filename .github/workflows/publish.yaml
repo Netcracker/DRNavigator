@@ -21,3 +21,50 @@ jobs:
       - run: docker push ghcr.io/netcracker/sm-client:${{ env.TAG_NAME }}
       - run: docker push ghcr.io/netcracker/sm-dummy:${{ env.TAG_NAME }}
       - run: docker push ghcr.io/netcracker/paas-geo-monitor:${{ env.TAG_NAME }}
+
+  cloud-tests:
+    needs: publish-docker
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Ssh preparation
+        run: |
+          ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa -q
+          cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
+          ssh-keyscan -H 172.17.0.1 >> ~/.ssh/known_hosts
+          mkdir results
+      - name: Remove moby-runc to resolve conflicts
+        run: sudo apt remove moby-runc
+      - name: Install kubemarine
+        run: pip3 install kubemarine
+        # TODO: change to kubemarine runtime values feature
+      - name: Add runtime values to cluster.yaml
+        run: sed -i "s/<REGISTRY_USER>/${GITHUB_ACTOR}/; s/<REGISTRY_PASSWORD>/${{secrets.GITHUB_TOKEN}}/; s/<SM_TAG>/${{ env.TAG_NAME }}/" ci/cluster.yaml
+        # TODO Change to --dump-location ./results/kubemarine/ after secure runtime values implementation
+      - name: Run kubemarine install
+        run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --disable-dump
+
+        # Place to write tests
+
+      - name: Get SM logs from pod
+        if: true
+        run: sudo kubectl logs -n site-manager -l app=site-manager > ./results/sm.log
+      - name: Collect kubemarine artifacts
+        if: false
+        uses: actions/upload-artifact@v3
+        with:
+          name: kubemarine dumps
+          path: ./results/kubemarine/
+          retention-days: 7
+      - name: Collect SM artifacts
+        if: true
+        uses: actions/upload-artifact@v3
+        with:
+          name: site-manager logs
+          path: ./results/sm.log
+          retention-days: 7
