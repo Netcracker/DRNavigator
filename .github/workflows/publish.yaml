@@ -40,13 +40,13 @@ jobs:
           mkdir results
       - name: Remove moby-runc to resolve conflicts
         run: sudo apt remove moby-runc
-      - name: Install kubemarine
+      - name: Install kubemarine package
         run: pip3 install kubemarine
         # TODO: change to kubemarine runtime values feature
       - name: Add runtime values to cluster.yaml
         run: sed -i "s/<REGISTRY_USER>/${GITHUB_ACTOR}/; s/<REGISTRY_PASSWORD>/${{secrets.GITHUB_TOKEN}}/; s/<SM_TAG>/${{ env.TAG_NAME }}/" ci/cluster.yaml
         # TODO Change to --dump-location ./results/kubemarine/ after secure runtime values implementation
-      - name: Run kubemarine install
+      - name: Run kubemarine install with site-manager
         run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --disable-dump
 
         # Place to write tests

@@ -19,8 +19,6 @@ jobs:
         run: docker build -t sm-dummy -f tests/sm-dummy/Dockerfile --no-cache .
   unittest:
     needs: build-image
-    # TODO: disabled for fast tests
-    if: false
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -50,8 +48,6 @@ jobs:
           retention-days: 7
   integration-tests:
     needs: build-image
-    # TODO: disabled for fast tests
-    if: false
     runs-on: ubuntu-latest
     strategy:
       matrix:
