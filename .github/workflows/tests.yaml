@@ -1,0 +1,40 @@
+name: Tests
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '*'
+
+env:
+  SM_TAG_NAME: ${{ github.ref_name }}
+
+jobs:
+
+  publish-test-docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: docker build -t ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }} -f Dockerfile-sm .
+      - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
+      - run: docker push ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }}
+
+  cloud-tests:
+    needs: publish-test-docker-image
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+      - name: Test echo
+        run: echo "Inside test
+
+  remove-test-docker-image:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete image
+        uses: bots-house/ghcr-delete-image-action@v1.1.0
+        with:
+          owner: netcracker
+          name: site-manager
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ env.SM_TAG_NAME }}
