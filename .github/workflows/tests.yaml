@@ -11,6 +11,68 @@ env:
 
 jobs:
 
+  unittest:
+    needs: build-image
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.9" ]
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Get python version
+        run: python --version
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-sc-test.txt -r requirements-sc.txt
+      - name: Run tests
+        id: unittests
+        run: python -m pytest tests/selftest
+      - name: Collect artifacts
+        if: failure() && steps.unittests.outcome == 'failure'
+        uses: actions/upload-artifact@v3
+        with:
+          name: unittest-logs
+          path: pytest.log
+          retention-days: 7
+
+  integration-tests:
+    needs: build-image
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: [ "3.9" ]
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Get python version
+        run: python --version
+      - name: Get Docker-compose version
+        run: docker-compose version
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-sc-test.txt -r requirements-sc.txt
+      - name: Run tests
+        id: integrationtests
+        run: python -m pytest tests/integration
+      - name: Collect artifacts
+        if: failure() && steps.integrationtests.outcome == 'failure'
+        uses: actions/upload-artifact@v3
+        with:
+          name: integration-tests-logs
+          path: test-dump/
+          retention-days: 7
+
   publish-test-docker-image:
     runs-on: ubuntu-latest
     steps:
@@ -20,13 +82,51 @@ jobs:
       - run: docker push ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }}
 
   cloud-tests:
-    needs: publish-test-docker-image
+    needs: publish-docker
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
-      - name: Test echo
-        run: echo "Inside test
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+      - name: Ssh preparation
+        run: |
+          ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa -q
+          cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
+          ssh-keyscan -H 172.17.0.1 >> ~/.ssh/known_hosts
+          mkdir results
+      - name: Remove moby-runc to resolve conflicts
+        run: sudo apt remove moby-runc
+      - name: Install kubemarine package
+        run: pip3 install kubemarine
+        # TODO: change to kubemarine runtime values feature
+      - name: Add runtime values to cluster.yaml
+        run: sed -i "s/<REGISTRY_USER>/${GITHUB_ACTOR}/; s/<REGISTRY_PASSWORD>/${{secrets.GITHUB_TOKEN}}/; s/<SM_TAG>/${{ env.SM_TAG_NAME }}/" ci/cluster.yaml
+        # TODO Change to --dump-location ./results/kubemarine/ after secure runtime values implementation
+      - name: Run kubemarine install with site-manager
+        run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --disable-dump
+
+        # Place to write tests
+
+      - name: Get SM logs from pod
+        if: failure()
+        run: sudo kubectl logs -n site-manager -l app=site-manager > ./results/sm.log
+      - name: Collect kubemarine artifacts
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: kubemarine dumps
+          path: ./results/kubemarine/
+          retention-days: 7
+      - name: Collect SM artifacts
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: site-manager logs
+          path: ./results/sm.log
+          retention-days: 7
 
   remove-test-docker-image:
     needs: [publish-test-docker-image, cloud-tests]
