@@ -80,7 +80,7 @@ jobs:
       - run: docker push ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }}
 
   cloud-tests:
-    needs: publish-docker
+    needs: publish-test-docker-image
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repo
