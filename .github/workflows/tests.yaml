@@ -29,7 +29,8 @@ jobs:
         run: echo "Inside test
 
   remove-test-docker-image:
-    needs: cloud-tests
+    needs: [publish-test-docker-image, cloud-tests]
+    if: ${{ always() && needs.publish-test-docker-image.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Delete image
