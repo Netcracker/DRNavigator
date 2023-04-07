@@ -12,7 +12,6 @@ env:
 jobs:
 
   unittest:
-    needs: build-image
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -42,7 +41,6 @@ jobs:
           retention-days: 7
 
   integration-tests:
-    needs: build-image
     runs-on: ubuntu-latest
     strategy:
       matrix:
