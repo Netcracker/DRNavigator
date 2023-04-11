@@ -1140,11 +1140,18 @@ To support the ability of services to be managed by `site-manager`, implement th
     extendedKeyUsage = clientAuth, serverAuth
     subjectAltName = @alt_names
     [alt_names]
+    IP.1 = 127.0.0.1
     DNS.1 = site-manager
     DNS.2 = site-manager.site-manager
     DNS.3 = site-manager.site-manager.svc
+    DNS.4 = <specify there ingress name of site-manager>
     EOF
     ```
+   
+    *Important*: Don't forget to specify any other IP addresses and DNS names that you plan to use to connect to the site-manager.,
+    e.g. it's required to specify ingress name (`ingress.name` value from helm installation), to use this certificate
+    to connect outside the cloud (from sm-client).  
+    For this specify additional `DNS.#` and `IP.#` fields.
 
     2.2. Create the CA certificate:
 
