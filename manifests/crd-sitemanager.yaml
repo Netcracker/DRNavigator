@@ -13,7 +13,7 @@ spec:
   versions:
   - name: v3
     served: true
-    storage: true
+    storage: false
     subresources:
       status: {}
     schema:
@@ -85,7 +85,7 @@ spec:
         type: object
   - name: v2
     served: true
-    storage: false
+    storage: true
     deprecated: true
     deprecationWarning: >-
       netcracker.com/v2 SiteManager is deprecated; use v3 and see actual
