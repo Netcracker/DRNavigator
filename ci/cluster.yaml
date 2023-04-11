@@ -1,0 +1,77 @@
+node_defaults:
+  keyfile: ~/.ssh/id_rsa
+  username: runner
+
+nodes:
+- name: "node-all-in-one"
+  address: "172.17.0.1"
+  internal_address: "172.17.0.1"
+  roles: ["control-plane", "worker"]
+
+cluster_name: "test-local-k8s.com"
+
+services:
+  cri:
+    containerRuntime: containerd
+    containerdConfig:
+      plugins."io.containerd.grpc.v1.cri".registry.configs."ghcr.io".auth:
+        username: <REGISTRY_USER>
+        password: <REGISTRY_PASSWORD>
+
+plugins:
+  site-manager:
+    install: true
+    installation:
+      priority: 2
+      procedures:
+        - shell:
+            command: mkdir -p /etc/site-manager
+            sudo: true
+        - shell:
+            command: kubectl create namespace site-manager --dry-run=client -o yaml | sudo kubectl apply -f -
+            sudo: true
+        - config:
+            source: ./ci/server.conf
+            destination: /etc/site-manager/server.conf
+            apply_required: false
+        - shell:
+            command: |
+              sudo openssl req -days 730 -nodes -new -x509 -keyout /etc/site-manager/ca.key -out  /etc/site-manager/ca.crt -subj "/CN=SM service"
+              sudo openssl genrsa -out /etc/site-manager/site-manager-tls.key 2048
+              sudo openssl req -new -key  /etc/site-manager/site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config  /etc/site-manager/server.conf | \
+              sudo openssl x509 -req -days 730 -CA  /etc/site-manager/ca.crt -CAkey /etc/site-manager/ca.key -CAcreateserial -out /etc/site-manager/site-manager-tls.crt -extensions v3_req -extfile  /etc/site-manager/server.conf
+        - config:
+            source: ./manifests/crd-sitemanager.yaml
+            destination: /etc/site-manager/crd-sitemanager.yaml
+            apply_command: |
+              cat /etc/site-manager/crd-sitemanager.yaml | \
+              sed "s/<base-64-encoded-ca-bundle>/$(cat /etc/site-manager/ca.crt | base64 - | tr -d '\n')/" | \
+              sudo kubectl apply -f -
+        - shell:
+            command: |
+              kubectl -n site-manager create secret tls sm-certs \
+              --cert /etc/site-manager/site-manager-tls.crt \
+              --key /etc/site-manager/site-manager-tls.key  \
+              --dry-run=client -o yaml --save-config | \
+              sudo kubectl apply -f -
+            sudo: True
+        - helm:
+            chart_path: ./charts/site-manager
+            values:
+              metricCollector:
+                install: false
+              ingress:
+                name: site-manager.test-local-k8s.com
+              image:
+                repository: ghcr.io/netcracker/site-manager
+                tag: <SM_TAG>
+              env:
+                SM_DEBUG: 'true'
+            namespace: site-manager
+            release: site-manager
+        - expect:
+            deployments:
+              - name: site-manager
+                namespace: site-manager
+            pods:
+              - site-manager
