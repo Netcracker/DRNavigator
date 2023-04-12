@@ -80,6 +80,9 @@ plugins:
     installation:
       priority: 3
       procedures:
+        - shell:
+            command: kubectl create namespace test-services
+            sudo: true
         - helm:
             chart_path: ./tests/sm-dummy/charts/sm-dummy
             values:
@@ -89,12 +92,12 @@ plugins:
               serviceAccount:
                 name: service-a
               name: service-a
-            namespace: site-manager
+            namespace: test-services
             release: service-a
         - expect:
             deployments:
               - name: service-a
-                namespace: site-manager
+                namespace: test-services
             pods:
               - service-a
   service-b:
@@ -113,11 +116,11 @@ plugins:
               name: service-b
               siteManager:
                 after: ["service-a.site-manager"]
-            namespace: site-manager
+            namespace: test-services
             release: service-b
         - expect:
             deployments:
               - name: service-b
-                namespace: site-manager
+                namespace: test-services
             pods:
               - service-b

@@ -133,10 +133,17 @@ jobs:
     if: ${{ always() && needs.publish-test-docker-image.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Delete image
+      - name: Delete image site-manager
         uses: bots-house/ghcr-delete-image-action@v1.1.0
         with:
           owner: netcracker
           name: site-manager
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ env.SM_TAG_NAME }}
+      - name: Delete image sm-dummy
+        uses: bots-house/ghcr-delete-image-action@v1.1.0
+        with:
+          owner: netcracker
+          name: sm-dummy
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.SM_TAG_NAME }}
