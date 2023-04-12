@@ -75,3 +75,49 @@ plugins:
                 namespace: site-manager
             pods:
               - site-manager
+  service-a:
+    install: true
+    installation:
+      priority: 3
+      procedures:
+        - helm:
+            chart_path: ./tests/sm-dummy/charts/sm-dummy
+            values:
+              ingress:
+                name: service-a.test-local-k8s.com
+              image: ghcr.io/netcracker/sm-dummy:<SM_TAG>
+              serviceAccount:
+                name: service-a
+              name: service-a
+            namespace: site-manager
+            release: service-a
+        - expect:
+            deployments:
+              - name: service-a
+                namespace: site-manager
+            pods:
+              - service-a
+  service-b:
+    install: true
+    installation:
+      priority: 3
+      procedures:
+        - helm:
+            chart_path: ./tests/sm-dummy/charts/sm-dummy
+            values:
+              ingress:
+                name: service-b.test-local-k8s.com
+              image: ghcr.io/netcracker/sm-dummy:<SM_TAG>
+              serviceAccount:
+                name: service-b
+              name: service-b
+              siteManager:
+                after: ["service-a.site-manager"]
+            namespace: site-manager
+            release: service-b
+        - expect:
+            deployments:
+              - name: service-b
+                namespace: site-manager
+            pods:
+              - service-b
