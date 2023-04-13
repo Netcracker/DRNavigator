@@ -105,7 +105,7 @@ jobs:
       - name: Add runtime values to cluster.yaml
         run: sed -i "s/<REGISTRY_USER>/${GITHUB_ACTOR}/; s/<REGISTRY_PASSWORD>/${{secrets.GITHUB_TOKEN}}/; s/<SM_TAG>/${{ env.SM_TAG_NAME }}/" ci/cluster.yaml
         # TODO Change to --dump-location ./results/kubemarine/ after secure runtime values implementation
-      - name: Run kubemarine install with site-manager
+      - name: Run kubemarine install with site-manager and sm-dummy
         run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --disable-dump
 
         # Place to write tests
