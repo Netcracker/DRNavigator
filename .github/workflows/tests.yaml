@@ -107,8 +107,12 @@ jobs:
         # TODO Change to --dump-location ./results/kubemarine/ after secure runtime values implementation
       - name: Run kubemarine install with site-manager and sm-dummy
         run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --disable-dump
-
-        # Place to write tests
+      - name: Install dependencies
+        run: |
+          python3 -m pip3 install --upgrade pip
+          pip3 install -r requirements-sc-test.txt -r requirements-sc.txt
+      - name: Run tests on cluster
+        run: python3 -m pytest tests/cloud_test --kubeconfig='./kubeconfig'
 
       - name: Get SM logs from pod
         if: failure()
