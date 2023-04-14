@@ -55,6 +55,9 @@ plugins:
               --dry-run=client -o yaml --save-config | \
               sudo kubectl apply -f -
             sudo: True
+        - shell:
+            command: kubectl patch secret -n site-manager sm-certs -p "{\"data\":{\"ca.crt\":\"$(cat /etc/site-manager/ca.crt | base64 - | tr -d '\n')\"}}"
+            sudo: true
         - helm:
             chart_path: ./charts/site-manager
             values:
