@@ -75,13 +75,23 @@ plugins:
                 namespace: site-manager
             pods:
               - site-manager
+        # Restart is needed in case of cert regeneration
+        - shell:
+            command: kubectl rollout restart deployment site-manager -n site-manager
+            sudo: true
+        - expect:
+            deployments:
+            - name: site-manager
+              namespace: site-manager
+            pods:
+            - site-manager
   service-a:
     install: true
     installation:
       priority: 3
       procedures:
         - shell:
-            command: kubectl create namespace test-services
+            command: kubectl create namespace test-services --dry-run=client -o yaml | sudo kubectl apply -f -
             sudo: true
         - helm:
             chart_path: ./tests/sm-dummy/charts/sm-dummy
@@ -104,6 +114,9 @@ plugins:
     installation:
       priority: 3
       procedures:
+        - shell:
+            command: kubectl create namespace test-services --dry-run=client -o yaml | sudo kubectl apply -f -
+            sudo: true
         - helm:
             chart_path: ./tests/sm-dummy/charts/sm-dummy
             values:
@@ -113,7 +126,7 @@ plugins:
                 name: service-b
               name: service-b
               siteManager:
-                after: ["service-a.site-manager"]
+                after: ["service-a.test-services"]
             namespace: test-services
             release: service-b
         - expect:
