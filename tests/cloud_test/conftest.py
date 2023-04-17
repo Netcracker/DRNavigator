@@ -55,11 +55,13 @@ def prepare_sm_ingress(kubeconfig, api_watch=False):
         try:
             sm_ingress = client.NetworkingV1Api().read_namespaced_ingress('site-manager', kubeconfig[1])
             host_name = sm_ingress.spec.tls[0].hosts[0]
+            secret_sm = client.CoreV1Api().read_namespaced_secret('sm-certs', kubeconfig[1])
+            sm_ca_crt = base64.b64decode(secret_sm.data['ca.crt']).decode()
         except Exception as e:
             logging.error("Can not get ingress : \n %s" % str(e))
             os._exit(1)
 
-    yield host_name
+    yield host_name, sm_ca_crt
 
 @pytest.fixture(scope='class', name='config_dir')
 def prepare_configs(request, sm_ingress, sm_env):
@@ -76,11 +78,11 @@ def prepare_configs(request, sm_ingress, sm_env):
     config_dir = getattr(request.module, "config_dir")
     config_dir = os.path.abspath(test_dir + config_dir)
     ca_crt = open(os.path.abspath(tmp_dir + '/ca.crt'), 'w').write(sm_env[1])
-
+    sm_ca_crt = open(os.path.abspath(tmp_dir + '/sm_ca.crt'), 'w').write(sm_ingress[1])
     template_env = {
         "sites": {
             "site_1": {
-                "link": sm_ingress,
+                "link": sm_ingress[0],
                 "token": sm_env[0],
                 "ca_cert": os.path.abspath(tmp_dir + '/ca.crt')
             },
