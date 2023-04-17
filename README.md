@@ -1329,7 +1329,7 @@ After that, decode this token using base64 decoding, for example:
 kubectl get secret sm-auth-sa-token-pqkxj -n site-manager -o yaml | grep token: | cut -d ' ' -f4 | base64 --decode
 ```
 
-- cacert is a content of `site-manager-tls.crt` which has been generated during the SiteManager installation.
+- cacert is a content of `ca.crt` which has been generated during the SiteManager installation.
 
 ### Running from cli
  
