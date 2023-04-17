@@ -57,11 +57,13 @@ def prepare_sm_ingress(kubeconfig, api_watch=False):
             host_name = sm_ingress.spec.tls[0].hosts[0]
             secret_sm = client.CoreV1Api().read_namespaced_secret('sm-certs', kubeconfig[1])
             sm_ca_crt = base64.b64decode(secret_sm.data['ca.crt']).decode()
+            token_sm = client.CoreV1Api().read_namespaced_secret('sm-auth-sa-token', kubeconfig[1])
+            token = base64.b64decode(token_sm.data['token']).decode()
         except Exception as e:
             logging.error("Can not get ingress : \n %s" % str(e))
             os._exit(1)
 
-    yield host_name, sm_ca_crt
+    yield host_name, sm_ca_crt, token
 
 @pytest.fixture(scope='class', name='config_dir')
 def prepare_configs(request, sm_ingress, sm_env):
@@ -84,7 +86,7 @@ def prepare_configs(request, sm_ingress, sm_env):
             "site_1": {
                 "link": sm_ingress[0],
                 "token": sm_env[0],
-                "ca_cert": os.path.abspath(tmp_dir + '/ca.crt')
+                "ca_cert": os.path.abspath(tmp_dir + '/sm_ca.crt')
             },
         }
     }
@@ -102,6 +104,20 @@ def prepare_configs(request, sm_ingress, sm_env):
 
     yield tmp_dir, template_env
 
-
+@pytest.fixture(scope='class', name='config_ingress_service')
+def info_services(kubeconfig, api_watch=False):
+    services_ingress = {}
+    if not api_watch:
+        try:
+            service_a_ingress = client.NetworkingV1Api().read_namespaced_ingress('service-a', 'test-services')
+            service_a = service_a_ingress.spec.rules[0].host
+            service_b_ingress = client.NetworkingV1Api().read_namespaced_ingress('service-b', 'test-services')
+            service_b = service_b_ingress.spec.rules[0].host
+        except Exception as e:
+            logging.error("Can not get ingress : \n %s" % str(e))
+            os._exit(1)
+        services_ingress['service-a.test-services'] = service_a
+        services_ingress['service-b.test-services'] = service_b
+    yield services_ingress
 
 
