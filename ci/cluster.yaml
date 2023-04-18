@@ -27,7 +27,7 @@ plugins:
         - shell:
             # Create workspace directory and create namespace for site-manager
             command: |
-              mkdir -p /etc/site-manager
+              sudo mkdir -p /etc/site-manager
               sudo kubectl create namespace site-manager --dry-run=client -o yaml | sudo kubectl apply -f -
         - config:
             # Transfer server.conf on cluster
