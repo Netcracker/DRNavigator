@@ -11,113 +11,100 @@ def pytest_addoption(parser):
 
 @pytest.fixture(scope='class',name='kubeconfig')
 def prepare_kubeconfig(request):
+
+    kubeconfig = {}
+
     KUBECONFIG_FILE = request.config.getoption("--kubeconfig")
 
-    if KUBECONFIG_FILE != "":
+    if KUBECONFIG_FILE != "" and os.path.isfile(KUBECONFIG_FILE):
         config.load_kube_config(config_file=KUBECONFIG_FILE)
 
-        _, current_context = config.list_kube_config_contexts(config_file=KUBECONFIG_FILE)
-        namespace = current_context['context'].get('namespace', 'site-manager')
-
+        _, kubeconfig["current_context"] = config.list_kube_config_contexts(config_file=KUBECONFIG_FILE)
+        kubeconfig["namespace_sm"] = kubeconfig["current_context"].get('namespace', 'site-manager')
+        kubeconfig["namespace_services"] = kubeconfig["current_context"].get('namespace', 'test-services')
     else:
-        config.load_incluster_config()
-        with open("/var/run/secrets/kubernetes.io/serviceaccount/namespace") as open_file:
-            namespace = open_file.read()
+        logging.error("Kubeconfig empty or is not a file")
+        os._exit(1)
 
     logging.info(f"Kubeconfig load")
 
-    yield current_context, namespace
+    yield kubeconfig
 @pytest.fixture(scope='class', name='sm_env')
-def prepare_sm_env(kubeconfig, api_watch=False):
+def prepare_sm_env(kubeconfig):
 
-    if not api_watch:
+    sm_env = {}
 
-        try:
-            service_account = client.CoreV1Api().read_namespaced_service_account("sm-auth-sa", kubeconfig[1])
-            secret_name = [s for s in service_account.secrets if 'token' in s.name][0].name
-            btoken = client.CoreV1Api().read_namespaced_secret(name=secret_name, namespace=kubeconfig[1]).data['token']
-            token = base64.b64decode(btoken).decode()
-            btoken = client.CoreV1Api().read_namespaced_secret(name=secret_name, namespace=kubeconfig[1]).data['ca.crt']
-            ca_crt = base64.b64decode(btoken).decode()
-        except Exception as e:
-            logging.error("Can not get sm-auth-sa token and ca.crt: \n %s" % str(e))
-            os._exit(1)
+    try:
+        token_sm = client.CoreV1Api().read_namespaced_secret('sm-auth-sa-token', kubeconfig['namespace_sm'])
+        sm_env['token-sm'] = base64.b64decode(token_sm.data['token']).decode()
+        sm_ingress = client.NetworkingV1Api().read_namespaced_ingress('site-manager', kubeconfig['namespace_sm'])
+        sm_env["host_name"] = sm_ingress.spec.tls[0].hosts[0]
+        secret_sm = client.CoreV1Api().read_namespaced_secret('sm-certs', kubeconfig['namespace_sm'])
+        sm_env["ca_crt"] = base64.b64decode(secret_sm.data['ca.crt']).decode()
 
-    logging.info(f"Token and ca.crt collect")
+    except Exception as e:
+        logging.error("Can not get sm-auth-sa token, sm-ingress-name and ca.crt: \n %s" % str(e))
+        os._exit(1)
 
-    yield token, ca_crt
+    logging.info(f"Token, sm-ingress-name and ca.crt collect")
 
-@pytest.fixture(scope='class',name='sm_ingress')
-def prepare_sm_ingress(kubeconfig, api_watch=False):
+    yield sm_env
 
-    if not api_watch:
+@pytest.fixture(scope='class', name='config_ingress_service')
+def info_services(kubeconfig):
+    services_ingress = {}
+    try:
+        service_a_ingress = client.NetworkingV1Api().read_namespaced_ingress('service-a', kubeconfig['namespace_services'])
+        services_ingress['service-a.test-services'] = service_a_ingress.spec.rules[0].host
+        service_b_ingress = client.NetworkingV1Api().read_namespaced_ingress('service-b', kubeconfig['namespace_services'])
+        services_ingress['service-b.test-services'] = service_b_ingress.spec.rules[0].host
+    except Exception as e:
+        logging.error("Can not get ingress services : \n %s" % str(e))
+        os._exit(1)
 
-        try:
-            sm_ingress = client.NetworkingV1Api().read_namespaced_ingress('site-manager', kubeconfig[1])
-            host_name = sm_ingress.spec.tls[0].hosts[0]
-            secret_sm = client.CoreV1Api().read_namespaced_secret('sm-certs', kubeconfig[1])
-            sm_ca_crt = base64.b64decode(secret_sm.data['ca.crt']).decode()
-            token_sm = client.CoreV1Api().read_namespaced_secret('sm-auth-sa-token', kubeconfig[1])
-            token = base64.b64decode(token_sm.data['token']).decode()
-        except Exception as e:
-            logging.error("Can not get ingress : \n %s" % str(e))
-            os._exit(1)
-
-    yield host_name, sm_ca_crt, token
+    yield services_ingress
 
 @pytest.fixture(scope='class', name='config_dir')
-def prepare_configs(request, sm_ingress, sm_env):
+def prepare_configs(request, sm_env):
+
+    config_test = {}
 
     # Create class directory
-    tmp_dir = os.path.abspath(os.path.join("cloud-dump", request.cls.__name__))
-    if os.path.isdir(tmp_dir):
-        shutil.rmtree(tmp_dir, ignore_errors=True)
-    os.mkdir(tmp_dir)
-    logging.debug(f"Tmp directory: {tmp_dir}")
+    config_test["tmp_dir"] = os.path.abspath(os.path.join("cloud-dump", request.cls.__name__))
+    if os.path.isdir(config_test["tmp_dir"]):
+        shutil.rmtree(config_test["tmp_dir"], ignore_errors=True)
+    os.mkdir(config_test["tmp_dir"])
+    logging.debug(f"Tmp directory: {config_test['tmp_dir']}")
 
     # Get directory with configs
     test_dir = getattr(request.module, "test_dir")
     config_dir = getattr(request.module, "config_dir")
     config_dir = os.path.abspath(test_dir + config_dir)
-    ca_crt = open(os.path.abspath(tmp_dir + '/ca.crt'), 'w').write(sm_env[1])
-    sm_ca_crt = open(os.path.abspath(tmp_dir + '/sm_ca.crt'), 'w').write(sm_ingress[1])
-    template_env = {
+    ca_crt = open(os.path.abspath(config_test["tmp_dir"] + '/ca.crt'), 'w').write(sm_env['ca_crt'])
+
+    config_test["template_env"] = {
         "sites": {
             "site_1": {
-                "link": sm_ingress[0],
-                "token": sm_env[0],
-                "ca_cert": os.path.abspath(tmp_dir + '/sm_ca.crt')
+                "link": sm_env['host_name'],
+                "token": sm_env['token-sm'],
+                "ca_cert": os.path.abspath(config_test["tmp_dir"] + '/ca.crt')
             },
         }
     }
     # Convert configuration to tmp dir
     for file_name in os.listdir(config_dir):
         abs_path_source = os.path.join(config_dir, file_name)
-        abs_path_target = os.path.join(tmp_dir, file_name.removesuffix('.j2'))
+        abs_path_target = os.path.join(config_test["tmp_dir"], file_name.removesuffix('.j2'))
 
         if os.path.isdir(abs_path_source):
             shutil.copytree(abs_path_source, abs_path_target)
         elif not abs_path_source.endswith('.j2'):
             shutil.copyfile(abs_path_source, abs_path_target)
         else:
-            open(abs_path_target, 'w').write(Template(open(abs_path_source).read()).render(env=template_env))
+            open(abs_path_target, 'w').write(Template(open(abs_path_source).read()).render(env=config_test["template_env"]))
 
-    yield tmp_dir, template_env
+    yield config_test
 
-@pytest.fixture(scope='class', name='config_ingress_service')
-def info_services(kubeconfig, api_watch=False):
-    services_ingress = {}
-    if not api_watch:
-        try:
-            service_a_ingress = client.NetworkingV1Api().read_namespaced_ingress('service-a', 'test-services')
-            service_a = service_a_ingress.spec.rules[0].host
-            service_b_ingress = client.NetworkingV1Api().read_namespaced_ingress('service-b', 'test-services')
-            service_b = service_b_ingress.spec.rules[0].host
-        except Exception as e:
-            logging.error("Can not get ingress : \n %s" % str(e))
-            os._exit(1)
-        services_ingress['service-a.test-services'] = service_a
-        services_ingress['service-b.test-services'] = service_b
-    yield services_ingress
+
 
 

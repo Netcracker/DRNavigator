@@ -43,19 +43,19 @@ def get_services_to_check(template_env):
                               if service not in services_to_check]
     return services_to_check
 
-def check_statuses(capfd, config_dir, sm_ingress, config_ingress_service, expected_status_func: lambda site_name, service_name: dict):
-    run_sm_client_command_with_exit(["--config", os.path.join(config_dir[0], 'sm_config.yaml'),
+def check_statuses(capfd, config_dir, sm_env, config_ingress_service, expected_status_func: lambda site_name, service_name: dict):
+    run_sm_client_command_with_exit(["--config", os.path.join(config_dir['tmp_dir'], 'sm_config.yaml'),
                                       "-v", "status"])
     sm_client_statuses_dict = parse_status_table(capfd)
     for service, ingress in config_ingress_service.items():
         expected_status = expected_status_func("site_1", service)
-        check_status_from_service(service, f"http://{ingress}", expected_status, sm_ingress[2])
+        check_status_from_service(service, f"http://{ingress}", expected_status, sm_env['token-sm'])
         expected_answer_from_sm = {"services": {service: expected_status}} \
             if expected_status.get("message") != "Service doesn't exist" else \
             {"message": "Service doesn't exist", "wrong-service": service}
         check_status_from_site_manager("site_1", service,
-                                    sm_url=f"https://{config_dir[1]['sites']['site_1']['link']}",
-                                    token=config_dir[1]['sites']['site_1']['token'],
+                                    sm_url=f"https://{sm_env['host_name']}",
+                                    token=sm_env['token-sm'],
                                     verify=False,
                                     expected_answer=expected_answer_from_sm)
         check_status_from_sm_client(sm_client_statuses_dict, "site_1", service, expected_status)

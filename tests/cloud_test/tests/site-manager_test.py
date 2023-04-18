@@ -8,11 +8,10 @@ from urllib3.exceptions import InsecureRequestWarning
 test_dir = os.path.dirname(__file__)
 config_dir = "/resources/test"
 @pytest.mark.usefixtures('config_dir')
-@pytest.mark.usefixtures('kubeconfig')
-@pytest.mark.usefixtures('sm_ingress')
+@pytest.mark.usefixtures('sm_env')
 @pytest.mark.usefixtures('config_ingress_service')
 class SitemanagerTestCase:
-    def test_wait_services_until_healthy(self, config_dir, sm_ingress):
+    def test_wait_services_until_healthy(self, config_dir, sm_env):
         attempt_count = 5
         sleep_seconds = 5
         all_services_started = True
@@ -24,7 +23,7 @@ class SitemanagerTestCase:
             logging.info(f"Check services for healthy, attempt {attempt + 1}...")
             all_services_started = True
             try:
-                 status_code = requests.get(f"https://{sm_ingress[0]}", verify=config_dir[0] + "/sm_ca.crt").status_code
+                 status_code = requests.get(f"https://{sm_env['host_name']}", verify=config_dir['tmp_dir'] + "/ca.crt").status_code
             except Exception as e:
                 status_code = 0
             if status_code not in [200, 204]:
@@ -40,9 +39,9 @@ class SitemanagerTestCase:
         else:
             logging.error("Some services haven't started in expected time")
 
-    def test_status_service(self, config_dir, sm_ingress, config_ingress_service, use_auth=True, verify=False):
-        url = 'https://' + sm_ingress[0] + "/sitemanager"
-        token = sm_ingress[2]
+    def test_status_service(self, sm_env, config_ingress_service, use_auth=True, verify=False):
+        url = 'https://' + sm_env['host_name'] + "/sitemanager"
+        token = sm_env['token-sm']
         if token and use_auth:
             headers = {
                 "Authorization": f"Bearer {token}"
