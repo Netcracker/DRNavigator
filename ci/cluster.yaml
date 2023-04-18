@@ -52,7 +52,7 @@ plugins:
         - shell:
             # Create and patch secret with SSL certificates for site-manager
             command: |
-              kubectl -n site-manager create secret tls sm-certs \
+              sudo kubectl -n site-manager create secret tls sm-certs \
               --cert /etc/site-manager/site-manager-tls.crt \
               --key /etc/site-manager/site-manager-tls.key  \
               --dry-run=client -o yaml --save-config | \
