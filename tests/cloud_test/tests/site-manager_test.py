@@ -56,7 +56,7 @@ class SitemanagerTestCase:
                 if any(http_body):
                     resp = requests.post(url, json=http_body,  headers=headers, verify=verify)
                 else:
-                    resp = requests.get(url,  headers=headers, verify=verify).status_code
+                    resp = requests.get(url,  headers=headers, verify=verify)
                 logging.debug(f"REST response: {resp.json()}")
             except Exception as e:
                 resp.status_code = 0
