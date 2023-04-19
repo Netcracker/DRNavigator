@@ -1,16 +1,17 @@
 """
-pytest sm-client common commands tests
-python3 -u -m pytest  ./tests/cloud_test -k SMTestCase
+pytest sm-client common commands tests_for_integration
+python3 -u -m pytest  ./tests_for_integration/cloud_test -k SMTestCase
 """
 
 import logging
 import os
 
 import pytest
-import test_utils
+
+from tests.test_utils import run_sm_client_command_with_exit, check_statuses_for_cloud_test
 
 test_dir = os.path.dirname(__file__)
-config_dir = "/resources/test"
+config_dir = "/resources/"
 
 
 @pytest.mark.usefixtures('config_dir')
@@ -19,50 +20,50 @@ config_dir = "/resources/test"
 class SMTestCase:
     def test_status(self, config_dir):
         logging.info("TEST STATUS COMMAND")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(config_dir['tmp_dir'], 'sm_config.yaml'), "-v", "status"])
 
     def test_list_section(self, config_dir):
         logging.info("TEST LIST COMMAND")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(config_dir['tmp_dir'], 'sm_config.yaml'), "-v", "list"])
 
     def test_activate_all_services(self, config_dir, sm_env, config_ingress_service, capfd):
         logging.info("TEST ACTIVATE ALL SERVICES WITH STATEFUL SERVICES")
         # Run activate
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(config_dir['tmp_dir'], 'sm_config.yaml'), "-v", "active", "site_1"])
 
-        test_utils.check_statuses(capfd, config_dir, sm_env, config_ingress_service, lambda site, service:
+        check_statuses_for_cloud_test(capfd, config_dir, sm_env, config_ingress_service, lambda site, service:
         {"healthz": "up", "mode": "active", "status": "done", "message": "I'm OK"})
 
     def test_passivate_all_services(self, config_dir, sm_env, config_ingress_service, capfd):
         logging.info("TEST PASSIVATE ALL SERVICES WITH STATEFUL SERVICES")
         # Run passivate
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(config_dir['tmp_dir'], 'sm_config.yaml'), "-v", "standby", "site_1"])
 
-        test_utils.check_statuses(capfd, config_dir, sm_env, config_ingress_service, lambda site, service:
+        check_statuses_for_cloud_test(capfd, config_dir, sm_env, config_ingress_service, lambda site, service:
         {"healthz": "up", "mode": "standby", "status": "done", "message": "I'm OK"})
 
     def test_maintenance_disable_all_services(self, config_dir, sm_env, config_ingress_service, capfd):
         logging.info("TEST DISABLE ALL SERVICES WITH STATEFUL SERVICES")
         # Run maintenance
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(config_dir['tmp_dir'], 'sm_config.yaml'), "-v", "disable", "site_1"])
 
         # Check status
-        test_utils.check_statuses(capfd, config_dir, sm_env, config_ingress_service, lambda site, service:
+        check_statuses_for_cloud_test(capfd, config_dir, sm_env, config_ingress_service, lambda site, service:
         {"healthz": "up", "mode": "disable" if "site_1" == site else "standby",
          "status": "done", "message": "I'm OK"})
 
     def test_maintenance_return_all_services(self, config_dir, sm_env, config_ingress_service, capfd):
         logging.info("TEST RETURN ALL SERVICES WITH STATEFUL SERVICES")
         # Run return
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(config_dir['tmp_dir'], 'sm_config.yaml'), "-v", "return", "site_1"])
 
         # Check status
-        test_utils.check_statuses(capfd, config_dir, sm_env, config_ingress_service, lambda site, service:
+        check_statuses_for_cloud_test(capfd, config_dir, sm_env, config_ingress_service, lambda site, service:
         {"healthz": "up", "mode": "standby" if "site_1" == site else "disable",
          "status": "done", "message": "I'm OK"})
