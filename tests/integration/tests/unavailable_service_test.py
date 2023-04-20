@@ -6,7 +6,7 @@ python3 -u -m pytest  ./tests/integration -k UnvaliableServiceTestCase
 import pytest
 import logging
 import os
-import test_utils
+from tests.test_utils import check_statuses, run_sm_client_command_with_exit
 
 test_dir = os.path.dirname(__file__)
 docker_config_dir = "/resources/service-a-b-cluster"
@@ -51,7 +51,7 @@ class UnavailableServiceTestCase:
         os.system(f"docker-compose -f {os.path.join(config_dir, 'docker-compose.yaml')} pause serviceB-site-2")
 
         logging.info("TEST INIT STATUSES")
-        test_utils.check_statuses(capfd, template_env, lambda site, service: {
+        check_statuses(capfd, template_env, lambda site, service: {
             "healthz": "up" if "site_1" == site or "serviceA" == service else "--",
             "status": "done" if "site_1" == site or "serviceA" == service else "--",
             "mode": "active" if "site_1" == site else "standby" if service == "serviceA" else "--",
@@ -59,114 +59,114 @@ class UnavailableServiceTestCase:
 
     def test_passivate_working_site(self):
         logging.info("TEST PASSIVATE WORKING SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "standby", "site_1"])
 
     def test_activate_working_site(self):
         logging.info("TEST ACTIVATE WORKING SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "active", "site_1"])
 
     def test_passivate_unvaliable_site(self):
         logging.info("TEST PASSIVATE PROBLEM SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "standby", "site_2"],
             expected_exit_code=1)
 
     def test_activate_unvaliable_site(self):
         logging.info("TEST ACTIVATE PROBLEM SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "active", "site_2"],
             expected_exit_code=1)
 
     def test_activate_working_service_unvaliable_site(self):
         logging.info("TEST ACTIVATE WORKING SERVICE ON PROBLEM SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'),
              "--run-services", "serviceA", "active", "site_2"])
 
     def test_passivate_working_service_unvaliable_site(self):
         logging.info("TEST PASSIVATE WORKING SERVICE ON PROBLEM SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'),
              "--run-services", "serviceA", "standby",
              "site_2"])
-             
+
     def test_stop_working_site(self):
         logging.info("TEST STOP WORKING SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "stop", "site_1"],
             expected_exit_code=1)
 
     def test_stop_working_service_working_site(self):
         logging.info("TEST STOP WORKING SERVICE ON WORKING SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'),
              "--run-services", "serviceA", "stop", "site_1"])
 
     def test_move_working_site(self):
         logging.info("TEST MOVE WORKING SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "move", "site_1"],
             expected_exit_code=1)
 
     def test_move_working_service_working_site(self):
         logging.info("TEST MOVE WORKING SERVICE ON WORKING SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'),
              "--run-services", "serviceA", "move", "site_1"])
 
     def test_stop_unvaliable_site(self):
         logging.info("TEST STOP PROBLEM SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "stop", "site_2"])
 
     def test_move_unvaliable_site(self):
         logging.info("TEST MOVE PROBLEM SITE")
         # Run passivate
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "move", "site_2"],
             expected_exit_code=1)
 
     def test_move_working_service_unvaliable_site(self):
         logging.info("TEST MOVE WORKING SERVICE ON PROBLEM SITE")
         # Run passivate
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'),
              "--run-services", "serviceA", "move", "site_2"])
 
     def test_mntc_working_site(self):
         logging.info("TEST MAINTENANCE WORKING SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "disable", "site_1"])
 
     def test_return_working_site(self):
         logging.info("TEST RETURN WORKING SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "return", "site_1"])
 
     def test_mntc_unvaliable_site(self):
         logging.info("TEST MAINTENANCE PROBLEM SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "disable", "site_2"],
             expected_exit_code=1)
 
     def test_return_unvaliable_site(self):
         logging.info("TEST RETURN PROBLEM SITE")
         # Run passivate
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "return", "site_2"],
             expected_exit_code=1)
 
     def test_mntc_unvaliable_site(self):
         logging.info("TEST MAINTENANCE PROBLEM SITE")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'),
              "--run-services", "serviceA", "disable", "site_2"])
 
     def test_return_unvaliable_site(self):
         logging.info("TEST RETURN PROBLEM SITE")
         # Run passivate
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'),
              "--run-services", "serviceA", "return", "site_2"])

@@ -6,7 +6,7 @@ python3 -u -m pytest  ./tests/integration -k NotExistServicesTestCase
 import pytest
 import logging
 import os
-import test_utils
+from tests.test_utils import check_statuses, run_sm_client_command_with_exit
 
 test_dir = os.path.dirname(__file__)
 docker_config_dir = "/resources/service-cluster-with-diff-names"
@@ -53,7 +53,7 @@ class NotExistServicesTestCase:
 
     def test_init_statuses(self, config_dir, capfd):
         logging.info("TEST INIT STATUSES")
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        check_statuses(capfd, template_env, lambda site, service:
                                    {"healthz": "up", "status": "done", "message": "",
                                     "mode": "active" if template_env["active_site"] == site else "standby"}
                                   if (service != "serviceASite1" or site != "site_2") and
@@ -66,11 +66,11 @@ class NotExistServicesTestCase:
     def test_move_statuses(self, config_dir, capfd):
         logging.info("TEST MOVE")
 
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "move", "site_1"],
             expected_exit_code=1)
 
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "move", "site_2"],
             expected_exit_code=1)
 
@@ -78,10 +78,10 @@ class NotExistServicesTestCase:
     def test_activate_statuses(self, config_dir, capfd):
         logging.info("TEST ACTIVATE")
 
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "active", "site_2"])
 
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        check_statuses(capfd, template_env, lambda site, service:
                                    {"healthz": "up", "status": "done", "message": "", "mode": "active"}
                                   if (service != "serviceASite1" or site != "site_2") and
                                      (service != "serviceASite2" or site != "site_1") and
@@ -93,10 +93,10 @@ class NotExistServicesTestCase:
     def test_standby_statuses(self, config_dir, capfd):
         logging.info("TEST STANDBY")
 
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "standby", "site_2"])
 
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        check_statuses(capfd, template_env, lambda site, service:
                                    {"healthz": "up", "status": "done", "message": "",
                                     "mode": "active" if template_env["active_site"] == site else "standby"}
                                   if (service != "serviceASite1" or site != "site_2") and
@@ -109,10 +109,10 @@ class NotExistServicesTestCase:
     def test_stop_statuses(self, config_dir, capfd):
         logging.info("TEST STOP")
 
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "stop", "site_1"])
 
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        check_statuses(capfd, template_env, lambda site, service:
                                    {"healthz": "up", "status": "done", "message": "",
                                     "mode": "active" if template_env["active_site"] != site else "standby"}
                                   if (service != "serviceASite1" or site != "site_2") and
