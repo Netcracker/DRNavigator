@@ -1236,7 +1236,12 @@ To renew a certificate:
     ```
     $ kubectl -n site-manager create secret tls sm-certs --cert site-manager-tls.crt --key site-manager-tls.key
     ```
-4. Update `config.yml` (Token and path cacert).
+4. Restart pod `site-manager`
+    ```
+    $ kubectl rollout restart deployment site-manager -n site-manager
+    ```
+5. Update `config.yml` (Token and path cacert).
+
  
 ### Installation 
  
