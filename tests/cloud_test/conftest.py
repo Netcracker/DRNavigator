@@ -25,7 +25,7 @@ def prepare_kubeconfig(request):
         kubeconfig["namespace_sm"] = kubeconfig["current_context"].get('namespace', 'site-manager')
         kubeconfig["namespace_services"] = kubeconfig["current_context"].get('namespace', 'test-services')
     else:
-        logging.error("Kubeconfig empty or is not a file")
+        logging.error("Kubeconfig empty or is not a file: %s" % kubeconfig_file)
         os._exit(1)
 
     logging.info(f"Kubeconfig load")
@@ -40,13 +40,22 @@ def prepare_sm_env(kubeconfig):
     try:
         token_sm = client.CoreV1Api().read_namespaced_secret('sm-auth-sa-token', kubeconfig['namespace_sm'])
         sm_env['token-sm'] = base64.b64decode(token_sm.data['token']).decode()
+    except Exception as e:
+        logging.error("Can not get sm-auth-sa token: \n %s" % str(e))
+        os._exit(1)
+
+    try:
         sm_ingress = client.NetworkingV1Api().read_namespaced_ingress('site-manager', kubeconfig['namespace_sm'])
         sm_env["host_name"] = sm_ingress.spec.tls[0].hosts[0]
+    except Exception as e:
+        logging.error("Can not get sm-ingress-name: \n %s" % str(e))
+        os._exit(1)
+
+    try:
         secret_sm = client.CoreV1Api().read_namespaced_secret('sm-certs', kubeconfig['namespace_sm'])
         sm_env["ca_crt"] = base64.b64decode(secret_sm.data['ca.crt']).decode()
-
     except Exception as e:
-        logging.error("Can not get sm-auth-sa token, sm-ingress-name and ca.crt: \n %s" % str(e))
+        logging.error("Can not get ca.crt: \n %s" % str(e))
         os._exit(1)
 
     logging.info(f"Token, sm-ingress-name and ca.crt collect")
@@ -57,15 +66,21 @@ def prepare_sm_env(kubeconfig):
 @pytest.fixture(scope='session', name='config_ingress_service')
 def info_services(kubeconfig):
     services_ingress = {}
+
     try:
         service_a_ingress = client.NetworkingV1Api().read_namespaced_ingress('service-a',
                                                                              kubeconfig['namespace_services'])
         services_ingress['service-a.test-services'] = service_a_ingress.spec.rules[0].host
+    except Exception as e:
+        logging.error("Can not get ingress services-a : \n %s" % str(e))
+        os._exit(1)
+
+    try:
         service_b_ingress = client.NetworkingV1Api().read_namespaced_ingress('service-b',
                                                                              kubeconfig['namespace_services'])
         services_ingress['service-b.test-services'] = service_b_ingress.spec.rules[0].host
     except Exception as e:
-        logging.error("Can not get ingress services : \n %s" % str(e))
+        logging.error("Can not get ingress services-b : \n %s" % str(e))
         os._exit(1)
 
     yield services_ingress
@@ -98,6 +113,11 @@ def prepare_configs(request, sm_env):
                 },
             }
         }
+    except Exception as e:
+        logging.error("Failed to create temporary folder: \n %s" % str(e))
+        os._exit(1)
+
+    try:
         # Convert configuration to tmp dir
         for file_name in os.listdir(config_dir):
             abs_path_source = os.path.join(config_dir, file_name)
@@ -111,7 +131,7 @@ def prepare_configs(request, sm_env):
                 open(abs_path_target, 'w').write(
                     Template(open(abs_path_source).read()).render(env=config_test["template_env"]))
     except Exception as e:
-        logging.error("Can not get config_test : \n %s" % str(e))
+        logging.error("Can not get config_test: \n %s" % str(e))
         os._exit(1)
 
     yield config_test
