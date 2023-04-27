@@ -5,10 +5,6 @@ env:
   FRONT_HTTP_AUTH: "Yes"
   BACK_HTTP_AUTH: "Yes"
 
-  # set host and port for web service
-  SM_WEB_HOST: "0.0.0.0"
-  SM_WEB_PORT: 8080
-
   # set logging verbosity
   SM_DEBUG: "False"
 
@@ -23,6 +19,7 @@ env:
   # TLS verification in operators (True, False or path to CA file)
   SM_CACERT: "True"
 
+  # Default timeouts for requests to services
   SM_GET_REQUEST_TIMEOUT: 10
   SM_POST_REQUEST_TIMEOUT: 30
 
