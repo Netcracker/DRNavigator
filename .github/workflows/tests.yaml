@@ -135,7 +135,7 @@ jobs:
           retention-days: 7
 
   remove-test-sm-image:
-    needs: [publish-test-sm-image, cloud-tests]
+    needs: [cloud-tests]
     if: ${{ always() && needs.publish-test-sm-image.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
@@ -148,7 +148,7 @@ jobs:
           tag: ${{ env.SM_TAG_NAME }}
 
   remove-test-sm-dummy-image:
-    needs: [publish-test-sm-dummy-image, cloud-tests]
+    needs: [cloud-tests]
     if: ${{ always() && needs.publish-test-sm-dummy-image.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
@@ -159,3 +159,17 @@ jobs:
           name: sm-dummy
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.SM_TAG_NAME }}
+      - name: Delete image sm-dummy extra 1
+        uses: bots-house/ghcr-delete-image-action@v1.1.0
+        with:
+          owner: netcracker
+          name: sm-dummy
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: chart-fixes-8e8d4e551a39e8fac2b5833a06440250e9a8e6e2
+      - name: Delete image sm-dummy extra 2
+        uses: bots-house/ghcr-delete-image-action@v1.1.0
+        with:
+          owner: netcracker
+          name: sm-dummy
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ci_test-5efac5f205604e01c61e772d30467020b0d4ae5f
