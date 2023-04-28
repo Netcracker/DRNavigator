@@ -63,3 +63,54 @@ python -u -m pytest  ./tests/integration -k <class name>
    `config_dir` annotation is needed for creating new directory for this class in `test-dump` and for jinja parsing of resource directory files there.
    `prepare_docker_compose` annotation is needed for docker-compose up/down during running tests from this test case.
 5. Create tests functions inside this class. For that you can use userful [test utils](integration/common) or write your own runs and checks.
+
+# Site-manager cloud tests
+
+### How to run:
+
+1. Install requirements for sm-client and tests:
+```
+pip install -r requirements-sc-test.txt -r requirements-sc.txt
+```
+
+3. Install cluster
+   
+For the tests to work, you need to install a cluster, you can use the command below
+```
+pip install kubemarine
+kubemarine install -c cluster.yaml 
+```
+Example [cluster.yaml](https://github.com/Netcracker/DRNavigator/blob/main/ci/cluster.yaml)
+4. Run tests:
+
+```
+python -u -m pytest  ./tests/cloud_test --kubeconfig="<Path kubeconfig>"
+```
+
+You also can run only specific test case from [test folder](./cloud_test/tests). For that run following command:
+```
+python -u -m pytest  ./tests/cloud_test --kubeconfig="<Path kubeconfig>" -k <class name>
+```
+
+5. After tests finishing you can see logs/configurations for every test in `cloud-dump` folder.
+
+### How to create your own test case:
+
+1. Go to the [resources](./сloud_test/tests/resources) section and check the available configuration for the cluster. They contain some file .j2 for parsing jinja: sm/sm-client configurations, secrets. You can use it or create your own in a folder.
+2. Create new python script in [test folder](./сloud_test/tests).
+3. Specify following parameters in this script:  
+    3.1. `test_dir` is absolute path to this script;   
+    3.2. `config_dir` is environment object for jinja parsing. 
+    See [examples](./сloud_test/tests/sm-client_test.py#L13) for additional information;
+4. Create test class with `*TestCase` name and add for it some annotations:
+   ```python
+    @pytest.mark.usefixtures('config_dir')
+    @pytest.mark.usefixtures('sm_env')
+    @pytest.mark.usefixtures('config_ingress_service')
+   class SomeClassTastCase:
+        <Test case functions>
+   ```
+   `config_dir` annotation is needed for creating new directory for this class in `cloud-dump` and for jinja parsing of resource directory files there.
+   `sm_env` annotation is needed for creating sm environment
+   `config_ingress_service` annotation is needed creating services ingress environment
+5. Create tests functions inside this class. For that you can use userful [test utils](./tests) or write your own runs and checks.

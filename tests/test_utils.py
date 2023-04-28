@@ -1,9 +1,10 @@
 import logging
 import os
+import re
 
 import pytest
 import requests
-import re
+
 import smclient
 
 
@@ -41,13 +42,21 @@ def parse_status_table(capfd):
     return result
 
 
-def check_status_from_service(site_name, service_name, service_url, expected_status):
+def check_status_from_service(site_name, service_name, service_url, expected_status, token=None):
+    if token is None:
+        headers = {}
+    else:
+        headers = {
+            "Content-type": "application/json",
+            "Accept": "application/json",
+            "Authorization": f"Bearer {token}"
+        }
     try:
         healthz_resp = requests.get(service_url + "/healthz", timeout=1).json()
     except requests.exceptions.RequestException as e:
         healthz_resp = {}
     try:
-        status_resp = requests.get(service_url + "/sitemanager", timeout=1).json()
+        status_resp = requests.get(service_url + "/sitemanager", headers=headers, timeout=1).json()
     except requests.exceptions.RequestException as e:
         status_resp = {}
     service_status = {"healthz": healthz_resp.get("status", "--"),
@@ -66,7 +75,8 @@ def check_status_from_site_manager(site_name, service_name, sm_url, token, verif
     }
     data = {"procedure": "status", "run-service": service_name}
     try:
-        service_answer = requests.post(sm_url + "/sitemanager", json=data, headers=headers, verify=verify, timeout=1).json()
+        service_answer = requests.post(sm_url + "/sitemanager", json=data, headers=headers, verify=verify,
+                                       timeout=1).json()
     except requests.exceptions.RequestException as e:
         service_answer = {"services": {service_name: {"healthz": "--", "mode": "--", "status": "--", "message": ""}}}
     logging.debug(f"Check status from service {service_name} in site {site_name}, received: {service_answer}")
@@ -105,3 +115,22 @@ def check_statuses(capfd, template_env, expected_status_func: lambda site_name, 
                                            verify=False,
                                            expected_answer=expected_answer_from_sm)
             check_status_from_sm_client(sm_client_statuses_dict, site, service, expected_status)
+
+
+def check_statuses_for_cloud_test(capfd, config_dir, sm_env, config_ingress_service,
+                                  expected_status_func: lambda site_name, service_name: dict):
+    run_sm_client_command_with_exit(["--config", os.path.join(config_dir['tmp_dir'], 'sm_config.yaml'),
+                                     "-v", "status"])
+    sm_client_statuses_dict = parse_status_table(capfd)
+    for service, ingress in config_ingress_service.items():
+        expected_status = expected_status_func("site_1", service)
+        check_status_from_service("site_1", service, f"http://{ingress}", expected_status, sm_env['token-sm'])
+        expected_answer_from_sm = {"services": {service: expected_status}} \
+            if expected_status.get("message") != "Service doesn't exist" else \
+            {"message": "Service doesn't exist", "wrong-service": service}
+        check_status_from_site_manager("site_1", service,
+                                       sm_url=f"https://{sm_env['host_name']}",
+                                       token=sm_env['token-sm'],
+                                       verify=False,
+                                       expected_answer=expected_answer_from_sm)
+        check_status_from_sm_client(sm_client_statuses_dict, "site_1", service, expected_status)
