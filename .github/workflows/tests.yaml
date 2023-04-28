@@ -71,18 +71,24 @@ jobs:
           path: test-dump/
           retention-days: 7
 
-  publish-test-docker-image:
+  publish-test-sm-image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
       - run: docker build -t ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }} -f Dockerfile-sm .
-      - run: docker build -t ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }} -f tests/sm-dummy/Dockerfile .
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }}
+
+  publish-test-sm-dummy-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: docker build -t ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }} -f tests/sm-dummy/Dockerfile .
+      - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }}
 
   cloud-tests:
-    needs: publish-test-docker-image
+    needs: [publish-test-sm-image, publish-test-sm-dummy-image]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repo
@@ -128,9 +134,9 @@ jobs:
           path: ./results/sm.log
           retention-days: 7
 
-  remove-test-docker-image:
-    needs: [publish-test-docker-image, cloud-tests]
-    if: ${{ always() && needs.publish-test-docker-image.result == 'success' }}
+  remove-test-sm-image:
+    needs: [cloud-tests]
+    if: ${{ always() && needs.publish-test-sm-image.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Delete image site-manager
@@ -140,6 +146,12 @@ jobs:
           name: site-manager
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.SM_TAG_NAME }}
+
+  remove-test-sm-dummy-image:
+    needs: [cloud-tests]
+    if: ${{ always() && needs.publish-test-sm-dummy-image.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
       - name: Delete image sm-dummy
         uses: bots-house/ghcr-delete-image-action@v1.1.0
         with:

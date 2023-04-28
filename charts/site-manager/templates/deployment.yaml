@@ -35,10 +35,6 @@ spec:
             value: "{{ .Values.env.FRONT_HTTP_AUTH }}"
           - name: BACK_HTTP_AUTH
             value: "{{ .Values.env.BACK_HTTP_AUTH }}"
-          - name: SM_WEB_HOST
-            value: "{{ .Values.env.SM_WEB_HOST }}"
-          - name: SM_WEB_PORT
-            value: "{{ .Values.env.SM_WEB_PORT }}"
           - name: SM_DEBUG
             value: "{{ .Values.env.SM_DEBUG }}"
           - name: SM_GROUP
