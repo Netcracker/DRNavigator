@@ -1148,10 +1148,10 @@ To support the ability of services to be managed by `site-manager`, implement th
     EOF
     ```
    
-    *Important*: Don't forget to specify any other IP addresses and DNS names that you plan to use to connect to the site-manager.,
-    e.g. it's required to specify ingress name (`ingress.name` value from helm installation), to use this certificate
+    **Important**: Do not forget to specify any other IP addresses and DNS names that you plan to use to connect to the site-manager.
+    For example, it is required to specify the ingress name (`ingress.name` value from helm installation) to use this certificate
     to connect outside the cloud (from sm-client).  
-    For this specify additional `DNS.#` and `IP.#` fields.
+    For this, specify the additional `DNS.#` and `IP.#` fields.
 
     2.2. Create the CA certificate:
 
@@ -1236,7 +1236,12 @@ To renew a certificate:
     ```
     $ kubectl -n site-manager create secret tls sm-certs --cert site-manager-tls.crt --key site-manager-tls.key
     ```
-4. Update `config.yml` (Token and path cacert).
+4. Restart pod `site-manager`
+    ```
+    $ kubectl rollout restart deployment site-manager -n site-manager
+    ```
+5. Update `config.yml` (Token and path cacert).
+
  
 ### Installation 
  
@@ -1329,7 +1334,7 @@ After that, decode this token using base64 decoding, for example:
 kubectl get secret sm-auth-sa-token-pqkxj -n site-manager -o yaml | grep token: | cut -d ' ' -f4 | base64 --decode
 ```
 
-- cacert is a content of `site-manager-tls.crt` which has been generated during the SiteManager installation.
+- cacert is a content of `ca.crt` which has been generated during the SiteManager installation.
 
 ### Running from cli
  

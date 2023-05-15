@@ -17,6 +17,11 @@ services:
       plugins."io.containerd.grpc.v1.cri".registry.configs."ghcr.io".auth:
         username: <REGISTRY_USER>
         password: <REGISTRY_PASSWORD>
+  etc_hosts:
+    172.17.0.1:
+      - site-manager.test-local-k8s.com
+      - service-a.test-local-k8s.com
+      - service-b.test-local-k8s.com
 
 plugins:
   site-manager:
@@ -25,22 +30,24 @@ plugins:
       priority: 2
       procedures:
         - shell:
-            command: mkdir -p /etc/site-manager
-            sudo: true
-        - shell:
-            command: kubectl create namespace site-manager --dry-run=client -o yaml | sudo kubectl apply -f -
-            sudo: true
+            # Create workspace directory and create namespace for site-manager
+            command: |
+              sudo mkdir -p /etc/site-manager
+              sudo kubectl create namespace site-manager --dry-run=client -o yaml | sudo kubectl apply -f -
         - config:
+            # Transfer server.conf on cluster
             source: ./ci/server.conf
             destination: /etc/site-manager/server.conf
             apply_required: false
         - shell:
+            # Create the CA certificate
             command: |
               sudo openssl req -days 730 -nodes -new -x509 -keyout /etc/site-manager/ca.key -out  /etc/site-manager/ca.crt -subj "/CN=SM service"
               sudo openssl genrsa -out /etc/site-manager/site-manager-tls.key 2048
               sudo openssl req -new -key  /etc/site-manager/site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config  /etc/site-manager/server.conf | \
               sudo openssl x509 -req -days 730 -CA  /etc/site-manager/ca.crt -CAkey /etc/site-manager/ca.key -CAcreateserial -out /etc/site-manager/site-manager-tls.crt -extensions v3_req -extfile  /etc/site-manager/server.conf
         - config:
+            # Create CRD
             source: ./manifests/crd-sitemanager.yaml
             destination: /etc/site-manager/crd-sitemanager.yaml
             apply_command: |
@@ -48,14 +55,16 @@ plugins:
               sed "s/<base-64-encoded-ca-bundle>/$(cat /etc/site-manager/ca.crt | base64 - | tr -d '\n')/" | \
               sudo kubectl apply -f -
         - shell:
+            # Create and patch secret with SSL certificates for site-manager
             command: |
-              kubectl -n site-manager create secret tls sm-certs \
+              sudo kubectl -n site-manager create secret tls sm-certs \
               --cert /etc/site-manager/site-manager-tls.crt \
               --key /etc/site-manager/site-manager-tls.key  \
               --dry-run=client -o yaml --save-config | \
               sudo kubectl apply -f -
-            sudo: True
+              sudo kubectl patch secret -n site-manager sm-certs -p "{\"data\":{\"ca.crt\":\"$(cat /etc/site-manager/ca.crt | base64 - | tr -d '\n')\"}}"
         - helm:
+            # Install site-manager
             chart_path: ./charts/site-manager
             values:
               metricCollector:
@@ -73,5 +82,64 @@ plugins:
             deployments:
               - name: site-manager
                 namespace: site-manager
+        # Restart is needed in case of cert regeneration
+        - shell:
+            command: kubectl rollout restart deployment site-manager -n site-manager
+            sudo: true
+        - expect:
             pods:
-              - site-manager
+            - site-manager
+  service-a:
+    install: true
+    installation:
+      priority: 3
+      procedures:
+        - shell:
+            # Create namespace for service
+            command: kubectl create namespace test-services --dry-run=client -o yaml | sudo kubectl apply -f -
+            sudo: true
+        - helm:
+            # Install service-a
+            chart_path: ./tests/sm-dummy/charts/sm-dummy
+            values:
+              ingressName: service-a.test-local-k8s.com
+              image: ghcr.io/netcracker/sm-dummy:<SM_TAG>
+              serviceAccount:
+                name: service-a
+              name: service-a
+            namespace: test-services
+            release: service-a
+        - expect:
+            deployments:
+              - name: service-a
+                namespace: test-services
+            pods:
+              - service-a
+  service-b:
+    install: true
+    installation:
+      priority: 3
+      procedures:
+        - shell:
+            # Create namespace for service
+            command: kubectl create namespace test-services --dry-run=client -o yaml | sudo kubectl apply -f -
+            sudo: true
+        - helm:
+            # Install service-b
+            chart_path: ./tests/sm-dummy/charts/sm-dummy
+            values:
+              ingressName: service-b.test-local-k8s.com
+              image: ghcr.io/netcracker/sm-dummy:<SM_TAG>
+              serviceAccount:
+                name: service-b
+              name: service-b
+              siteManager:
+                after: ["service-a.test-services"]
+            namespace: test-services
+            release: service-b
+        - expect:
+            deployments:
+              - name: service-b
+                namespace: test-services
+            pods:
+              - service-b

@@ -1,0 +1,15 @@
+---
+sites:
+  - name: site_1
+    site-manager: https://{{ env.sites.site_1.link }}/sitemanager
+    token: "{{ env.sites.site_1.token }}"
+    cacert: {{ env.sites.site_1.ca_cert }}
+
+sm-client:
+  http_auth: True
+  service_default_timeout: 100
+
+flow:
+  - replicator: [standby, disable]
+  - stateful:
+  - replicator: [active]

@@ -1,7 +1,7 @@
 PyYAML==6.*
 Flask==2.2.*
 jsonpatch==1.32
-kubernetes==12.0.1
+kubernetes==24.*
 prometheus_flask_exporter==0.20.3
 gunicorn==20.1.0
 gevent==21.12.0

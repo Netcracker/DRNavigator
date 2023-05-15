@@ -19,6 +19,7 @@ venv/*
 additional.yml
 /Roadmap*
 BACKUP/*
+cloud-dump
 test-dump
 self-signed-fake.pem
 pytest.log

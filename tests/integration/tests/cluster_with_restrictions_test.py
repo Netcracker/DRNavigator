@@ -6,7 +6,7 @@ python3 -u -m pytest  ./tests/integration -k RestrictionsTestCase
 import pytest
 import logging
 import os
-import test_utils
+from tests.test_utils import check_statuses, run_sm_client_command_with_exit
 
 test_dir = os.path.dirname(__file__)
 docker_config_dir = "/resources/service-a-b-cluster"
@@ -48,39 +48,39 @@ class RestrictionsTestCase:
 
     def test_init_statuses(self, config_dir, capfd):
         logging.info("TEST INIT STATUSES")
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        check_statuses(capfd, template_env, lambda site, service:
                                    {"healthz": "up", "status": "done", "message": "",
                                     "mode": "active" if template_env["active_site"] == site else "standby"})
 
     def test_passivate_all_sites(self):
         logging.info("TEST PASSIVATE ALL WHEN IT'S RESTRICTED")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config-with-restrictions.yaml'),
              "-v", "standby", "site_1"], expected_exit_code=1)
 
     def test_activate_all_sites(self):
         logging.info("TEST ACTIVATE ALL WHEN IT'S RESTRICTED")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config-with-restrictions.yaml'),
              "-v", "active", "site_2"], expected_exit_code=1)
 
     def test_activate_sites_for_not_restricted_services(self):
         logging.info("TEST ACTIVATE NOT RESTRICTED SERVICES")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config-with-restrictions.yaml'),
              "-v", "--run-services", "serviceA", "active", "site_2"])
 
     def test_activate_all_sites_with_skip_restrictions(self):
         logging.info("TEST ACTIVATE ALL WITH RESTRICTIONS SKIPPING")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config-with-restrictions.yaml'),
              "-v", "-r", "active", "site_2"])
 
     def test_passivate_all_sites_with_skip_restrictions(self):
         logging.info("TEST PASSIVATE ALL WITH RESTRICTIONS SKIPPING")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config-with-restrictions.yaml'),
              "-v", "-r", "standby", "site_2"])
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config-with-restrictions.yaml'),
              "-v", "-r", "standby", "site_1"])
