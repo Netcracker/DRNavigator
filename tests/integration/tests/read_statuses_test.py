@@ -6,7 +6,7 @@ python3 -u -m pytest  ./tests/integration -k ReadStatusesTestCase
 import pytest
 import logging
 import os
-import test_utils
+from tests.test_utils import check_statuses, run_sm_client_command_with_exit
 
 test_dir = os.path.dirname(__file__)
 docker_config_dir = "/resources/service-a-b-cluster"
@@ -48,28 +48,28 @@ class ReadStatusesTestCase:
 
     def test_help_section(self):
         logging.info("TEST HELP COMMAND")
-        test_utils.run_sm_client_command_with_exit(["-h"])
+        run_sm_client_command_with_exit(["-h"])
 
     def test_version(self):
         logging.info("TEST VERSION COMMAND")
-        test_utils.run_sm_client_command_with_exit(["version"])
+        run_sm_client_command_with_exit(["version"])
 
     def test_list_without_config(self):
         logging.info("TEST LIST COMMAND WITHOUT CONFIG")
-        test_utils.run_sm_client_command_with_exit(["list"], expected_exit_code=1)
+        run_sm_client_command_with_exit(["list"], expected_exit_code=1)
 
     def test_list_section(self, config_dir):
         logging.info("TEST LIST COMMAND")
-        test_utils.run_sm_client_command_with_exit(
+        run_sm_client_command_with_exit(
             ["--config", os.path.join(template_env['config_dir'], 'sm-client-config.yaml'), "-v", "list"])
 
     def test_status_without_config(self):
         logging.info("TEST STATUS COMMAND WITHOUT CONFIG")
-        test_utils.run_sm_client_command_with_exit(["status"], expected_exit_code=1)
+        run_sm_client_command_with_exit(["status"], expected_exit_code=1)
 
     def test_status(self, capfd):
         logging.info("TEST STATUS COMMAND")
-        test_utils.check_statuses(capfd, template_env, lambda site, service:
+        check_statuses(capfd, template_env, lambda site, service:
                                 {"healthz": "up", "status": "done", "message": "",
                                 "mode": "active" if template_env["active_site"] == site else "standby"})
 

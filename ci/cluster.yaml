@@ -17,6 +17,11 @@ services:
       plugins."io.containerd.grpc.v1.cri".registry.configs."ghcr.io".auth:
         username: <REGISTRY_USER>
         password: <REGISTRY_PASSWORD>
+  etc_hosts:
+    172.17.0.1:
+      - site-manager.test-local-k8s.com
+      - service-a.test-local-k8s.com
+      - service-b.test-local-k8s.com
 
 plugins:
   site-manager:
