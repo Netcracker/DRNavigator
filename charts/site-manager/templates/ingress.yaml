@@ -1,4 +1,4 @@
-{{ if and (eq .Values.ingress.create true) (eq .Values.paas_platform  "kubernetes") }}
+{{ if and (eq .Values.ingress.create true) (eq .Values.PAAS_PLATFORM  "KUBERNETES") }}
 apiVersion: {{ include "site-manager.ingress.apiVersion" . }}
 kind: Ingress
 metadata:
