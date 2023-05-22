@@ -53,14 +53,23 @@ def run(mode_to_set):
     global mode
     global status
     global message
+    global healthz
+
+    status = "queue"
+    healthz = "down"
+    message = f"Procedure {mode} in queue..."
+
+    time.sleep(sma_timeout)
 
     status = "running"
+    healthz = "degraded"
     mode = mode_to_set
     message = f"Procedure {mode} in process..."
 
     time.sleep(sma_timeout)
 
     status = "done"
+    healthz = "up"
     message = "I'm OK"
 
 
