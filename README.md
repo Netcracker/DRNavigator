@@ -340,7 +340,7 @@ roleRef:
 
 **Code**: 200
 
-**Answer**: `{"mode": "active|standby|disable", "status": "running|done|failed", "message": "some string"}`
+**Answer**: `{"mode": "active|standby|disable", "status": queue|running|done|failed", "message": "some string"}`
 
 Where, `mode` is the role of the cluster part, `status` is the current state of the DR procedure, `message` is an optional field to describe the process details.
 
@@ -352,6 +352,7 @@ The `mode` options are as follows:
 
 The `status` options are as follows:
 
+  - `queue` specifies, that the DR procedure is scheduled, but hasn't started and current `mode` hasn't changed yet.
   - `running` specifies that the DR procedure is in progress.
   - `done` specifies that the DR procedure is successfully done. The [healthz](#check-service-healthz-of-service) status should represent the actual service health check. 
   - `failed` specifies that the DR procedure has failed. The operator should fix the problem manually or restart the DR procedure for a specific service.
