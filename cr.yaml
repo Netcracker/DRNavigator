@@ -1,0 +1,16 @@
+apiVersion: netcracker.com/v1
+kind: SiteManager
+metadata:
+  name: postgres-sm
+  namespace: sm-dummy
+spec:
+  sitemanager:
+    after: []
+    before: []
+    sequence:
+      - active
+      - standby
+    serviceEndpoint: postgres-operator.sm-dummy.svc.cluster.local:8080/sitemanager
+    healthzEndpoint: postgres-operator.sm-dummy.svc.cluster.local:8080/health
+    ingressEndpoint: ""
+    timeout: 840

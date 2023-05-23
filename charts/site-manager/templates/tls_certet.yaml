@@ -1,0 +1,12 @@
+{{ if and .Values.global.tls.crt .Values.global.tls.key }}
+kind: Secret
+apiVersion: v1
+metadata:
+  name: sm-certs
+  namespace: {{ .Release.Namespace }}
+data:
+  ca.crt: "{{ .Values.global.tls.ca | b64enc }}"
+  tls.crt: "{{ .Values.global.tls.crt | b64enc }}"
+  tls.key: "{{ .Values.global.tls.key | b64enc }}"
+type: kubernetes.io/tls
+  {{ end }}

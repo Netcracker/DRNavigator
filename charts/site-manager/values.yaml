@@ -42,14 +42,21 @@ limits:
   cpu: "200m"
   memory: "160Mi"
 
-tls:
-  generateCerts:
-    enabled: false
-    clusterIssuerName: ""
-    duration: 365
-    subjectAlternativeName:
-      additionalDnsNames: []
-      additionalIpAddresses: []
+global:
+  tls:
+    crt: ""
+    key: ""
+    ca: ""
+    generateCerts:
+      enabled: false
+      clusterIssuerName: ""
+      duration: 365
+      subjectAlternativeName:
+        additionalDnsNames: []
+        additionalIpAddresses: []
+
+crd:
+  install: false
 
 paas_platform: kubernetes
 
