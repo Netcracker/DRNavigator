@@ -1275,15 +1275,14 @@ To renew a certificate:
 | ingress.name                                                   | Define URL for `site-manager` ingress.                                                        | ""                              |
 | limits.cpu                                                     | CPU limits per pod.                                                                           | 200m                            |
 | limits.memory                                                  | Memory limits per pod.                                                                        | 160Mi                           |
-| paas_platform                                                  | Define PAAS type. It can be "kubernetes" or "openshift".                                      | "kubernetes"                    |
+| PAAS_PLATFORM                                                  | Define PAAS type. It can be "KUBERNETES" or "OPENSHIFT".                                      | "KUBERNETES"                    |
+| paasGeoMonitor                                                 | Refer to [paas-geo-monitor documentation](/paas-geo-monitor/docs).                            |                                 |
 | tls.generateCerts.enabled                                      | Enable/disable certificates' generation using cert-manager.                                   | false                           |
 | tls.generateCerts.clusterIssuerName                            | Define the cluster name issuer if required (if empty, it is created by a self-signed issuer). | ""                              |
 | tls.generateCerts.duration                                     | Define the duration (days) of created certificate using cert-manager.                         | 365                             |
 | tls.generateCerts.subjectAlternativeName.additionalDnsNames    | Additional trusted DNS names in the certificate.                                              | []                              |
 | tls.generateCerts.subjectAlternativeName.additionalIpAddresses | Additional trusted IP names in the certificate.                                               | []                              |
-| paas_platform                                                  | Define PAAS Platfrom for SiteManager installation: openshift or kubernetes                    | kubernetes                      |
-| paasGeoMonitor                                                 | Refer to [paas-geo-monitor documentation](/paas-geo-monitor/docs).                            |                                 |
-   
+
 6. Install `site-manager` to OpenShift.
 
     ```
@@ -1291,13 +1290,13 @@ To renew a certificate:
                   -n site-manager \
                   --set image.repository=ghcr.io/netcracker/site-manager \
                   --set image.tag=<image tag> \
-                  --set paas_platform=openshift \
+                  --set PAAS_PLATFORM=OPENSHIFT \
                   --set ingress.name=site-manager.apps.example.com
     ```
 
     Where:
       - `ingress.name` parameter is mandatory for OpenShift.
-      - `paas_platform` should be set to "openshift".
+      - `PAAS_PLATFORM` should be set to "OPENSHIFT".
       - `<image tag>` is the image tag reference.
 
 ## smclient

@@ -17,7 +17,7 @@ spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       containers:
       - name: {{ .Chart.Name }}
-{{- if eq .Values.paas_platform "kubernetes" }}
+{{- if eq .Values.PAAS_PLATFORM "KUBERNETES" }}
         securityContext:
           runAsUser: 1001
 {{- end }}
