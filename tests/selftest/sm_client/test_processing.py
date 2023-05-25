@@ -47,6 +47,8 @@ def test_io_http_json_request():
     with pytest.warns(Warning, match=r"Unverified HTTPS request is being made") as record:
         ret, json_body, http_code = io_make_http_json_request("https://api.github.com", verify=False)
 
+    for warn in record.list:
+        logging.info(f"Records: {warn}")
     assert http_code == HTTPStatus.OK and \
            json.loads('"' + str(json_body) + '"') and \
            len(record) > 1, "Returned: 200 OK, dict, JSON, SSL warning "
