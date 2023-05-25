@@ -1173,6 +1173,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     ```
 
 3. Create CRD `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration`:
+    You can skip this part, if you add `crd.install=true` to helm installation.
 
     3.1. In case of integration with cert-manager, add the following annotation in CRD and ValidatingWebhookConfiguration, which helps to update caBundle in theirs webhook:
 
@@ -1218,23 +1219,12 @@ To support the ability of services to be managed by `site-manager`, implement th
     $ cat manifests/crd-sitemanager.yaml | sed "s/<base-64-encoded-ca-bundle>/${CA_BUNDLE}/" | kubectl apply -f -
     ```
 
-4. Create secret with SSL certificates for `site-manager` if you do not want to integrate with cert-manager.
-
-    ```
-    $ kubectl -n site-manager create secret tls sm-certs --cert site-manager-tls.crt --key site-manager-tls.key
-    ```
-
-    In case of cert-manager, the integration is created automatically during the helm chart installation.
-
 ### Certificate Renewal Procedure
 
 To renew a certificate:
 
-1. Execute the instructions in the **Prerequisites** section from the step 2.2 to 3.2.
-2. Delete the `sm-certs` secret on the cluster.
-3. Create a secret with SSL certificates for `site-manager` again.
-    ```
-    $ kubectl -n site-manager create secret tls sm-certs --cert site-manager-tls.crt --key site-manager-tls.key
+1. Execute the instructions in the **Prerequisites** section from the step 2.2 to 3.2;
+2. Redeploy SM with new certificate parameters: `tls.ca`, `tls.crt` and `tls.key`;
     ```
 4. Restart pod `site-manager`
     ```
@@ -1253,36 +1243,40 @@ To renew a certificate:
 
     The `site-manager` helm chart can be customized with the following parameters:
     
-| Parameter                                                      | Description                                                                                   | Default value                   |
-|----------------------------------------------------------------|-----------------------------------------------------------------------------------------------|---------------------------------|
-| env.FRONT_HTTP_AUTH                                            | Set the authentication mode between sm-client and Site-Manager.                               | "Yes"                           |
-| env.BACK_HTTP_AUTH                                             | Set the authentication mode between Site-Manager and manageable services.                     | "Yes"                           |
-| env.SM_DEBUG                                                   | Set `debug` logging level.                                                                    | "False"                         |
-| env.SM_GROUP                                                   | Define API group for CRD.                                                                     | "netcracker.com"                |
-| env.SM_PLURAL                                                  | Define object of API group.                                                                   | "sitemanagers"                  |
-| env.SM_VERSION                                                 | Define API group version for CRD.                                                             | "v2"                            |
-| env.HTTP_SCHEME                                                | Define the HTTP scheme for connection to microservice operator.                               | "http://"                       |
-| env.SM_CACERT                                                  | TLS verification in operators (True, False or path to trusted CA file).                       | "True"                          |
-| env.SM_GET_REQUEST_TIMEOUT                                     | Timeout for GET requests: service status and health.                                          | 10                              |
-| env.SM_POST_REQUEST_TIMEOUT                                    | Timeout for POST requests: service procedures.                                                | 30                              |
-| workerCount                                                    | The count of parallel workers that handle requests.                                           | 2                               |
-| serviceAccount.create                                          | Enable/disable Service Account creation.                                                      | true                            |
-| serviceAccount.name                                            | The name of Service Account for `site-manager`.                                               | "site-manager-sa"               |
-| image.repository                                               | The docker image repository name.                                                             | ghcr.io/netcracker/site-manager |
-| image.pullPolicy                                               | The docker image pull policy.                                                                 | Always                          |
-| image.tag                                                      | The docker image tag.                                                                         | v1.0                            |
-| ingress.create                                                 | Enable/disable ingress creation.                                                              | true                            |
-| ingress.name                                                   | Define URL for `site-manager` ingress.                                                        | ""                              |
-| limits.cpu                                                     | CPU limits per pod.                                                                           | 200m                            |
-| limits.memory                                                  | Memory limits per pod.                                                                        | 160Mi                           |
-| paas_platform                                                  | Define PAAS type. It can be "kubernetes" or "openshift".                                      | "kubernetes"                    |
-| tls.generateCerts.enabled                                      | Enable/disable certificates' generation using cert-manager.                                   | false                           |
-| tls.generateCerts.clusterIssuerName                            | Define the cluster name issuer if required (if empty, it is created by a self-signed issuer). | ""                              |
-| tls.generateCerts.duration                                     | Define the duration (days) of created certificate using cert-manager.                         | 365                             |
-| tls.generateCerts.subjectAlternativeName.additionalDnsNames    | Additional trusted DNS names in the certificate.                                              | []                              |
-| tls.generateCerts.subjectAlternativeName.additionalIpAddresses | Additional trusted IP names in the certificate.                                               | []                              |
-| paas_platform                                                  | Define PAAS Platfrom for SiteManager installation: openshift or kubernetes                    | kubernetes                      |
-| paasGeoMonitor                                                 | Refer to [paas-geo-monitor documentation](/paas-geo-monitor/docs).                            |                                 |
+| Parameter                                                      | Description                                                                                                                                                              | Default value                   |
+|----------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------|
+| crd.install                                                    | Enable/disable site-manager CRD installation                                                                                                                             | false                           |
+| env.FRONT_HTTP_AUTH                                            | Set the authentication mode between sm-client and Site-Manager.                                                                                                          | "Yes"                           |
+| env.BACK_HTTP_AUTH                                             | Set the authentication mode between Site-Manager and manageable services.                                                                                                | "Yes"                           |
+| env.SM_DEBUG                                                   | Set `debug` logging level.                                                                                                                                               | "False"                         |
+| env.SM_GROUP                                                   | Define API group for CRD.                                                                                                                                                | "netcracker.com"                |
+| env.SM_PLURAL                                                  | Define object of API group.                                                                                                                                              | "sitemanagers"                  |
+| env.SM_VERSION                                                 | Define API group version for CRD.                                                                                                                                        | "v2"                            |
+| env.HTTP_SCHEME                                                | Define the HTTP scheme for connection to microservice operator.                                                                                                          | "http://"                       |
+| env.SM_CACERT                                                  | TLS verification in operators (True, False or path to trusted CA file).                                                                                                  | "True"                          |
+| env.SM_GET_REQUEST_TIMEOUT                                     | Timeout for GET requests: service status and health.                                                                                                                     | 10                              |
+| env.SM_POST_REQUEST_TIMEOUT                                    | Timeout for POST requests: service procedures.                                                                                                                           | 30                              |
+| workerCount                                                    | The count of parallel workers that handle requests.                                                                                                                      | 2                               |
+| serviceAccount.create                                          | Enable/disable Service Account creation.                                                                                                                                 | true                            |
+| serviceAccount.name                                            | The name of Service Account for `site-manager`.                                                                                                                          | "site-manager-sa"               |
+| image.repository                                               | The docker image repository name.                                                                                                                                        | ghcr.io/netcracker/site-manager |
+| image.pullPolicy                                               | The docker image pull policy.                                                                                                                                            | Always                          |
+| image.tag                                                      | The docker image tag.                                                                                                                                                    | v1.0                            |
+| ingress.create                                                 | Enable/disable ingress creation.                                                                                                                                         | true                            |
+| ingress.name                                                   | Define URL for `site-manager` ingress.                                                                                                                                   | ""                              |
+| limits.cpu                                                     | CPU limits per pod.                                                                                                                                                      | 200m                            |
+| limits.memory                                                  | Memory limits per pod.                                                                                                                                                   | 160Mi                           |
+| paas_platform                                                  | Define PAAS type. It can be "kubernetes" or "openshift".                                                                                                                 | "kubernetes"                    |
+| tls.ca                                                         | CA tls certificate (content of `ca.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled                       | ""                              |       
+| tls.crt                                                        | SM public tls certificate (content of `site-manager-tls.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled  | ""                              |       
+| tls.key                                                        | SM private tls certificate (content of `site-manager-tls.key` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled | ""                              | 
+| tls.generateCerts.enabled                                      | Enable/disable certificates' generation using cert-manager.                                                                                                              | false                           |
+| tls.generateCerts.clusterIssuerName                            | Define the cluster name issuer if required (if empty, it is created by a self-signed issuer).                                                                            | ""                              |
+| tls.generateCerts.duration                                     | Define the duration (days) of created certificate using cert-manager.                                                                                                    | 365                             |
+| tls.generateCerts.subjectAlternativeName.additionalDnsNames    | Additional trusted DNS names in the certificate.                                                                                                                         | []                              |
+| tls.generateCerts.subjectAlternativeName.additionalIpAddresses | Additional trusted IP names in the certificate.                                                                                                                          | []                              |
+| paas_platform                                                  | Define PAAS Platfrom for SiteManager installation: openshift or kubernetes                                                                                               | kubernetes                      |
+| paasGeoMonitor                                                 | Refer to [paas-geo-monitor documentation](/paas-geo-monitor/docs).                                                                                                       |                                 |
    
 6. Install `site-manager` to OpenShift.
 
@@ -1292,6 +1286,9 @@ To renew a certificate:
                   --set image.repository=ghcr.io/netcracker/site-manager \
                   --set image.tag=<image tag> \
                   --set paas_platform=openshift \
+                  --set-file tls.ca=<path to ca.crt> \
+                  --set-file tls.crt=<path to site-manager-tls.crt> \
+                  --set-file tls.key=<path to site-manager-tls.key> \
                   --set ingress.name=site-manager.apps.example.com
     ```
 
@@ -1299,6 +1296,8 @@ To renew a certificate:
       - `ingress.name` parameter is mandatory for OpenShift.
       - `paas_platform` should be set to "openshift".
       - `<image tag>` is the image tag reference.
+      - `<path to ca.crt>`, `<path to site-manager-tls.crt>`, `<path to site-manager-tls.key>` is paths to tls files, 
+         that you generated using `openssl` command.
 
 ## smclient
  
