@@ -7,7 +7,7 @@ Dummy service to test site-manager
     | Parameter                           | Description                                                                    | Default value                                   |
     |-------------------------------------|--------------------------------------------------------------------------------|-------------------------------------------------|
     | name                                | sm-dummy entities name                                                         | "sm-dummy"                                      |
-    | paas_platform                       | define PAAS type. It can be "kubernetes" or "openshift"                        | "kubernetes"                                    |
+    | PAAS_PLATFORM                       | define PAAS type. It can be "KUBERNETES" or "OPENSHIFT"                        | "KUBERNETES"                                    |
     | env.SMA_TIMEOUT                     | sleep timeout for DR procedure                                                 | 15                                              |
     | env.SMA_INIT_MODE                   | initial mode for service                                                       | "active"                                        |
     | env.SMA_DEBUG                       | debug mode for Flask                                                           | True                                            |

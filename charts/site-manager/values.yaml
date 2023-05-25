@@ -54,10 +54,10 @@ tls:
       additionalDnsNames: []
       additionalIpAddresses: []
 
+PAAS_PLATFORM: KUBERNETES
+
 crd:
   install: false
-
-paas_platform: kubernetes
 
 paasGeoMonitor:
   image: ghcr.io/netcracker/paas-geo-monitor:0.9.0

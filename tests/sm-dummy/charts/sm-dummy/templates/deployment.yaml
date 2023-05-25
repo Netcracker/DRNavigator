@@ -19,7 +19,7 @@ spec:
       {{- end }}
       containers:
       - name: sm-dummy
-        {{- if eq .Values.paas_platform "kubernetes" }}
+        {{- if eq .Values.PAAS_PLATFORM "KUBERNETES" }}
         securityContext:
           runAsUser: 1001
         {{- end }}

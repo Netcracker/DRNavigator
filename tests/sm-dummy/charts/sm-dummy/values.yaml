@@ -1,6 +1,6 @@
 ---
 name: sm-dummy
-paas_platform: kubernetes
+PAAS_PLATFORM: KUBERNETES
 
 env:
   SMA_TIMEOUT: 15
