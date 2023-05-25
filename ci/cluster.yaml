@@ -34,35 +34,6 @@ plugins:
             command: |
               sudo mkdir -p /etc/site-manager
               sudo kubectl create namespace site-manager --dry-run=client -o yaml | sudo kubectl apply -f -
-        - config:
-            # Transfer server.conf on cluster
-            source: ./ci/server.conf
-            destination: /etc/site-manager/server.conf
-            apply_required: false
-        - shell:
-            # Create the CA certificate
-            command: |
-              sudo openssl req -days 730 -nodes -new -x509 -keyout /etc/site-manager/ca.key -out  /etc/site-manager/ca.crt -subj "/CN=SM service"
-              sudo openssl genrsa -out /etc/site-manager/site-manager-tls.key 2048
-              sudo openssl req -new -key  /etc/site-manager/site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config  /etc/site-manager/server.conf | \
-              sudo openssl x509 -req -days 730 -CA  /etc/site-manager/ca.crt -CAkey /etc/site-manager/ca.key -CAcreateserial -out /etc/site-manager/site-manager-tls.crt -extensions v3_req -extfile  /etc/site-manager/server.conf
-        - config:
-            # Create CRD
-            source: ./manifests/crd-sitemanager.yaml
-            destination: /etc/site-manager/crd-sitemanager.yaml
-            apply_command: |
-              cat /etc/site-manager/crd-sitemanager.yaml | \
-              sed "s/<base-64-encoded-ca-bundle>/$(cat /etc/site-manager/ca.crt | base64 - | tr -d '\n')/" | \
-              sudo kubectl apply -f -
-        - shell:
-            # Create and patch secret with SSL certificates for site-manager
-            command: |
-              sudo kubectl -n site-manager create secret tls sm-certs \
-              --cert /etc/site-manager/site-manager-tls.crt \
-              --key /etc/site-manager/site-manager-tls.key  \
-              --dry-run=client -o yaml --save-config | \
-              sudo kubectl apply -f -
-              sudo kubectl patch secret -n site-manager sm-certs -p "{\"data\":{\"ca.crt\":\"$(cat /etc/site-manager/ca.crt | base64 - | tr -d '\n')\"}}"
         - helm:
             # Install site-manager
             chart_path: ./charts/site-manager
@@ -76,6 +47,13 @@ plugins:
                 tag: <SM_TAG>
               env:
                 SM_DEBUG: 'true'
+              crd:
+                install: true
+              global:
+                tls:
+                  ca: "<SM_CA>"
+                  crt: "<SM_SRT>"
+                  key: "<SM_KEY>"
             namespace: site-manager
             release: site-manager
         - expect:
