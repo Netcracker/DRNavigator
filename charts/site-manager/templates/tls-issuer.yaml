@@ -1,4 +1,4 @@
-{{- if and .Values.global.tls.generateCerts.enabled (not .Values.global.tls.generateCerts.clusterIssuerName) }}
+{{- if and .Values.tls.generateCerts.enabled (not .Values.tls.generateCerts.clusterIssuerName) }}
 apiVersion: cert-manager.io/v1
 kind: Issuer
 metadata:

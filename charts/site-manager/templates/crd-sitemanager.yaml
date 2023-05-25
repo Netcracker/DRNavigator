@@ -1,9 +1,9 @@
-{{ if eq .Values.install true }}
+{{ if eq .Values.crd.install true }}
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: sitemanagers.netcracker.com
-  {{- if .Values.global.tls.generateCerts.enabled }}
+  {{- if .Values.tls.generateCerts.enabled }}
   annotations:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
   {{- end }}
@@ -241,13 +241,13 @@ spec:
           namespace: site-manager
           name: site-manager
           path: /convert
-        caBundle: "{{ .Values.global.tls.ca | b64enc }}"
+        caBundle: "{{ .Values.tls.ca | b64enc }}"
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: "site-manager-crd-validating-webhook-configuration"
-  {{- if .Values.global.tls.generateCerts.enabled }}
+  {{- if .Values.tls.generateCerts.enabled }}
   annotations:
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
   {{- end }}
@@ -259,7 +259,7 @@ webhooks:
       namespace: site-manager
       name: site-manager
       path: /validate
-    caBundle: "{{ .Values.global.tls.ca | b64enc }}"
+    caBundle: "{{ .Values.tls.ca | b64enc }}"
   rules:
   - apiGroups:   ["netcracker.com"]
     apiVersions: ["*"]

@@ -42,18 +42,17 @@ limits:
   cpu: "200m"
   memory: "160Mi"
 
-global:
-  tls:
-    crt: ""
-    key: ""
-    ca: ""
-    generateCerts:
-      enabled: false
-      clusterIssuerName: ""
-      duration: 365
-      subjectAlternativeName:
-        additionalDnsNames: []
-        additionalIpAddresses: []
+tls:
+  crt: ""
+  key: ""
+  ca: ""
+  generateCerts:
+    enabled: false
+    clusterIssuerName: ""
+    duration: 365
+    subjectAlternativeName:
+      additionalDnsNames: []
+      additionalIpAddresses: []
 
 crd:
   install: false

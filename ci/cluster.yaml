@@ -49,11 +49,10 @@ plugins:
                 SM_DEBUG: 'true'
               crd:
                 install: true
-              global:
-                tls:
-                  ca: "<SM_CA>"
-                  crt: "<SM_SRT>"
-                  key: "<SM_KEY>"
+              tls:
+                ca: "<SM_CA>"
+                crt: "<SM_SRT>"
+                key: "<SM_KEY>"
             namespace: site-manager
             release: site-manager
         - expect:
