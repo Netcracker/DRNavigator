@@ -1173,7 +1173,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     ```
 
 3. Create CRD `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration`:
-    You can skip this part, if you add `crd.install=true` to helm installation.
+    **Important**: You can skip this part, if you add `crd.install=true` to helm installation.
 
     3.1. In case of integration with cert-manager, add the following annotation in CRD and ValidatingWebhookConfiguration, which helps to update caBundle in theirs webhook:
 
@@ -1225,12 +1225,11 @@ To renew a certificate:
 
 1. Execute the instructions in the **Prerequisites** section from the step 2.2 to 3.2;
 2. Redeploy SM with new certificate parameters: `tls.ca`, `tls.crt` and `tls.key`;
-    ```
-4. Restart pod `site-manager`
+3. Restart pod `site-manager`
     ```
     $ kubectl rollout restart deployment site-manager -n site-manager
     ```
-5. Update `config.yml` (Token and path cacert).
+4. Update `config.yml` (Token and path cacert).
 
  
 ### Installation 
