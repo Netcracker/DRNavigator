@@ -7,6 +7,7 @@ import threading
 from http import HTTPStatus
 
 import pytest
+import urllib3.exceptions
 
 import smclient
 from common.utils import io_make_http_json_request
@@ -49,7 +50,7 @@ def test_io_http_json_request():
 
     assert http_code == HTTPStatus.OK and \
            json.loads('"' + str(json_body) + '"') and \
-           len(record) > 1, "Returned: 200 OK, dict, JSON, SSL warning "
+           any(isinstance(warning.message, urllib3.exceptions.InsecureRequestWarning) for warning in record.list), "Returned: 200 OK, dict, JSON, SSL warning "
 
     """ FAIL in case not JSON returned with 200 OK """
     ret, json_body, http_code = io_make_http_json_request("https://www.github.com", verify=True)

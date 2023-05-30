@@ -43,6 +43,9 @@ limits:
   memory: "160Mi"
 
 tls:
+  crt: ""
+  key: ""
+  ca: ""
   generateCerts:
     enabled: false
     clusterIssuerName: ""
@@ -52,6 +55,9 @@ tls:
       additionalIpAddresses: []
 
 PAAS_PLATFORM: KUBERNETES
+
+crd:
+  install: false
 
 paasGeoMonitor:
   image: ghcr.io/netcracker/paas-geo-monitor:0.9.0
