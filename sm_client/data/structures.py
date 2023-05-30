@@ -168,7 +168,7 @@ class ServiceDRStatus:
         self.mode = serv['mode'] if serv.get("mode") in ["active", "standby", "disable"] else "--"
         self.nowait = serv["nowait"] if serv.get("nowait") else False
         self.healthz = serv["healthz"] if serv.get("healthz") in ["up", "down", "degraded"] else "--"
-        self.status = serv["status"] if serv.get("status") in ["running", "done", "failed"] else "--"
+        self.status = serv["status"] if serv.get("status") in ["running", "done", "failed", "queue"] else "--"
         self.message = serv["message"] if serv.get("message") else ""
 
         # https://github.com/Netcracker/DRNavigator/blob/b4161fb15271485974abf5862e7272abc386fbc8/modules/stateful.py#L16

@@ -61,7 +61,8 @@ def io_make_http_json_request(url="", token=None, verify=True, http_body:dict=No
             resp = session.post(url, json=http_body, timeout=SM_POST_REQUEST_TIMEOUT, headers=headers, verify=verify)
         else:
             resp = session.get(url, timeout=SM_GET_REQUEST_TIMEOUT, headers=headers, verify=verify)
-        logging.debug(f"REST response: {resp.json()}")
+        logging.debug(f"Status code: {resp.status_code}")
+        logging.debug(f"REST response: {resp.text}")
         return True, resp.json() if resp.json() else {}, resp.status_code # return ANY content with HTTP code
 
     except requests.exceptions.SSLError as e:
