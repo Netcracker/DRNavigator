@@ -1245,6 +1245,7 @@ To renew a certificate:
     
 | Parameter                                                      | Description                                                                                   | Default value                   |
 |----------------------------------------------------------------|-----------------------------------------------------------------------------------------------|---------------------------------|
+| crd.install                                                    | Enable/disable site-manager CRD installation                                                                                                                             | false                           |
 | env.FRONT_HTTP_AUTH                                            | Set the authentication mode between sm-client and Site-Manager.                               | "Yes"                           |
 | env.BACK_HTTP_AUTH                                             | Set the authentication mode between Site-Manager and manageable services.                     | "Yes"                           |
 | env.SM_DEBUG                                                   | Set `debug` logging level.                                                                    | "False"                         |
@@ -1265,15 +1266,18 @@ To renew a certificate:
 | ingress.name                                                   | Define URL for `site-manager` ingress.                                                        | ""                              |
 | limits.cpu                                                     | CPU limits per pod.                                                                           | 200m                            |
 | limits.memory                                                  | Memory limits per pod.                                                                        | 160Mi                           |
-| paas_platform                                                  | Define PAAS type. It can be "kubernetes" or "openshift".                                      | "kubernetes"                    |
+| PAAS_PLATFORM                                                  | Define PAAS type. It can be "KUBERNETES" or "OPENSHIFT".                                      | "KUBERNETES"                    |
+| paasGeoMonitor                                                 | Refer to [paas-geo-monitor documentation](/paas-geo-monitor/docs).                            |                                 |
+| tls.ca                                                         | CA tls certificate (content of `ca.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled                       | ""                              |       
+| tls.crt                                                        | SM public tls certificate (content of `site-manager-tls.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled  | ""                              |       
+| tls.key                                                        | SM private tls certificate (content of `site-manager-tls.key` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled | ""                              | 
+| tls.generateCerts.enabled                                      | Enable/disable certificates' generation using cert-manager.                                                                                                              | false                           |
 | tls.generateCerts.enabled                                      | Enable/disable certificates' generation using cert-manager.                                   | false                           |
 | tls.generateCerts.clusterIssuerName                            | Define the cluster name issuer if required (if empty, it is created by a self-signed issuer). | ""                              |
 | tls.generateCerts.duration                                     | Define the duration (days) of created certificate using cert-manager.                         | 365                             |
 | tls.generateCerts.subjectAlternativeName.additionalDnsNames    | Additional trusted DNS names in the certificate.                                              | []                              |
 | tls.generateCerts.subjectAlternativeName.additionalIpAddresses | Additional trusted IP names in the certificate.                                               | []                              |
-| paas_platform                                                  | Define PAAS Platfrom for SiteManager installation: openshift or kubernetes                    | kubernetes                      |
-| paasGeoMonitor                                                 | Refer to [paas-geo-monitor documentation](/paas-geo-monitor/docs).                            |                                 |
-   
+ 
 6. Install `site-manager` to OpenShift.
 
     ```
