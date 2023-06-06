@@ -32,6 +32,12 @@ spec:
             valueFrom:
               fieldRef:
                 fieldPath: status.podIP
+          - name: PAAS_PING_PEERS
+            value: "{{ .Values.paasGeoMonitor.env.PAAS_PING_PEERS }}"
+          - name: PAAS_PING_TIME
+            value: "{{ .Values.paasGeoMonitor.env.PAAS_PING_TIME }}"
+          - name: PAAS_DEBUG
+            value: "{{ .Values.paasGeoMonitor.env.PAAS_DEBUG }}"
         ports:
           - containerPort: {{ include "paas-geo-monitor.port" . }}
             protocol: TCP

@@ -58,7 +58,7 @@ def run(mode_to_set):
 
     status = "queue"
     health = "down"
-    message = f"Procedure {mode} in queue..."
+    message = f"Procedure {mode_to_set} in queue..."
 
     time.sleep(sma_timeout)
 
