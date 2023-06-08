@@ -50,7 +50,7 @@ func Serve(cfg *Config) error {
 		),
 		prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
-				Name: "peer_svs_status",
+				Name: "peer_svc_status",
 				Help: "Peer svc status: 1 - available, 0 - not available, -1 - can't check connection",
 			},
 			[]string{"peer_name"},
