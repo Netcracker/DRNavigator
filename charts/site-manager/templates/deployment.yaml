@@ -15,12 +15,16 @@ spec:
         app: site-manager
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- with .Values.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
       - name: {{ .Chart.Name }}
-{{- if eq .Values.PAAS_PLATFORM "KUBERNETES" }}
+        {{- with .Values.containerSecurityContext }}
         securityContext:
-          runAsUser: 1001
-{{- end }}
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
         args:
           - "--bind=0.0.0.0:8443"

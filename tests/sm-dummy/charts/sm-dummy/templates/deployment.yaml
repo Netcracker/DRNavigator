@@ -17,11 +17,15 @@ spec:
       {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ .Values.serviceAccount.name }}
       {{- end }}
+      {{- with .Values.securityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
       - name: sm-dummy
-        {{- if eq .Values.PAAS_PLATFORM "KUBERNETES" }}
+        {{- with .Values.containerSecurityContext }}
         securityContext:
-          runAsUser: 1001
+          {{- toYaml . | nindent 12 }}
         {{- end }}
         image: {{ .Values.image }}
         env:

@@ -21,7 +21,7 @@ RUN mkdir -p /metric_dir && \
 
 ENV PROMETHEUS_MULTIPROC_DIR /metric_dir
 
-USER "${SM_USER}"
+USER "${SM_UID}"
 
 ENTRYPOINT ["gunicorn"]
 
