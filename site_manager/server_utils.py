@@ -189,7 +189,7 @@ def get_token(api_watch=False):
         config.load_kube_config(config_file=SM_KUBECONFIG_FILE)
 
         _, current_context = config.list_kube_config_contexts(config_file=SM_KUBECONFIG_FILE)
-        namespace = current_context['context'].get('namespace', 'default')
+        namespace = current_context['context'].get('namespace', 'site-manager')
 
     else:
         config.load_incluster_config()

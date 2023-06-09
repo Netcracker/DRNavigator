@@ -5,7 +5,7 @@ Version:     0.7
 Date:        2021-11-19
 Description: Service for management of microservices in active-standby scheme of kubernetes cluster
 """
-
+import json
 import logging
 import threading
 import http
@@ -14,13 +14,13 @@ import copy
 from kubernetes import client, config       # type: ignore
 from kubernetes.client import ApiException  # type: ignore
 
-from flask import Flask, request, jsonify, make_response
+from flask import Flask, request, jsonify, make_response, current_app
 from prometheus_flask_exporter.multiprocess import GunicornInternalPrometheusMetrics  # type: ignore
 from prometheus_client import Gauge
 
 from common import utils
 from site_manager import server_utils
-
+from site_manager.swagger_config import get_apispec, swagger_ui_blueprint
 
 # List of possible procedures
 command_list = ["active", "standby", "disable", "list", "status"]
@@ -159,6 +159,14 @@ def root_get():
     Method for processing GET requests to /
 
     Right now is under construction and will be completely changed
+    ---
+    get:
+        summary: Root request to check SM availability
+        responses:
+            '200':
+                description: Always return 'Under construction'
+        tags:
+        - site-manager
     """
 
     return "Under construction"
@@ -294,15 +302,41 @@ def cr_convert():
 
 @app.route("/health", methods=["GET"])
 def health():
-    """Health endpoint"""
+    """
+    Health endpoint
+    ---
+    get:
+        summary: Health check
+        responses:
+            '204':
+                description: site-manager health up
+        tags:
+        - site-manager
+    """
     site_manager_health.set(1)
-    return ("", http.HTTPStatus.NO_CONTENT)
+    return "", http.HTTPStatus.NO_CONTENT
 
 
 @app.route('/sitemanager', methods=['GET'])
 def sitemanager_get():
     """
     Method for processing GET requests to /sitemanager
+    ---
+    get:
+        summary: Get the dict of CRs for all services managed by site-manager
+        security:
+            - token: ['secret']
+        responses:
+            '200':
+                description: CRs dictionary
+            '401':
+                description: Unauthorized user
+            '403':
+                description: Invalid token
+            '500':
+                description: Server error
+        tags:
+        - site-manager
     """
     result = check_authorization(request)
     if result:
@@ -321,6 +355,28 @@ def sitemanager_get():
 def sitemanager_post():
     """
     Method for processing POST requests to /sitemanager
+    ---
+    post:
+        summary: Process service
+        security:
+            - token: ['secret']
+        requestBody:
+            content:
+                application/json:
+                    schema: ProcessingBodySchema
+        responses:
+            '200':
+                description: Procedure runs
+            '400':
+                description: Wrong data
+            '401':
+                description: Unauthorized user
+            '403':
+                description: Invalid token
+            '500':
+                description: Server error
+        tags:
+        - site-manager
     """
 
     result = check_authorization(request)
@@ -389,6 +445,13 @@ def sitemanager_post():
                                    "service": run_service,
                                    "procedure": data['procedure']})
 
+
+@app.route('/swagger')
+def create_swagger_spec():
+   return json.dumps(get_apispec(app).to_dict())
+
+
+app.register_blueprint(swagger_ui_blueprint)
 
 def check_authorization(req):
     """Checks authorization token"""
