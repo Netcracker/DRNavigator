@@ -184,15 +184,15 @@ func pingPeersStatus(peer resources.Peer, peers_metrics *PeersMetrics, ping_time
 						pod_status = 1
 					} else {
 						pod_status = 0
-						log.Debugf("[Peer %s]  Pod2pod connection fails: %s", peer.Name, s.ClusterIpStatus.PodStatus.Error)
+						log.Warnf("[Peer %s]  Pod2pod connection fails: %s", peer.Name, s.ClusterIpStatus.PodStatus.Error)
 					}
 				} else {
 					svc_status = 0
-					log.Debugf("[Peer %s] Pod2service connection fails: %s", peer.Name, s.ClusterIpStatus.SvcStatus.Error)
+					log.Warnf("[Peer %s] Pod2service connection fails: %s", peer.Name, s.ClusterIpStatus.SvcStatus.Error)
 				}
 			} else {
 				dns_status = 0
-				log.Debugf("[Peer %s] Can't resolve dns status: %s", peer.Name, s.ClusterIpStatus.DnsStatus.Error)
+				log.Warnf("[Peer %s] Can't resolve dns status: %s", peer.Name, s.ClusterIpStatus.DnsStatus.Error)
 			}
 		} else {
 			log.Errorf("[Peer %s] Can't check status: %s", peer.Name, err)
