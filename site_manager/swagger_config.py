@@ -1,6 +1,6 @@
 from apispec import APISpec
 from apispec.ext.marshmallow import MarshmallowPlugin
-from apispec_webframeworks.flask import FlaskPlugin
+from apispec_webframeworks.flask import FlaskPlugin  # type: ignore
 from flask import Flask
 from flask_swagger_ui import get_swaggerui_blueprint
 from marshmallow import Schema, fields
