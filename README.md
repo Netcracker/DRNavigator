@@ -1172,6 +1172,15 @@ To support the ability of services to be managed by `site-manager`, implement th
     $ openssl req -new -key site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config server.conf | \
       openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
     ```
+   
+    **Warning**:If you want to specify certificates in `values.yaml`. Specify them in one line using the command `awk 'NF {sub(/\r/, ""); printf "%s\\n",$0;}' <cert_name>`.
+Since helm does not perceive multiline text.
+   ```yaml
+   tls:
+    crt: "-----BEGIN CERTIFICATE-----\n......"
+    key: "-----BEGIN RSA PRIVATE KEY-----\n....."
+    ca: "-----BEGIN CERTIFICATE-----\n......"
+   ```
 
 3. Create CRD `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration`:
     **Important**: You can skip this part, if you add `crd.install=true` to helm installation.
