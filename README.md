@@ -1173,10 +1173,11 @@ To support the ability of services to be managed by `site-manager`, implement th
       openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
     ```
 
-3. Create CRD `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration`:
+3. Create CustomResourceDefinition `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` from [file](./manifests/crd-sitemanager.yaml) as it will be described below.
+
     **Important**: You can skip this part, if you add `crd.install=true` to helm installation.
 
-    3.1. In case of integration with cert-manager, add the following annotation in CRD and ValidatingWebhookConfiguration, which helps to update caBundle in theirs webhook:
+    3.1. In case of integration with cert-manager, add the following annotation in CustomResourceDefinition and ValidatingWebhookConfiguration templates, which helps to update caBundle in theirs webhook:
 
     ```yaml
     apiVersion: apiextensions.k8s.io/v1
@@ -1195,7 +1196,7 @@ To support the ability of services to be managed by `site-manager`, implement th
             cert-manager.io/inject-ca-from: <NAMESPACE>/site-manager-tls-certificate
     ```
 
-     Create CRD `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` without caBundle field:
+     Create CustomResourceDefinition `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` without caBundle field:
 
     ```
     $ cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
@@ -1220,31 +1221,21 @@ To support the ability of services to be managed by `site-manager`, implement th
     $ cat manifests/crd-sitemanager.yaml | sed "s/<base-64-encoded-ca-bundle>/${CA_BUNDLE}/" | kubectl apply -f -
     ```
 
-### Certificate Renewal Procedure
-
-To renew a certificate:
-
-1. Execute the instructions in the **Prerequisites** section from the step 2.2 to 3.2;
-2. Redeploy SM with new certificate parameters: `tls.ca`, `tls.crt` and `tls.key`;
-3. Restart pod `site-manager`
-    ```
-    $ kubectl rollout restart deployment site-manager -n site-manager
-    ```
-4. Update `config.yml` (Token and path cacert).
-
+    **Important**: Do not forget to specify manually generated certificates `tls.ca`, `tls.crt` and `tls.key`
  
 ### Installation 
  
    Install `site-manager` helm chart:
+   
+   ```bash
+   $ helm install site-manager charts/site-manager/ -n site-manager
+   ```
 
-    ```bash
-    $ helm install site-manager charts/site-manager/ -n site-manager
-    ```
-
-    The `site-manager` helm chart can be customized with the following parameters:
+   The `site-manager` helm chart can be customized with the following parameters:
     
 | Parameter                                                      | Description                                                                                   | Default value                   |
 |----------------------------------------------------------------|-----------------------------------------------------------------------------------------------|---------------------------------|
+| crd.install                                                    | Enable/disable site-manager CRD installation                                                                                                                             | false                           |
 | env.FRONT_HTTP_AUTH                                            | Set the authentication mode between sm-client and Site-Manager.                               | "Yes"                           |
 | env.BACK_HTTP_AUTH                                             | Set the authentication mode between Site-Manager and manageable services.                     | "Yes"                           |
 | env.SM_DEBUG                                                   | Set `debug` logging level.                                                                    | "False"                         |
@@ -1265,35 +1256,65 @@ To renew a certificate:
 | ingress.name                                                   | Define URL for `site-manager` ingress.                                                        | ""                              |
 | limits.cpu                                                     | CPU limits per pod.                                                                           | 200m                            |
 | limits.memory                                                  | Memory limits per pod.                                                                        | 160Mi                           |
-| paas_platform                                                  | Define PAAS type. It can be "kubernetes" or "openshift".                                      | "kubernetes"                    |
-| tls.generateCerts.enabled                                      | Enable/disable certificates' generation using cert-manager.                                   | false                           |
+| PAAS_PLATFORM                                                  | Define PAAS type. It can be "KUBERNETES" or "OPENSHIFT".                                      | "KUBERNETES"                    |
+| paasGeoMonitor                                                 | Refer to [paas-geo-monitor documentation](/paas-geo-monitor/docs).                            |                                 |
+| tls.ca                                                         | CA tls certificate (content of `ca.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled                       | ""                              |       
+| tls.crt                                                        | SM public tls certificate (content of `site-manager-tls.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled  | ""                              |       
+| tls.key                                                        | SM private tls certificate (content of `site-manager-tls.key` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled | ""                              | 
+| tls.generateCerts.enabled                                      | Enable/disable certificates generation using cert-manager.                                                                                                              | false                           |
 | tls.generateCerts.clusterIssuerName                            | Define the cluster name issuer if required (if empty, it is created by a self-signed issuer). | ""                              |
 | tls.generateCerts.duration                                     | Define the duration (days) of created certificate using cert-manager.                         | 365                             |
 | tls.generateCerts.subjectAlternativeName.additionalDnsNames    | Additional trusted DNS names in the certificate.                                              | []                              |
 | tls.generateCerts.subjectAlternativeName.additionalIpAddresses | Additional trusted IP names in the certificate.                                               | []                              |
-| paas_platform                                                  | Define PAAS Platfrom for SiteManager installation: openshift or kubernetes                    | kubernetes                      |
-| paasGeoMonitor                                                 | Refer to [paas-geo-monitor documentation](/paas-geo-monitor/docs).                            |                                 |
-   
-6. Install `site-manager` to OpenShift.
+ 
+   **Warning**: Some parameters (e.g. `tls.ca`, `tls.crt` and `tls.key`) have multiline values in common cases. To override them, you 
+   can use `--set-file` helm option or separate values yaml file with multiline yaml strings, like: 
+   ```yaml
+   tls:
+     crt: |
+       -----BEGIN CERTIFICATE-----
+       ...
+       -----END CERTIFICATE-----
+     crt: |
+       -----BEGIN CERTIFICATE-----
+       ...
+       -----END CERTIFICATE-----
+     key: |
+       -----BEGIN RSA PRIVATE KEY-----
+       ...
+       -----END RSA PRIVATE KEY-----
+   ```
+   Or you may install `site-manager` by specifiyng additional arguments:
 
-    ```
-    $ helm install site-manager charts/site-manager/
-                  -n site-manager \
-                  --set image.repository=ghcr.io/netcracker/site-manager \
-                  --set image.tag=<image tag> \
-                  --set PAAS_PLATFORM=OPENSHIFT \
-                  --set-file tls.ca=<path to ca.crt> \
-                  --set-file tls.crt=<path to site-manager-tls.crt> \
-                  --set-file tls.key=<path to site-manager-tls.key> \
-                  --set ingress.name=site-manager.apps.example.com
-    ```
+   ```
+   $ helm install site-manager charts/site-manager/
+                 -n site-manager \
+                 --set image.repository=ghcr.io/netcracker/site-manager \
+                 --set image.tag=<image tag> \
+                 --set PAAS_PLATFORM=OPENSHIFT \
+                 --set-file tls.ca=<path to ca.crt> \
+                 --set-file tls.crt=<path to site-manager-tls.crt> \
+                 --set-file tls.key=<path to site-manager-tls.key> \
+                 --set ingress.name=site-manager.apps.example.com
+   ```
 
-    Where:
-      - `ingress.name` parameter is mandatory for OpenShift.
-      - `PAAS_PLATFORM` should be set to "OPENSHIFT".
-      - `<image tag>` is the image tag reference.
-      - `<path to ca.crt>`, `<path to site-manager-tls.crt>`, `<path to site-manager-tls.key>` is paths to tls files, 
-         that you generated using `openssl` command.
+   Where:
+   - `ingress.name` parameter is mandatory for OpenShift.
+   - `PAAS_PLATFORM` should be set to "OPENSHIFT".
+   - `<image tag>` is the image tag reference.
+   - `<path to ca.crt>`, `<path to site-manager-tls.crt>`, `<path to site-manager-tls.key>` is paths to tls files, that you generated using `openssl` command.
+
+### Certificate Renewal Procedure
+
+To renew a certificate:
+
+1. Execute the instructions in the **Prerequisites** section from the step 2.2 to 3.2;
+2. Redeploy SM with new certificate parameters: `tls.ca`, `tls.crt` and `tls.key`;
+3. Restart pod `site-manager`
+    ```
+    $ kubectl rollout restart deployment site-manager -n site-manager
+    ```
+4. Update `config.yml` (Token and path cacert).
 
 ## smclient
  
