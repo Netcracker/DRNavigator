@@ -11,12 +11,12 @@ import (
 )
 
 func GetZapLogLevel() (zap.AtomicLevel, error) {
-	if paas_debug_env, exist := os.LookupEnv("PAAS_DEBUG"); exist {
-		debug_enabled, err := strconv.ParseBool(paas_debug_env)
+	if paasDebugEnv, exist := os.LookupEnv("PAAS_DEBUG"); exist {
+		debugEnabled, err := strconv.ParseBool(paasDebugEnv)
 		if err != nil {
 			return zap.AtomicLevel{}, err
 		}
-		if debug_enabled {
+		if debugEnabled {
 			return zap.NewAtomicLevelAt(zapcore.DebugLevel), nil
 		} else {
 			return zap.NewAtomicLevelAt(zapcore.InfoLevel), nil
@@ -28,7 +28,7 @@ func GetZapLogLevel() (zap.AtomicLevel, error) {
 
 // SimpleLogger is used to create simple logger without any configuration.
 func SimpleLogger() *zap.SugaredLogger {
-	log_level, err := GetZapLogLevel()
+	logLevel, err := GetZapLogLevel()
 	if err != nil {
 		panic(err)
 	}
@@ -50,7 +50,7 @@ func SimpleLogger() *zap.SugaredLogger {
 		panic(err)
 	}
 
-	cfg.Level = log_level
+	cfg.Level = logLevel
 	logger, err := cfg.Build()
 	if err != nil {
 		panic(err)
