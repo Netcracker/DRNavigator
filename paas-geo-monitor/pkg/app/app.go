@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -24,9 +25,9 @@ type Config struct {
 }
 
 type PeersMetrics struct {
-	peers_dns_status *prometheus.GaugeVec
-	peers_svc_status *prometheus.GaugeVec
-	peers_pod_status *prometheus.GaugeVec
+	peersDnsStatus *prometheus.GaugeVec
+	peersSvcStatus *prometheus.GaugeVec
+	peersPodStatus *prometheus.GaugeVec
 }
 
 func Serve(cfg *Config) error {
@@ -34,13 +35,13 @@ func Serve(cfg *Config) error {
 	e.Use(middleware.Logger())
 
 	// Create custom metrics
-	paas_health := prometheus.NewGauge(
+	paasHealth := prometheus.NewGauge(
 		prometheus.GaugeOpts{
 			Name: "paas_geo_monitor_health",
 			Help: "paas-geo-monitor pod health",
 		},
 	)
-	peers_metrics := &PeersMetrics{
+	peersMetrics := &PeersMetrics{
 		prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
 				Name: "peer_dns_status",
@@ -65,16 +66,16 @@ func Serve(cfg *Config) error {
 	}
 
 	// Regist custom metrics
-	if err := prometheus.Register(paas_health); err != nil {
+	if err := prometheus.Register(paasHealth); err != nil {
 		return fmt.Errorf("Can't regist paas_health prometheus metric: %s", err)
 	}
-	if err := prometheus.Register(peers_metrics.peers_dns_status); err != nil {
+	if err := prometheus.Register(peersMetrics.peersDnsStatus); err != nil {
 		return fmt.Errorf("Can't regist peer_dns_status prometheus metric: %s", err)
 	}
-	if err := prometheus.Register(peers_metrics.peers_svc_status); err != nil {
+	if err := prometheus.Register(peersMetrics.peersSvcStatus); err != nil {
 		return fmt.Errorf("Can't regist peers_svc_status prometheus metric: %s", err)
 	}
-	if err := prometheus.Register(peers_metrics.peers_pod_status); err != nil {
+	if err := prometheus.Register(peersMetrics.peersPodStatus); err != nil {
 		return fmt.Errorf("Can't regist peers_pod_status prometheus metric: %s", err)
 	}
 
@@ -82,17 +83,17 @@ func Serve(cfg *Config) error {
 	if net.ParseIP(pingIp) == nil {
 		return fmt.Errorf("incorrect or empty PING_IP: '%s'", pingIp)
 	}
-	paas_ping_peers := true
+	paasPingPeers := true
 	var err error
-	if paas_ping_peers_env, exist := os.LookupEnv("PAAS_PING_PEERS"); exist {
-		paas_ping_peers, err = strconv.ParseBool(paas_ping_peers_env)
+	if paasPingPeersEnv, exist := os.LookupEnv("PAAS_PING_PEERS"); exist {
+		paasPingPeers, err = strconv.ParseBool(paasPingPeersEnv)
 		if err != nil {
 			return fmt.Errorf("Can't parse PAAS_PING_PEERS value: %s", err)
 		}
 	}
-	paas_ping_time := 5
-	if paas_ping_time_env, exist := os.LookupEnv("PAAS_PING_TIME"); exist {
-		paas_ping_time, err = strconv.Atoi(paas_ping_time_env)
+	paasPingTime := 5
+	if paasPingTimeEnv, exist := os.LookupEnv("PAAS_PING_TIME"); exist {
+		paasPingTime, err = strconv.Atoi(paasPingTimeEnv)
 		if err != nil {
 			return fmt.Errorf("Can't parse PAAS_PING_TIME value: %s", err)
 		}
@@ -100,13 +101,13 @@ func Serve(cfg *Config) error {
 
 	e.Use(echoprometheus.NewMiddleware("paas_geo_monitor"))
 	e.GET("/metrics", echoprometheus.NewHandler())
-	e.GET("/ping", pingHandler(pingIp, paas_health))
+	e.GET("/ping", pingHandler(pingIp, paasHealth))
 	e.GET("/peers/status", getPeersStatusHandler(cfg.Peers))
 
 	// Ping peer status in separate threads
-	if paas_ping_peers {
+	if paasPingPeers {
 		for i := range cfg.Peers {
-			go pingPeersStatus(cfg.Peers[i], peers_metrics, paas_ping_time)
+			go pingPeersStatus(cfg.Peers[i], peersMetrics, paasPingTime)
 		}
 	}
 
@@ -128,6 +129,11 @@ func GetConfig(cfgPath string) (*Config, error) {
 	}
 
 	for i := range cfg.Peers {
+		for j := i + 1; j < len(cfg.Peers); j++ {
+			if cfg.Peers[i].Name == cfg.Peers[j].Name {
+				return nil, errors.New("Found more than one peers with name " + cfg.Peers[i].Name + ". Peer name should be unique")
+			}
+		}
 		err := cfg.Peers[i].Init(&client.HttpClient{})
 		if err != nil {
 			return nil, err
@@ -141,9 +147,9 @@ func GetConfig(cfgPath string) (*Config, error) {
 	return cfg, nil
 }
 
-func pingHandler(pingIp string, paas_health prometheus.Gauge) func(c echo.Context) error {
+func pingHandler(pingIp string, paasHealth prometheus.Gauge) func(c echo.Context) error {
 	return func(c echo.Context) error {
-		paas_health.Set(1)
+		paasHealth.Set(1)
 		return c.String(http.StatusOK, pingIp)
 	}
 }
@@ -167,40 +173,40 @@ func getPeersStatusHandler(peers []resources.Peer) func(c echo.Context) error {
 	}
 }
 
-func pingPeersStatus(peer resources.Peer, peers_metrics *PeersMetrics, ping_time int) {
+func pingPeersStatus(peer resources.Peer, peersMetrics *PeersMetrics, pingTime int) {
 	log := logger.SimpleLogger()
 	for {
 		log.Debugf("[Peer %s] Ping status peer started", peer.Name)
-		dns_status := -1
-		svc_status := -1
-		pod_status := -1
+		dnsStatus := -1
+		svcStatus := -1
+		podStatus := -1
 		s, err := peer.Status()
 		if err == nil {
 			if s.ClusterIpStatus.DnsStatus.Resolved {
-				dns_status = 1
+				dnsStatus = 1
 				if s.ClusterIpStatus.SvcStatus.Available {
-					svc_status = 1
+					svcStatus = 1
 					if s.ClusterIpStatus.PodStatus.Available {
-						pod_status = 1
+						podStatus = 1
 					} else {
-						pod_status = 0
+						podStatus = 0
 						log.Warnf("[Peer %s]  Pod2pod connection fails: %s", peer.Name, s.ClusterIpStatus.PodStatus.Error)
 					}
 				} else {
-					svc_status = 0
+					svcStatus = 0
 					log.Warnf("[Peer %s] Pod2service connection fails: %s", peer.Name, s.ClusterIpStatus.SvcStatus.Error)
 				}
 			} else {
-				dns_status = 0
+				dnsStatus = 0
 				log.Warnf("[Peer %s] Can't resolve dns status: %s", peer.Name, s.ClusterIpStatus.DnsStatus.Error)
 			}
 		} else {
 			log.Errorf("[Peer %s] Can't check status: %s", peer.Name, err)
 		}
-		peers_metrics.peers_dns_status.WithLabelValues(peer.Name).Set(float64(dns_status))
-		peers_metrics.peers_svc_status.WithLabelValues(peer.Name).Set(float64(svc_status))
-		peers_metrics.peers_pod_status.WithLabelValues(peer.Name).Set(float64(pod_status))
-		log.Debugf("[Peer %s] Ping status peer finished, sleep %ds", peer.Name, ping_time)
-		time.Sleep(time.Duration(ping_time) * time.Second)
+		peersMetrics.peersDnsStatus.WithLabelValues(peer.Name).Set(float64(dnsStatus))
+		peersMetrics.peersSvcStatus.WithLabelValues(peer.Name).Set(float64(svcStatus))
+		peersMetrics.peersPodStatus.WithLabelValues(peer.Name).Set(float64(podStatus))
+		log.Debugf("[Peer %s] Ping status peer finished, sleep %ds", peer.Name, pingTime)
+		time.Sleep(time.Duration(pingTime) * time.Second)
 	}
 }
