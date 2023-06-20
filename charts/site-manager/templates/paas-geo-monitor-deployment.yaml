@@ -13,16 +13,16 @@ spec:
       labels:
         app: paas-geo-monitor
     spec:
-{{- if eq .Values.PAAS_PLATFORM "KUBERNETES" }}
+      {{- with .Values.securityContext }}
       securityContext:
-        fsGroup: 1001
-{{- end }}
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       containers:
       - name: paas-geo-monitor
-{{- if eq .Values.PAAS_PLATFORM "KUBERNETES" }}
+        {{- with .Values.containerSecurityContext }}
         securityContext:
-          runAsUser: 1001
-{{- end }}
+          {{- toYaml . | nindent 12 }}
+        {{- end }}
         image: {{ .Values.paasGeoMonitor.image}}
         imagePullPolicy: Always
         args:
