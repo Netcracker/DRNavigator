@@ -1286,24 +1286,23 @@ To support the ability of services to be managed by `site-manager`, implement th
    ```
    Or you may install `site-manager` by specifiyng additional arguments:
 
-    ```
-    $ helm install site-manager charts/site-manager/
-                  -n site-manager \
-                  --set image.repository=ghcr.io/netcracker/site-manager \
-                  --set image.tag=<image tag> \
-                  --set PAAS_PLATFORM=OPENSHIFT \
-                  --set-file tls.ca=<path to ca.crt> \
-                  --set-file tls.crt=<path to site-manager-tls.crt> \
-                  --set-file tls.key=<path to site-manager-tls.key> \
-                  --set ingress.name=site-manager.apps.example.com
-    ```
+   ```
+   $ helm install site-manager charts/site-manager/
+                 -n site-manager \
+                 --set image.repository=ghcr.io/netcracker/site-manager \
+                 --set image.tag=<image tag> \
+                 --set PAAS_PLATFORM=OPENSHIFT \
+                 --set-file tls.ca=<path to ca.crt> \
+                 --set-file tls.crt=<path to site-manager-tls.crt> \
+                 --set-file tls.key=<path to site-manager-tls.key> \
+                 --set ingress.name=site-manager.apps.example.com
+   ```
 
-    Where:
-      - `ingress.name` parameter is mandatory for OpenShift.
-      - `PAAS_PLATFORM` should be set to "OPENSHIFT".
-      - `<image tag>` is the image tag reference.
-      - `<path to ca.crt>`, `<path to site-manager-tls.crt>`, `<path to site-manager-tls.key>` is paths to tls files, 
-         that you generated using `openssl` command.
+   Where:
+   - `ingress.name` parameter is mandatory for OpenShift.
+   - `PAAS_PLATFORM` should be set to "OPENSHIFT".
+   - `<image tag>` is the image tag reference.
+   - `<path to ca.crt>`, `<path to site-manager-tls.crt>`, `<path to site-manager-tls.key>` is paths to tls files, that you generated using `openssl` command.
 
 ### Certificate Renewal Procedure
 
