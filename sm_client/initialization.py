@@ -96,7 +96,7 @@ def init_and_check_config(args) -> bool:
     site_names = [i["name"] for i in conf_parsed["sites"]]
     
     if args.site is not None and args.site not in site_names:
-        logging.error(f"Site '{args.site}' is not specified in the provided sm-client config, the command can't be executed!!")
+        logging.error(f"Site '{args.site}' is not specified in the provided sm-client config, the command can't be executed.")
         return False
     
     settings.sm_conf = SMConf()
