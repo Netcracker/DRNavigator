@@ -65,7 +65,7 @@ def init_and_check_config(args) -> bool:
 
     logging.debug(f"Parsed config: {conf_parsed}")
 
-    if args.command not in ["list", "status", "selftest"]:
+    if args.command not in ["list", "status"]:
         site = args.site if hasattr(args, 'site') else False
         site_details = [i for i in conf_parsed["sites"] if i["name"] == site]
         if not site_details:
