@@ -23,4 +23,5 @@ def args_init(config=None):
     args.force = False
     args.command = "version"
     args.ignore_restrictions = False
+    args.site = None
     return args
