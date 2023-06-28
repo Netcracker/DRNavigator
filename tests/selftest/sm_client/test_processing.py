@@ -115,6 +115,33 @@ def test_runservice_engine(caplog):
            and settings.skipped_due_deps_services == ['bb1']
 
 
+def test_runservice_engine_with_dependencies(caplog):
+    def process_node(node):
+        node = ServiceDRStatus({'services': {node: {}}})
+        if node.service in test_failed_services:
+            node.service_status = False
+        else:
+            node.service_status = True
+        thread_result_queue.put(node)
+
+    caplog.set_level(logging.INFO)
+    ts = TopologicalSorter2()
+    ts.add("aa")
+    ts.add("bb", "aa")
+    ts.add("cc", "aa")
+    test_failed_services = ['aa']
+    ts.prepare()
+    """ ------------ """
+
+    process_ts_services(ts, process_node)
+
+    logging.info(f"failed_services: {settings.failed_services}")
+    logging.info(f"done_services: {settings.done_services}")
+    assert not settings.done_services \
+           and settings.failed_services == ['aa'] \
+           and settings.skipped_due_deps_services in [['bb', 'cc'], ['cc', 'bb']]
+
+
 def test_sm_poll_service_required_status(mocker, caplog):
     init_and_check_config(args_init())
 

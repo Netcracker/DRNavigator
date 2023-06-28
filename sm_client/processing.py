@@ -88,7 +88,7 @@ def process_ts_services(ts: TopologicalSorter2, process_func, *run_args) -> None
                 logging.info(f"Service {serv} marked as failed due to dependencies")
                 skip_service_due_deps(serv)
                 thread_result_queue.put(ServiceDRStatus({'services': {serv: {}}}))
-                break
+                continue
             thread = threading.Thread(target=process_func,
                                       args=(serv,) + run_args)
             thread.name = f"Thread: {serv}"
