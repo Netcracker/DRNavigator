@@ -88,6 +88,7 @@ def test_io_http_json_request():
 
 
 def test_runservice_engine(caplog):
+    init_and_check_config(args_init())
     def process_node(node):
         node = ServiceDRStatus({'services': {node: {}}})
         if node.service in test_failed_services:
@@ -116,6 +117,7 @@ def test_runservice_engine(caplog):
 
 
 def test_runservice_engine_with_dependencies(caplog):
+    init_and_check_config(args_init())
     def process_node(node):
         node = ServiceDRStatus({'services': {node: {}}})
         if node.service in test_failed_services:
