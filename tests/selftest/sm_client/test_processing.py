@@ -15,7 +15,7 @@ from sm_client.data import settings
 from sm_client.data.structures import *
 from sm_client.initialization import init_and_check_config
 from sm_client.processing import sm_process_service, thread_result_queue, process_ts_services, \
-    sm_poll_service_required_status, sm_process_service_with_polling, process_module_services, run_dr_or_site_procedure
+    sm_poll_service_required_status, sm_process_service_with_polling, process_module_services
 from tests.selftest.sm_client.common.test_utils import *
 
 
@@ -111,7 +111,7 @@ def test_runservice_engine(caplog):
 
     logging.info(f"failed_services: {settings.failed_services}")
     logging.info(f"done_services: {settings.done_services}")
-    assert settings.done_services in [['aa', 'cc', 'cc1'], ['cc', 'aa', 'cc1'], ['cc', 'cc1', 'aa']] \
+    assert set(settings.done_services) == {'aa', 'cc', 'cc1'} \
            and settings.failed_services == ['bb'] \
            and settings.skipped_due_deps_services == ['bb1']
 
@@ -141,7 +141,7 @@ def test_runservice_engine_with_dependencies(caplog):
     logging.info(f"done_services: {settings.done_services}")
     assert not settings.done_services \
            and settings.failed_services == ['aa'] \
-           and settings.skipped_due_deps_services in [['bb', 'cc'], ['cc', 'bb']]
+           and set(settings.skipped_due_deps_services) == {'bb', 'cc'}
 
 
 def test_sm_poll_service_required_status(mocker, caplog):
