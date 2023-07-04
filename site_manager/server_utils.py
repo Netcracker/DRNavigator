@@ -47,6 +47,15 @@ SM_CACERT = os.environ.get("SM_CACERT", True)
 if SM_CACERT in ("Yes", "yes", "No", "no", "True", "true", "False", "false"):
     SM_CACERT = SM_CACERT in ("Yes", "yes", "True", "true")
 
+VERSION = ""
+
+with open("version") as file:
+    try:
+        VERSION = file.read().strip()
+    except Exception as e:
+        logging.fatal("Can not get sm version: \n %s" % str(e))
+        sys.exit(1)
+
 
 def send_post(url, mode, no_wait):
     """ Method to send POST requests to services

@@ -5,6 +5,8 @@ from flask import Flask
 from flask_swagger_ui import get_swaggerui_blueprint  # type: ignore
 from marshmallow import Schema, fields
 
+from site_manager import server_utils
+
 
 class ProcessingBodySchema(Schema):
     procedure = fields.Str(description="Procedure: list, status, active, disable or standby",
@@ -49,7 +51,7 @@ def get_apispec(app: Flask):
    """
     spec = APISpec(
         title="Site-manager",
-        version="1.0.0",
+        version=server_utils.VERSION,
         openapi_version="3.0.3",
         plugins=[FlaskPlugin(), MarshmallowPlugin()],
     )
