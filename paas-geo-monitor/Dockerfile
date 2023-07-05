@@ -15,6 +15,7 @@ COPY pkg/ pkg/
 COPY logger/ logger/
 COPY main.go ./
 # Build
+# GOMEMLINIT is 90% of kuber limits for garbage-collector
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on GOMEMLIMIT=135MiB go build -a -o paas-geo-monitor ./main.go
 
 
