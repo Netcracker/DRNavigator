@@ -1,4 +1,4 @@
-FROM golang:1.18.3-alpine3.16 as builder
+FROM golang:1.20.2-alpine3.16 as builder
 
 WORKDIR /workspace
 
@@ -16,7 +16,7 @@ COPY logger/ logger/
 COPY main.go ./
 # Build
 # GOMEMLINIT is 90% of kuber limits for garbage-collector
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on GOMEMLIMIT=135MiB go build -a -o paas-geo-monitor ./main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o paas-geo-monitor ./main.go
 
 
 FROM alpine:3.16.2

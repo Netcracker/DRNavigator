@@ -16,6 +16,7 @@ import (
 	"github.com/netcracker/drnavigator/paas-geo-monitor/pkg/client"
 	"github.com/netcracker/drnavigator/paas-geo-monitor/pkg/resources"
 	"github.com/prometheus/client_golang/prometheus"
+	echopprof "github.com/sevenNt/echo-pprof"
 	"gopkg.in/yaml.v3"
 )
 
@@ -103,6 +104,7 @@ func Serve(cfg *Config) error {
 	e.GET("/metrics", echoprometheus.NewHandler())
 	e.GET("/ping", pingHandler(pingIp, paasHealth))
 	e.GET("/peers/status", getPeersStatusHandler(cfg.Peers))
+	echopprof.Wrap(e)
 
 	// Ping peer status in separate threads
 	if paasPingPeers {
