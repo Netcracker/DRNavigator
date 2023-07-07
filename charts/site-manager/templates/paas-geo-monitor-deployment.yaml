@@ -38,6 +38,8 @@ spec:
             value: "{{ .Values.paasGeoMonitor.env.PAAS_PING_TIME }}"
           - name: PAAS_DEBUG
             value: "{{ .Values.paasGeoMonitor.env.PAAS_DEBUG }}"
+          - name: GOMEMLIMIT
+            value: 135MiB
         ports:
           - containerPort: {{ include "paas-geo-monitor.port" . }}
             protocol: TCP

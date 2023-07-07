@@ -30,7 +30,7 @@ func (h *HttpClient) Resolve(name string) (string, error) {
 
 func (h *HttpClient) Get(reqUrl string, ip string) (string, error) {
 	// TODO support insecure/CA
-	client := &http.Client{Transport: &http.Transport{}, Timeout: 5 * time.Second}
+	client := &http.Client{Transport: &http.Transport{DisableKeepAlives: true}, Timeout: 5 * time.Second}
 
 	if ip != "" {
 		client.Transport.(*http.Transport).DialContext = func(c context.Context, n, addr string) (net.Conn, error) {
@@ -53,6 +53,7 @@ func (h *HttpClient) Get(reqUrl string, ip string) (string, error) {
 		return "", err
 	}
 
+	defer res.Body.Close()
 	b, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return "", err
