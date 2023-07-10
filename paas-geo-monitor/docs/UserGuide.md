@@ -28,7 +28,25 @@ paasGeoMonitor:
         clusterIp:
           name: paas-geo-monitor.site-manager.svc.cluster-2.local
 ```
-For more installation options see chart `values.yaml`. For `config` format see [Configuration](#configuration). 
+
+By default, paas-geo-monitor pings peers status in background process and print warnings if any problems occurs.
+Additionally, it save peers status in following metrics:
+* `peer_dns_status` is responsible for DNS resolution;  
+* `peer_svs_status` is responsible for pod-to-service connection;  
+* `peer_pod_status` is responsible for pod-to-pod connection;   
+
+You can disable this using `PAAS_PING_PEERS` parameter or increase time between ping attempts using `PAAS_PING_TIME`.
+
+Full parameters list:
+
+| Parameter                                             | Description                                                        | Default value                             |
+|-------------------------------------------------------|--------------------------------------------------------------------|-------------------------------------------|
+| paasGeoMonitor.install                                | Enable/disable paas-geo-monitor installation                       | false                                     |
+| paasGeoMonitor.image                                  | Paas-geo-monitor image                                             | ghcr.io/netcracker/paas-geo-monitor:0.9.0 |
+| paasGeoMonitor.config                                 | Peers configuration. See format on [Configuration](#configuration) | peers: []                                 |
+| paasGeoMonitor.env.PAAS_PING_PEERS                    | Enable/disable ping peers status. Required for monitoring          | true                                      |
+| paasGeoMonitor.env.PAAS_PING_TIME                     | Time between ping peers status attempts (in sec)                   | 5                                         |
+| paasGeoMonitor.env.PAAS_DEBUG                         | Enable/disable debug logs                                          | false                                     |
 
 # Configuration
 The service configuration allows you to configure instance-wide options and 

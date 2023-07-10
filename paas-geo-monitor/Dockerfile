@@ -1,4 +1,4 @@
-FROM golang:1.18.3-alpine3.16 as builder
+FROM golang:1.20.2-alpine3.16 as builder
 
 WORKDIR /workspace
 
@@ -12,8 +12,10 @@ RUN go mod download
 # Copy the go source
 COPY cmd/ cmd/
 COPY pkg/ pkg/
+COPY logger/ logger/
 COPY main.go ./
 # Build
+# GOMEMLINIT is 90% of kuber limits for garbage-collector
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o paas-geo-monitor ./main.go
 
 
