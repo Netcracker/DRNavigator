@@ -102,8 +102,8 @@ def wait_services_until_healthy(request, prepare_docker_compose):
                     logging.info(f"Service {service} on site {site} hasn't started yet")
                     all_services_started = False
             try:
-                status_code = requests.get(f"https://localhost:{config['exposed_ports']['site_manager']}/health",
-                                           verify=False).status_code
+                status_code = requests.get(f"http://localhost:{config['exposed_ports']['site_manager']}/health"
+                                           ).status_code
             except Exception as e:
                 status_code = 0
             if status_code not in [200, 204]:

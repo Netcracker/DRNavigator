@@ -110,7 +110,7 @@ def check_statuses(capfd, template_env, expected_status_func: lambda site_name, 
                 if expected_status.get("message") != "Service doesn't exist" else \
                 {"message": "Service doesn't exist", "wrong-service": service}
             check_status_from_site_manager(site, service,
-                                           sm_url=f"https://localhost:{config['exposed_ports']['site_manager']}",
+                                           sm_url=f"http://localhost:{config['exposed_ports']['site_manager']}",
                                            token=config["token"],
                                            verify=False,
                                            expected_answer=expected_answer_from_sm)
