@@ -61,6 +61,7 @@ tls:
   crt: ""
   key: ""
   ca: ""
+  defaultIngressTls: false
   generateCerts:
     enabled: false
     clusterIssuerName: ""

@@ -1233,8 +1233,8 @@ To support the ability of services to be managed by `site-manager`, implement th
 
    The `site-manager` helm chart can be customized with the following parameters:
     
-| Parameter                                                      | Description                                                                                   | Default value                   |
-|----------------------------------------------------------------|-----------------------------------------------------------------------------------------------|---------------------------------|
+| Parameter                                                      | Description                                                                                                                                                              | Default value                   |
+|----------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------|
 | crd.install                                                    | Enable/disable site-manager CRD installation                                                                                                                             | false                           |
 | env.FRONT_HTTP_AUTH                                            | Set the authentication mode between sm-client and Site-Manager.                               | "Yes"                           |
 | env.BACK_HTTP_AUTH                                             | Set the authentication mode between Site-Manager and manageable services.                     | "Yes"                           |
@@ -1258,6 +1258,7 @@ To support the ability of services to be managed by `site-manager`, implement th
 | limits.memory                                                  | Memory limits per pod.                                                                        | 160Mi                           |
 | PAAS_PLATFORM                                                  | Define PAAS type. It can be "KUBERNETES" or "OPENSHIFT".                                      | "KUBERNETES"                    |
 | paasGeoMonitor                                                 | Refer to [paas-geo-monitor documentation](/paas-geo-monitor/docs).                            |                                 |
+| tls.defaultIngressTls                                          | Use default tls certificate instead of generated one for ingress/route                                                                                                   | false |
 | tls.ca                                                         | CA tls certificate (content of `ca.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled                       | ""                              |       
 | tls.crt                                                        | SM public tls certificate (content of `site-manager-tls.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled  | ""                              |       
 | tls.key                                                        | SM private tls certificate (content of `site-manager-tls.key` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled | ""                              | 

@@ -8,7 +8,7 @@ spec:
   port:
     targetPort: web
   tls:
-    termination: passthrough
+    termination: {{ ternary "reencrypt" "passthrough" .Values.defaultIngressTls }}
   to:
     kind: Service
     name: site-manager
