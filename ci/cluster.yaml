@@ -43,8 +43,9 @@ plugins:
               ingress:
                 name: site-manager.test-local-k8s.com
               controller:
-                image: ghcr.io/netcracker/site-manager-cr-controller
-                tag: <SM_TAG>
+                image:
+                  repository: ghcr.io/netcracker/site-manager-cr-controller
+                  tag: <SM_TAG>
               image:
                 repository: ghcr.io/netcracker/site-manager
                 tag: <SM_TAG>
