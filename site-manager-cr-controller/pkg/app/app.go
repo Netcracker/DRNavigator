@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/logger"
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/service"
@@ -28,6 +29,8 @@ func Serve(bindAddress string, certFile string, keyFile string) error {
 
 	e := echo.New()
 
+	e.Use(echoprometheus.NewMiddleware("sm_cr_controller"))
+	e.GET("/metrics", echoprometheus.NewHandler())
 	e.GET("/health", health())
 	e.POST("/validate", validate(crValidator))
 	e.POST("/convert", convert(crConverter))
