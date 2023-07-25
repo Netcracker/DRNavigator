@@ -3,6 +3,7 @@
 .idea/
 *.komodoproject
 .loadpath
+*/.vscode
 .project
 *.pyc
 .pydevproject
