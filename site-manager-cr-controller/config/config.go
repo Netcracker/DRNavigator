@@ -10,7 +10,7 @@ type Config struct {
 
 	CRGroup   string `envconfig:"SM_GROUP" default:"netcracker.com"`
 	CRPrural  string `envconfig:"SM_PRURAL" default:"sitemanagers"`
-	CRVersion string `envconfig:"SM_KIND" default:"v3"`
+	CRVersion string `envconfig:"SM_VERSION" default:"v3"`
 }
 
 var EnvConfig Config

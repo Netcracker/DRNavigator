@@ -63,6 +63,7 @@ limits:
   memory: "160Mi"
 
 tls:
+  enabled: true
   crt: ""
   key: ""
   ca: ""

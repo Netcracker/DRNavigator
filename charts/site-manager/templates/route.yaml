@@ -7,8 +7,10 @@ spec:
   host: {{ .Values.ingress.name }}
   port:
     targetPort: web
+  {{- if .Values.tls.enabled }}
   tls:
     termination: {{ ternary "reencrypt" "passthrough" .Values.defaultIngressTls }}
+  {{- end }}
   to:
     kind: Service
     name: site-manager

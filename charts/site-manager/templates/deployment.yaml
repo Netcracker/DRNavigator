@@ -30,8 +30,10 @@ spec:
           - "--bind=0.0.0.0:8443"
           - "--config=site_manager/flank_exporter_config.py"
           - '--worker-class=gevent'
+          {{- if .Values.tls.enabled }}
           - "--certfile=/certs/tls.crt"
           - "--keyfile=/certs/tls.key"
+          {{- end }}
           - "-w {{ .Values.workerCount}}"
           - "site-manager:app"
         env:
@@ -72,7 +74,7 @@ spec:
           httpGet:
             path: /health
             port: 8443
-            scheme: HTTPS
+            scheme: {{ ternary "HTTPS" "HTTP" .Values.tls.enabled }}
           initialDelaySeconds: 5
           timeoutSeconds: 1
           periodSeconds: 2
@@ -82,7 +84,7 @@ spec:
           httpGet:
             path: /health
             port: 8443
-            scheme: HTTPS
+            scheme: {{ ternary "HTTPS" "HTTP" .Values.tls.enabled }}
           timeoutSeconds: 2
           periodSeconds: 20
           successThreshold: 1
@@ -106,6 +108,8 @@ spec:
             value: "{{ .Values.env.SM_GROUP }}"
           - name: SM_PLURAL
             value: "{{ .Values.env.SM_PLURAL }}"
+          - name: SM_VERSION
+            value: "{{ .Values.env.SM_VERSION }}"
         ports:
           - containerPort: 8442
             protocol: TCP

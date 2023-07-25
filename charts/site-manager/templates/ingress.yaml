@@ -6,11 +6,11 @@ metadata:
   namespace: {{ .Release.Namespace }}
   annotations:
     kubernetes.io/ingress.class: "nginx"
-    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/backend-protocol: {{ ternary "HTTPS" "HTTP" .Values.tls.enabled }}
   labels:
     app: {{ .Chart.Name }}
 spec:
-  {{- if and .Values.ingress.name (not .Values.defaultIngressTls ) }}
+  {{- if and (and .Values.tls.enabled .Values.ingress.name) (not .Values.defaultIngressTls ) }}
   tls:
     - hosts:
         - {{ .Values.ingress.name }}
