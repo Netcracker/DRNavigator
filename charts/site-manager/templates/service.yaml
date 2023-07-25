@@ -12,5 +12,9 @@ spec:
       protocol: TCP
       port: 443
       targetPort: 8443
+    - name: webhook
+      protocol: TCP
+      port: 442
+      targetPort: 8442
   selector:
     app: site-manager

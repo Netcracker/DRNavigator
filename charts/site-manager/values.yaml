@@ -12,7 +12,6 @@ env:
   SM_GROUP: "netcracker.com"
   SM_PLURAL: "sitemanagers"
   SM_VERSION: "v3"
-
   # set HTTP scheme for microservices
   HTTP_SCHEME: "http://"
 
@@ -48,6 +47,12 @@ image:
   repository: ghcr.io/netcracker/site-manager
   pullPolicy: Always
   tag: v1.0
+
+controller:
+  image:
+    repository: ghcr.io/netcracker/site-manager-cr-controller
+    pullPolicy: Always
+    tag: v1.0
 
 ingress:
   create: true

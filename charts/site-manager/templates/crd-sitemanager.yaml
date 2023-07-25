@@ -239,8 +239,9 @@ spec:
       clientConfig:
         service:
           namespace: site-manager
-          name: site-manager
+          name: {{ .Chart.Name }}
           path: /convert
+          port: 442
         caBundle: "{{ .Values.tls.ca | b64enc }}"
 ---
 apiVersion: admissionregistration.k8s.io/v1
@@ -257,8 +258,9 @@ webhooks:
   clientConfig:
     service:
       namespace: site-manager
-      name: site-manager
+      name: {{ .Chart.Name }}
       path: /validate
+      port: 442
     caBundle: "{{ .Values.tls.ca | b64enc }}"
   rules:
   - apiGroups:   ["netcracker.com"]
