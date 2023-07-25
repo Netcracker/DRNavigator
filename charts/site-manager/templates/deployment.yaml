@@ -68,8 +68,9 @@ spec:
             mountPath: /metric_dir/
         resources:
           limits:
-              cpu: "{{ .Values.limits.cpu }}"
-              memory: "{{ .Values.limits.memory }}"
+              cpu: "150m"
+              # If you change memory limit, you should add GOMEMLIMIT env with 90-95% of new value
+              memory: "150Mi"
         readinessProbe:
           httpGet:
             path: /health
