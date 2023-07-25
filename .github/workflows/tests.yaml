@@ -140,7 +140,16 @@ jobs:
 
       - name: Get SM logs from pod
         if: failure()
-        run: sudo kubectl logs -n site-manager -l app=site-manager > ./results/sm.log
+        run: sudo kubectl logs -n site-manager -l app=site-manager -c site-manager > ./results/sm.log
+      - name: Get SM-cr-controller logs from pod
+        if: failure()
+        run: sudo kubectl logs -n site-manager -l app=site-manager -c site-manager-cr-controller > ./results/sm-cr-controller.log
+      - name: Get service-a from pod
+        if: failure()
+        run: sudo kubectl logs -n test-services -l app=service-a > ./results/service-a.log
+      - name: Get service-b from pod
+        if: failure()
+        run: sudo kubectl logs -n test-services -l app=service-b > ./results/service-b.log
       - name: Collect kubemarine artifacts
         if: failure()
         uses: actions/upload-artifact@v3

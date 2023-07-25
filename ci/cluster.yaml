@@ -63,10 +63,6 @@ plugins:
             deployments:
               - name: site-manager
                 namespace: site-manager
-        # Restart is needed in case of cert regeneration
-        - shell:
-            command: kubectl rollout restart deployment site-manager -n site-manager
-            sudo: true
         - expect:
             pods:
             - site-manager
