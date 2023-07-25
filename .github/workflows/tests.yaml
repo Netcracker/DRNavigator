@@ -87,8 +87,16 @@ jobs:
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }}
 
+  publish-test-sm-cr-controller-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: docker build -t ghcr.io/netcracker/site-manager-cr-controller:${{ env.SM_TAG_NAME }} -f site-manager-cr-controller/Dockerfile site-manager-cr-controller
+      - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
+      - run: docker push ghcr.io/netcracker/site-manager-cr-controller:${{ env.SM_TAG_NAME }}
+
   cloud-tests:
-    needs: [publish-test-sm-image, publish-test-sm-dummy-image]
+    needs: [publish-test-sm-image, publish-test-sm-dummy-image, publish-test-sm-cr-controller-image]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repo
@@ -158,6 +166,19 @@ jobs:
         with:
           owner: netcracker
           name: site-manager
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ env.SM_TAG_NAME }}
+
+  remove-test-sm-cr-controller-image:
+    needs: [cloud-tests]
+    if: ${{ always() && needs.publish-test-sm-cr-controller-image.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete image site-manager-cr-controller
+        uses: bots-house/ghcr-delete-image-action@v1.1.0
+        with:
+          owner: netcracker
+          name: site-manager-cr-controller
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.SM_TAG_NAME }}
 
