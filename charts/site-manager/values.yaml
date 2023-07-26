@@ -70,6 +70,7 @@ tls:
   defaultIngressTls: false
   generateCerts:
     enabled: false
+    executor: cert-manager
     clusterIssuerName: ""
     duration: 365
     subjectAlternativeName:
