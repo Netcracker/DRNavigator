@@ -69,30 +69,25 @@ python -u -m pytest  ./tests/integration -k <class name>
 ### How to run:
 
 1. Install requirements for sm-client and tests:
-```
-pip install -r requirements-sc-test.txt -r requirements-sc.txt
-```
-
-3. Install cluster
-   
-For the tests to work, you need to install a cluster, you can use the command below
-```
-pip install kubemarine
-kubemarine install -c cluster.yaml 
-```
-Example [cluster.yaml](https://github.com/Netcracker/DRNavigator/blob/main/ci/cluster.yaml)
-4. Run tests:
-
-```
-python -u -m pytest  ./tests/cloud_test --kubeconfig="<Path kubeconfig>"
-```
-
-You also can run only specific test case from [test folder](./cloud_test/tests). For that run following command:
-```
-python -u -m pytest  ./tests/cloud_test --kubeconfig="<Path kubeconfig>" -k <class name>
-```
-
-5. After tests finishing you can see logs/configurations for every test in `cloud-dump` folder.
+    ```
+    pip install -r requirements-sc-test.txt -r requirements-sc.txt
+    ```
+1. Install cluster  
+    For the tests to work, you need to install a cluster, you can use the command below
+    ```
+    pip install kubemarine
+    kubemarine install -c cluster.yaml 
+    ```
+    Example [cluster.yaml](https://github.com/Netcracker/DRNavigator/blob/main/ci/cluster.yaml)
+1. Run tests:
+    ```
+    python -u -m pytest  ./tests/cloud_test --kubeconfig="<Path kubeconfig>"
+    ```
+    You also can run only specific test case from [test folder](./cloud_test/tests). For that run following command:
+    ```
+    python -u -m pytest  ./tests/cloud_test --kubeconfig="<Path kubeconfig>" -k <class name>
+    ```
+1. After tests finishing you can see logs/configurations for every test in `cloud-dump` folder.
 
 ### How to create your own test case:
 
