@@ -71,6 +71,32 @@ jobs:
           path: test-dump/
           retention-days: 7
 
+  site-manager-cr-controller-unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.20'
+      - name: Go to cr-controller package
+        run: cd site-manager-cr-controller
+      - name: Run tests
+        run: go test -vet=all -shuffle=on -v ./tests/
+
+  paas-geo-monitor-unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.20'
+      - name: Go to paas-geo-monitor package
+        run: cd paas-geo-monitor
+      - name: Run tests
+        run: go test -vet=all -shuffle=on -v ./...
+
   publish-test-sm-image:
     runs-on: ubuntu-latest
     steps:
