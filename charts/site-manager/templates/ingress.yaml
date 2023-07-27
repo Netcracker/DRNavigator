@@ -10,7 +10,7 @@ metadata:
   labels:
     app: {{ .Chart.Name }}
 spec:
-  {{- if and (and .Values.tls.enabled .Values.ingress.name) (not .Values.defaultIngressTls ) }}
+  {{- if and (and .Values.tls.enabled .Values.ingress.name) (not .Values.tls.defaultIngressTls ) }}
   tls:
     - hosts:
         - {{ .Values.ingress.name }}

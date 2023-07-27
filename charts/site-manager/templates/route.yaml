@@ -9,7 +9,7 @@ spec:
     targetPort: web
   {{- if .Values.tls.enabled }}
   tls:
-    termination: {{ ternary "reencrypt" "passthrough" .Values.defaultIngressTls }}
+    termination: {{ ternary "reencrypt" "passthrough" .Values.tls.defaultIngressTls }}
   {{- end }}
   to:
     kind: Service
