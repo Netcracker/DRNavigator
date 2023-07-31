@@ -1121,7 +1121,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     $ kubectl create namespace site-manager
     ```
 
-2. Generate self-signed certificates for the `site-manager` service if you do not want to integrate with cert-manager.
+2. Generate self-signed certificates for the `site-manager` service if you do not want to integrate with cert-manager or openshift service serving certificates mechanism.
 
     2.1. Create a configuration file for generating the SSL certificate:
 
@@ -1208,8 +1208,44 @@ To support the ability of services to be managed by `site-manager`, implement th
     $ kubectl annotate crds sitemanagers.netcracker.com cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
     $ kubectl annotate validatingwebhookconfigurations site-manager-crd-validating-webhook-configuration cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
     ```
+   
+    3.2. In case of integration with openshift service serving certificates mechanism, add the following annotations in CustomResourceDefinition and ValidatingWebhookConfiguration templates, which helps to update caBundle in theirs webhook:
+
+    ```yaml
+    apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    metadata:
+        name: sitemanagers.netcracker.com
+        annotations:
+            service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
+            service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
+    ```
+    ```yaml
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingWebhookConfiguration
+    metadata:
+        name: "site-manager-crd-validating-webhook-configuration"
+        annotations:
+            service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
+            service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
+    ```
+
+     Create CustomResourceDefinition `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` without caBundle field:
+
+    ```
+    $ cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
+    ```
+
+    If you already had site-manager CRD or ValidatingWebhookConfiguration in your cloud and want to migrate to integration with openshift service cerving certificates mechanism, it is enough to annotate it (choose *alpha* or *beta* according your openshift version):
+
+    ```
+    $ kubectl annotate crds sitemanagers.netcracker.com service.alpha.openshift.io/inject-cabundle=true
+    $ kubectl annotate validatingwebhookconfigurations service.alpha.openshift.io/inject-cabundle=true
+    $ kubectl annotate crds sitemanagers.netcracker.com service.beta.openshift.io/inject-cabundle=true
+    $ kubectl annotate validatingwebhookconfigurations service.beta.openshift.io/inject-cabundle=true
+    ```
     
-    3.2. In other case, generate base64 string from ca.crt certificate:
+    3.3. In other case, generate base64 string from ca.crt certificate:
 
     ```
     $ CA_BUNDLE=$(cat ca.crt | base64 - | tr -d '\n')
@@ -1233,8 +1269,8 @@ To support the ability of services to be managed by `site-manager`, implement th
 
    The `site-manager` helm chart can be customized with the following parameters:
     
-| Parameter                                                      | Description                                                                                   | Default value                   |
-|----------------------------------------------------------------|-----------------------------------------------------------------------------------------------|---------------------------------|
+| Parameter                                                      | Description                                                                                                                                                              | Default value                   |
+|----------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------|
 | crd.install                                                    | Enable/disable site-manager CRD installation                                                                                                                             | false                           |
 | env.FRONT_HTTP_AUTH                                            | Set the authentication mode between sm-client and Site-Manager.                               | "Yes"                           |
 | env.BACK_HTTP_AUTH                                             | Set the authentication mode between Site-Manager and manageable services.                     | "Yes"                           |
@@ -1258,14 +1294,17 @@ To support the ability of services to be managed by `site-manager`, implement th
 | limits.memory                                                  | Memory limits per pod.                                                                        | 160Mi                           |
 | PAAS_PLATFORM                                                  | Define PAAS type. It can be "KUBERNETES" or "OPENSHIFT".                                      | "KUBERNETES"                    |
 | paasGeoMonitor                                                 | Refer to [paas-geo-monitor documentation](/paas-geo-monitor/docs).                            |                                 |
+| tls.enabled                                                    | Enable https in ingress/route                                                                 | true                            |
+| tls.defaultIngressTls                                          | Use default tls certificate instead of generated one for ingress/route                                                                                                   | false |
 | tls.ca                                                         | CA tls certificate (content of `ca.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled                       | ""                              |       
 | tls.crt                                                        | SM public tls certificate (content of `site-manager-tls.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled  | ""                              |       
 | tls.key                                                        | SM private tls certificate (content of `site-manager-tls.key` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled | ""                              | 
-| tls.generateCerts.enabled                                      | Enable/disable certificates generation using cert-manager.                                                                                                              | false                           |
-| tls.generateCerts.clusterIssuerName                            | Define the cluster name issuer if required (if empty, it is created by a self-signed issuer). | ""                              |
-| tls.generateCerts.duration                                     | Define the duration (days) of created certificate using cert-manager.                         | 365                             |
-| tls.generateCerts.subjectAlternativeName.additionalDnsNames    | Additional trusted DNS names in the certificate.                                              | []                              |
-| tls.generateCerts.subjectAlternativeName.additionalIpAddresses | Additional trusted IP names in the certificate.                                               | []                              |
+| tls.generateCerts.enabled                                      | Enable/disable certificates generation using cert-manager or openshift services serving certificates mechanism.                                                                                                              | false                           |
+| tls.generateCerts.executor                                     | Choose executor for certificates generation. Possible values: "cert-manager" and "openshift"  | cert-manager                    |
+| tls.generateCerts.clusterIssuerName                            | In case of cert-manager integration, define the cluster name issuer if required (if empty, it is created by a self-signed issuer). | ""                              |
+| tls.generateCerts.duration                                     | In case of cert-manager integration, define the duration (days) of created certificate using cert-manager.                         | 365                             |
+| tls.generateCerts.subjectAlternativeName.additionalDnsNames    | In case of cert-manager integration, additional trusted DNS names in the certificate.                                              | []                              |
+| tls.generateCerts.subjectAlternativeName.additionalIpAddresses | In case of cert-manager integration, additional trusted IP names in the certificate.                                               | []                              |
  
    **Warning**: Some parameters (e.g. `tls.ca`, `tls.crt` and `tls.key`) have multiline values in common cases. To override them, you 
    can use `--set-file` helm option or separate values yaml file with multiline yaml strings, like: 

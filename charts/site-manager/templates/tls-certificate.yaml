@@ -1,4 +1,4 @@
-{{- if .Values.tls.generateCerts.enabled }}
+{{- if and .Values.tls.generateCerts.enabled ( eq .Values.tls.generateCerts.executor "cert-manager" ) }}
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:

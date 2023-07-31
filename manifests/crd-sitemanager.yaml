@@ -236,6 +236,7 @@ spec:
           namespace: site-manager
           name: site-manager
           path: /convert
+          port: 442
         caBundle: "<base-64-encoded-ca-bundle>"
 ---
 apiVersion: admissionregistration.k8s.io/v1
@@ -250,6 +251,7 @@ webhooks:
       namespace: site-manager
       name: site-manager
       path: /validate
+      port: 442
     caBundle: "<base-64-encoded-ca-bundle>"
   rules:
   - apiGroups:   ["netcracker.com"]
