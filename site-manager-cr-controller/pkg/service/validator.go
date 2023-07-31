@@ -14,6 +14,7 @@ const (
 	AllChecksPassedMessage    = "All checks passed"
 )
 
+// Validator provides the set of functions for CR validation
 type Validator struct {
 	Client cr_client.CRClientInterface
 }
@@ -42,6 +43,11 @@ func (v *Validator) validateServiceName(name string, uid types.UID, isAlias bool
 	return "", nil
 }
 
+// Validate validates the given CR
+// Response:
+// the first value (bool) - true if validation was successful else false
+// the second value (string) - the error message if validation fails else -  "All checks passed"
+// the third value (error) - the error if something went wrong during validation else nil
 func (v *Validator) Validate(obj *unstructured.Unstructured) (bool, string, error) {
 	if !cr_client.CheckIfApiVersionSupported(obj.GetAPIVersion()) {
 		return false, "", fmt.Errorf("API version %s is not supported", obj.GetAPIVersion())
@@ -55,6 +61,7 @@ func (v *Validator) Validate(obj *unstructured.Unstructured) (bool, string, erro
 	return true, AllChecksPassedMessage, nil
 }
 
+// NewValidator creates the new Validator object
 func NewValidator() (*Validator, error) {
 	client, err := cr_client.NewCRClient()
 	if err != nil {

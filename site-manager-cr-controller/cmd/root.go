@@ -23,6 +23,7 @@ func init() {
 	rootCmd.PersistentFlags().String("keyfile", "", "SSL key file")
 }
 
+// ServeApp is serves the app
 func ServeApp(cmd *cobra.Command, args []string) {
 	bindAddress, err := cmd.Flags().GetString("bind")
 	if err != nil {
@@ -61,6 +62,7 @@ func ServeApp(cmd *cobra.Command, args []string) {
 	}
 }
 
+// Execute executes specified cli command
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "error executing command: %s", err)

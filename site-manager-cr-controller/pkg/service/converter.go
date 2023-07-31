@@ -8,6 +8,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
+// Converter provides the set of functions for CR conversion
 type Converter struct {
 	Client cr_client.CRClientInterface
 }
@@ -121,6 +122,8 @@ func (c *Converter) convertV3ToV2(cr *unstructured.Unstructured) error {
 	return nil
 }
 
+// Convert converts the given CR to desired api version
+// Checks that CR api version and unstructed api version is supported and returns the new converted object
 func (c *Converter) Convert(cr *unstructured.Unstructured, desiredApiVersion string) (*unstructured.Unstructured, error) {
 	if !cr_client.CheckIfApiVersionSupported(desiredApiVersion) {
 		return nil, fmt.Errorf("Desired API version %s is not supported", desiredApiVersion)
@@ -184,6 +187,7 @@ func (c *Converter) Convert(cr *unstructured.Unstructured, desiredApiVersion str
 	return converteredCR, nil
 }
 
+// NewConverter creates the new Converter object
 func NewConverter() (*Converter, error) {
 	client, err := cr_client.NewCRClient()
 	if err != nil {

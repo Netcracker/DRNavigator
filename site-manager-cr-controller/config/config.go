@@ -15,6 +15,7 @@ type Config struct {
 
 var EnvConfig Config
 
+// InitConfig initializes the configuration from the environment variables
 func InitConfig() error {
 	return envconfig.Process("SM", &EnvConfig)
 }

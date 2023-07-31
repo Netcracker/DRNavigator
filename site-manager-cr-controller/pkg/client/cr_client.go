@@ -14,15 +14,21 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+// CRClientInterface is the kube client for sitemanagers CRs
 type CRClientInterface interface {
+	// GetAllServicesWithSpecifiedVersion returns all sitemanager CRs for specified api version mapped by calculated service name
 	GetAllServicesWithSpecifiedVersion(api_version string) (map[string]unstructured.Unstructured, error)
+
+	// GetAllServicesWithSpecifiedVersion returns all sitemanager CRs for default api version (SM_VERSION env) mapped by calculated service name
 	GetAllServices() (map[string]unstructured.Unstructured, error)
 }
 
+// CRClientInterface is an implementation for CRClientInterface based on dynamic client
 type CRClient struct {
-	DynamicClient *dynamic.DynamicClient
+	DynamicClient dynamic.Interface
 }
 
+// NewCRClient initializes the new CRClient
 func NewCRClient() (*CRClient, error) {
 	var config *rest.Config
 	var err error
@@ -50,6 +56,7 @@ func NewCRClient() (*CRClient, error) {
 	return &CRClient{DynamicClient: client}, nil
 }
 
+// GetAllServicesWithSpecifiedVersion returns all sitemanager CRs for specified api version mapped by calculated service name
 func (crc *CRClient) GetAllServicesWithSpecifiedVersion(api_version string) (map[string]unstructured.Unstructured, error) {
 	gvr := schema.GroupVersionResource{
 		Group:    envconfig.EnvConfig.CRGroup,
@@ -64,10 +71,12 @@ func (crc *CRClient) GetAllServicesWithSpecifiedVersion(api_version string) (map
 	return ConvertToMap(obj), nil
 }
 
+// GetAllServicesWithSpecifiedVersion returns all sitemanager CRs for default api version (SM_VERSION env) mapped by calculated service name
 func (crc *CRClient) GetAllServices() (map[string]unstructured.Unstructured, error) {
 	return crc.GetAllServicesWithSpecifiedVersion(envconfig.EnvConfig.CRVersion)
 }
 
+// ConvertToMap maps the given list of CRs objects by calculated service name
 func ConvertToMap(objList *unstructured.UnstructuredList) map[string]unstructured.Unstructured {
 	result := map[string]unstructured.Unstructured{}
 	for _, obj := range objList.Items {
@@ -77,6 +86,7 @@ func ConvertToMap(objList *unstructured.UnstructuredList) map[string]unstructure
 	return result
 }
 
+// GetServiceName calculates the appropriate service name for given CR name, namespace and alias
 func GetServiceName(crName string, namespace string, alias string) string {
 	if alias != "" {
 		return alias
@@ -84,10 +94,12 @@ func GetServiceName(crName string, namespace string, alias string) string {
 	return fmt.Sprintf("%s.%s", crName, namespace)
 }
 
+// GetApiVersion returns full api version (with group) for given CR version
 func GetApiVersion(version string) string {
 	return fmt.Sprintf("%s/%s", envconfig.EnvConfig.CRGroup, version)
 }
 
+// GetApiVersion checks if given api version is supported as CR api version
 func CheckIfApiVersionSupported(apiVersion string) bool {
 	supportedVersions := []string{
 		GetApiVersion("v1"),

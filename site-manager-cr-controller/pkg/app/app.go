@@ -16,6 +16,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 )
 
+// Serve starts new https server app
 func Serve(bindAddress string, certFile string, keyFile string) error {
 	crValidator, err := service.NewValidator()
 	if err != nil {

@@ -9,16 +9,17 @@ import (
 
 var log *zap.SugaredLogger = nil
 
-func GetZapLogLevel() (zap.AtomicLevel, error) {
+func getZapLogLevel() (zap.AtomicLevel, error) {
 	if config.EnvConfig.Debug {
 		return zap.NewAtomicLevelAt(zapcore.DebugLevel), nil
 	}
 	return zap.NewAtomicLevelAt(zapcore.InfoLevel), nil
 }
 
+// SimpleLogger returns app loger or initializes the new one, if it's not defined yet
 func SimpleLogger() *zap.SugaredLogger {
 	if log == nil {
-		logLevel, err := GetZapLogLevel()
+		logLevel, err := getZapLogLevel()
 		if err != nil {
 			panic(err)
 		}
