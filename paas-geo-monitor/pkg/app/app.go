@@ -25,6 +25,12 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
+var (
+	peer_status  float64
+	route_status float64
+	kubeconfig   *rest.Config
+)
+
 type Config struct {
 	Port  int
 	Peers []resources.Peer
@@ -256,12 +262,6 @@ func pingPeersStatus(peer resources.Peer, peersMetrics *PeersMetrics, pingTime i
 }
 
 func getCRStatus(bgpMetrics *BGPMetrics) {
-
-	var (
-		peer_status  float64
-		route_status float64
-		kubeconfig   *rest.Config
-	)
 
 	log := logger.SimpleLogger()
 
