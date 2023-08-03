@@ -13,6 +13,7 @@ spec:
       labels:
         app: paas-geo-monitor
     spec:
+      serviceAccountName: paas-geo-monitor
       {{- with .Values.securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -38,6 +39,8 @@ spec:
             value: "{{ .Values.paasGeoMonitor.env.PAAS_PING_TIME }}"
           - name: PAAS_DEBUG
             value: "{{ .Values.paasGeoMonitor.env.PAAS_DEBUG }}"
+          - name: PAAS_BGP_METRICS
+            value: "{{ .Values.paasGeoMonitor.env.PAAS_BGP_METRICS }}"
           - name: GOMEMLIMIT
             value: 135MiB
         ports:

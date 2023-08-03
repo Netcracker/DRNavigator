@@ -81,5 +81,6 @@ paasGeoMonitor:
     PAAS_PING_PEERS: "true"
     PAAS_PING_TIME: "5"
     PAAS_DEBUG: "false"
+    PAAS_BGP_METRICS: "true"
   config:
     peers: []
