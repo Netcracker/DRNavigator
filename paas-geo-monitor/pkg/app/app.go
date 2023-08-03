@@ -19,10 +19,10 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/yaml.v3"
 
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/tools/clientcmd"
-
 	"github.com/projectcalico/api/pkg/client/clientset_generated/clientset"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 type Config struct {
@@ -146,12 +146,14 @@ func Serve(cfg *Config) error {
 		}
 	}
 
-	go func() {
-		for {
-			getCRStatus(bgpMetrics)
-			time.Sleep(10 * time.Second)
-		}
-	}()
+	if os.Getenv("PAAS_BGP_METRICS") == "true" {
+		go func() {
+			for {
+				getCRStatus(bgpMetrics)
+				time.Sleep(10 * time.Second)
+			}
+		}()
+	}
 
 	// todo: support TLS
 	return e.Start(fmt.Sprintf(":%d", cfg.Port))
@@ -258,22 +260,37 @@ func getCRStatus(bgpMetrics *BGPMetrics) {
 	var (
 		peer_status  float64
 		route_status float64
+		kubeconfig   *rest.Config
 	)
 
 	log := logger.SimpleLogger()
 
-	config, _ := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
-	clientSet, err := clientset.NewForConfig(config)
+	if os.Getenv("KUBECONFIG") != "" {
+
+		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
+		if err != nil {
+			panic(err.Error())
+		}
+		kubeconfig = config
+	} else {
+		config, err := rest.InClusterConfig()
+		if err != nil {
+			panic(err.Error())
+		}
+		kubeconfig = config
+	}
+
+	clientSet, err := clientset.NewForConfig(kubeconfig)
 
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 
 	// List Calico Node Statuses.
 	list, err := clientSet.ProjectcalicoV3().CalicoNodeStatuses().List(context.Background(), v1.ListOptions{})
 
 	if err != nil {
-		panic(err)
+		panic(err.Error())
 	}
 
 	for _, item := range list.Items {
