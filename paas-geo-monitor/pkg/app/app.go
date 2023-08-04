@@ -19,16 +19,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"gopkg.in/yaml.v3"
 
+	v3 "github.com/projectcalico/api/pkg/apis/projectcalico/v3"
 	"github.com/projectcalico/api/pkg/client/clientset_generated/clientset"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-)
-
-var (
-	peer_status  float64
-	route_status float64
-	kubeconfig   *rest.Config
 )
 
 type Config struct {
@@ -261,7 +256,11 @@ func pingPeersStatus(peer resources.Peer, peersMetrics *PeersMetrics, pingTime i
 	}
 }
 
-func getCRStatus(bgpMetrics *BGPMetrics) {
+func getKubeconfig() (clientSet *clientset.Clientset) {
+
+	var (
+		kubeconfig *rest.Config
+	)
 
 	log := logger.SimpleLogger()
 
@@ -272,12 +271,15 @@ func getCRStatus(bgpMetrics *BGPMetrics) {
 			panic(err.Error())
 		}
 		kubeconfig = config
+
 	} else {
+
 		config, err := rest.InClusterConfig()
 		if err != nil {
 			panic(err.Error())
 		}
 		kubeconfig = config
+
 	}
 
 	clientSet, err := clientset.NewForConfig(kubeconfig)
@@ -286,12 +288,29 @@ func getCRStatus(bgpMetrics *BGPMetrics) {
 		panic(err.Error())
 	}
 
+	return clientSet
+}
+
+func getCRStatus(clientSet *clientset.Clientset) (list *v3.CalicoNodeStatusList) {
+
 	// List Calico Node Statuses.
 	list, err := clientSet.ProjectcalicoV3().CalicoNodeStatuses().List(context.Background(), v1.ListOptions{})
 
 	if err != nil {
 		panic(err.Error())
 	}
+
+	return list
+}
+
+func updateBGPMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList) {
+
+	var (
+		peer_status  float64
+		route_status float64
+	)
+
+	log := logger.SimpleLogger()
 
 	for _, item := range list.Items {
 		for _, peer := range item.Status.BGP.PeersV4 {
