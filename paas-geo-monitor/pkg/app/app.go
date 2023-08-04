@@ -149,8 +149,10 @@ func Serve(cfg *Config) error {
 
 	if os.Getenv("PAAS_BGP_METRICS") == "true" {
 		go func() {
+			clientSet := getClientSet()
 			for {
-				getCRStatus(bgpMetrics)
+				calicoStatusList := getCRStatus(clientSet)
+				updateBGPMetrics(bgpMetrics, calicoStatusList)
 				time.Sleep(10 * time.Second)
 			}
 		}()
@@ -256,13 +258,13 @@ func pingPeersStatus(peer resources.Peer, peersMetrics *PeersMetrics, pingTime i
 	}
 }
 
-func getKubeconfig() (clientSet *clientset.Clientset) {
+func getClientSet() (clientSet *clientset.Clientset) {
 
 	var (
 		kubeconfig *rest.Config
 	)
 
-	log := logger.SimpleLogger()
+	// log := logger.SimpleLogger()
 
 	if os.Getenv("KUBECONFIG") != "" {
 
