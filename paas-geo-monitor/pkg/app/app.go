@@ -264,8 +264,7 @@ func getClientSet() (clientSet *clientset.Clientset) {
 		kubeconfig *rest.Config
 	)
 
-	// log := logger.SimpleLogger()
-
+	// Use KUBECONFIG env variable to try debug code locally
 	if os.Getenv("KUBECONFIG") != "" {
 
 		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
