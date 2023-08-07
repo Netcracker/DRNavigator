@@ -342,7 +342,7 @@ func updateBGPMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList) {
 		}
 
 		for _, route := range item.Status.Routes.RoutesV4 {
-			if route.Type == "RIB" {
+			if route.Type == "FIB" && route.LearnedFrom.SourceType == "BGPPeer" {
 
 				route_status = 1
 
