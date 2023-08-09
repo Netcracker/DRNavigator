@@ -151,8 +151,8 @@ func Serve(cfg *Config) error {
 		go func() {
 			clientSet := getClientSet()
 			for {
-				calicoStatusList := getCRStatus(clientSet)
-				updateBGPMetrics(bgpMetrics, calicoStatusList)
+				calicoStatusList := getCrStatus(clientSet)
+				updateBgpMetrics(bgpMetrics, calicoStatusList)
 				time.Sleep(10 * time.Second)
 			}
 		}()
@@ -292,7 +292,7 @@ func getClientSet() (clientSet *clientset.Clientset) {
 	return clientSet
 }
 
-func getCRStatus(clientSet *clientset.Clientset) (list *v3.CalicoNodeStatusList) {
+func getCrStatus(clientSet *clientset.Clientset) (list *v3.CalicoNodeStatusList) {
 
 	// List Calico Node Statuses.
 	list, err := clientSet.ProjectcalicoV3().CalicoNodeStatuses().List(context.Background(), v1.ListOptions{})
@@ -304,7 +304,7 @@ func getCRStatus(clientSet *clientset.Clientset) (list *v3.CalicoNodeStatusList)
 	return list
 }
 
-func updateBGPMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList) {
+func updateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList) {
 
 	var (
 		peer_status  float64
