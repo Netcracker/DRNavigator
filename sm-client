@@ -15,8 +15,8 @@ Description: Client util to communicate with site-manager in kubernetes based cl
 import argparse
 import logging
 import sys
+import copy
 from typing import Optional
-
 from prettytable import PrettyTable  # type: ignore
 
 from sm_client.data import settings
@@ -45,7 +45,7 @@ How to use commands:
 """
 SITE_HELP_SECTION = """define the cluster name.
 This site:
-  will be active in case of move 
+  will be active in case of move
   will be standby in case of stop
   will be standby in case of return
   will be disable to maintenance in case of disable
@@ -55,19 +55,26 @@ args: argparse.Namespace
 
 
 def print_service_order(ts: Optional[TopologicalSorter2], sm_dict: SMClusterState):
-    """ Show service list ordered by dependency in debug mode"""
-    stage=0
-    logging.debug("Service order by dependency:")
-    for mod_i in [ i for i in settings.sm_conf.get_modules() if i not in settings.default_module]: #@todo to rework module support
-        logging.debug("--------------------")
-        for service_name in sm_dict.get_module_services(sm_dict.get_available_sites()[0],mod_i): #@todo if not
-            logging.debug(f"{service_name}")
-    while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
+    """ Show service list ordered by dependency and sequence in debug mode"""
+    stage = 0
+    logging.debug("Service order by dependency and sequence:")
+    
+    # Create a dictionary to store the order in which services are processed
+    service_sequence_order = {}
+    
+    while ts and ts.is_active():
         stage += 1
         logging.debug(f"------ Stage {stage} -------")
         for serv in ts.get_ready():
             logging.debug(f"{serv}")
             ts.done(serv)
+            # Store the service order for sequence tracking
+            service_sequence_order[serv] = stage
+            
+    # Print the services with their sequence order
+    for service, sequence_order in sorted(service_sequence_order.items(), key=lambda x: x[1]):
+        logging.info(f"Processing {service} (Sequence Order: {sequence_order})")
+    
     logging.debug("Done. ----------------")
 
 
@@ -115,8 +122,19 @@ def run(services: list = None, cmd="", site=""):
         logging.debug(f"Service order {service_dep_ordered}")
     except NotValid:
         sys.exit(1)
-
+    
     settings.ignored_services.extend(sm_dict.make_ignored_services(service_dep_ordered))
+
+    if settings.dry_run:
+        if service_dep_ordered:
+            
+            logging.debug("Service order for dry-run:")
+            print_service_order(ts, sm_dict)  # Print the service order with dependencies
+        else:
+            logging.info("No services found for dry-run.")
+        print("Dry-run mode active. Procedure will not be executed.")
+        sys.exit(0)
+    
 
     # main flow by command
     if cmd in "status":
@@ -233,7 +251,8 @@ def parse_command_line(command_args) -> argparse.Namespace:
 
     parser.add_argument('--run-services', default='', help='define the list of services to apply DR action, by default all services participate')
     parser.add_argument('--skip-services',  default='', help='define the list of services what will not participate in DR action')
-
+    parser.add_argument('--dry-run', default=False, action='store_true', help='dry run')
+    
     subparsers = parser.add_subparsers()
     subparsers.required=True
 
@@ -279,6 +298,7 @@ def main(command_args=None):
     """Main function"""
     global args
     args = parse_command_line(command_args)
+    settings.dry_run=args.dry_run
 
     # get version command
     if args.command in "version":
