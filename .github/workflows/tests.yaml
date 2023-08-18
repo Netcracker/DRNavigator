@@ -136,7 +136,7 @@ jobs:
           ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa -q
           cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
           ssh-keyscan -H 172.17.0.1 >> ~/.ssh/known_hosts
-          mkdir results
+          mkdir -p results/logs
       - name: Remove moby-runc to resolve conflicts
         run: sudo apt remove moby-runc
       - name: Install kubemarine & yq package
@@ -155,9 +155,8 @@ jobs:
           python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.ca |= "'"$(< ca.crt)"'"' ci/cluster.yaml
           python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.crt |= "'"$(< site-manager-tls.crt)"'"' ci/cluster.yaml
           python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.key |= "'"$(< site-manager-tls.key)"'"' ci/cluster.yaml
-        # TODO Change to --dump-location ./results/kubemarine/ after secure runtime values implementation
       - name: Run kubemarine install with site-manager and sm-dummy
-        run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --disable-dump
+        run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --dump-location ./results/kubemarine/
       - name: Install dependencies
         run: |
           pip3 install -r requirements-sc-test.txt -r requirements-sc.txt
