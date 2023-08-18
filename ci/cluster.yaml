@@ -24,6 +24,9 @@ services:
       - service-b.test-local-k8s.com
 
 plugins:
+  nginx-ingress-controller:
+    config_map:
+      use-proxy-protocol: "false"
   site-manager:
     install: true
     installation:

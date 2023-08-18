@@ -157,8 +157,6 @@ jobs:
           python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.key |= "'"$(< site-manager-tls.key)"'"' ci/cluster.yaml
       - name: Run kubemarine install with site-manager and sm-dummy
         run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --dump-location ./results/kubemarine/
-      - name: Test check hosts
-        run: sudo cat /etc/hosts
       - name: Install dependencies
         run: |
           pip3 install -r requirements-sc-test.txt -r requirements-sc.txt
