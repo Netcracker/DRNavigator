@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"time"
 
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/logger"
 	cr_client "github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/client"
