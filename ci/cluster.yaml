@@ -46,6 +46,9 @@ plugins:
                 image:
                   repository: ghcr.io/netcracker/site-manager-cr-controller
                   tag: <SM_TAG>
+                limits:
+                  cpu: "150m"
+                  memory: "150Mi"
               image:
                 repository: ghcr.io/netcracker/site-manager
                 tag: <SM_TAG>
