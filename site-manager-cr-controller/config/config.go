@@ -11,6 +11,8 @@ type Config struct {
 	CRGroup   string `envconfig:"SM_GROUP" default:"netcracker.com"`
 	CRPrural  string `envconfig:"SM_PRURAL" default:"sitemanagers"`
 	CRVersion string `envconfig:"SM_VERSION" default:"v3"`
+
+	GetRequestTimeout int64 `envconfig:"SM_GET_REQUEST_TIMEOUT" default:"10"`
 }
 
 var EnvConfig Config

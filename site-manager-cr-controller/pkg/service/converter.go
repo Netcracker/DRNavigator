@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/logger"
 	cr_client "github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/client"
@@ -81,6 +82,7 @@ func (c *Converter) convertV2ToV3(cr *unstructured.Unstructured) error {
 	if len(beforeServices) > 0 || len(afterServices) > 0 {
 		smDict, err := c.Client.GetAllServicesWithSpecifiedVersion("v2")
 		if err != nil {
+			log.Errorf("Can't get SM objects: %s", err.Error())
 			return err
 		}
 		for i, beforeServiceName := range beforeServices {
@@ -151,17 +153,6 @@ func (c *Converter) Convert(cr *unstructured.Unstructured, desiredApiVersion str
 		switch desiredApiVersion {
 		case cr_client.GetApiVersion("v1"):
 			if err := c.convertV2ToV1(converteredCR); err != nil {
-				return nil, err
-			}
-		case cr_client.GetApiVersion("v3"):
-			if err := c.convertV2ToV3(converteredCR); err != nil {
-				return nil, err
-			}
-		}
-	} else if oldVersion == cr_client.GetApiVersion("v2") {
-		switch desiredApiVersion {
-		case cr_client.GetApiVersion("v1"):
-			if err := c.convertV1ToV2(converteredCR); err != nil {
 				return nil, err
 			}
 		case cr_client.GetApiVersion("v3"):

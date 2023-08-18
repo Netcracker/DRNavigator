@@ -3,6 +3,7 @@ package cr_client
 import (
 	"context"
 	"fmt"
+	"time"
 
 	envconfig "github.com/netcracker/drnavigator/site-manager-cr-controller/config"
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/utils"
@@ -47,7 +48,7 @@ func NewCRClient() (*CRClient, error) {
 			return nil, fmt.Errorf("error config for kubernetes client: %s", err)
 		}
 	}
-
+	config.Timeout = time.Duration(envconfig.EnvConfig.GetRequestTimeout) * time.Second
 	client, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("error creating kube client for CR: %s", err)
@@ -65,7 +66,7 @@ func (crc *CRClient) GetAllServicesWithSpecifiedVersion(api_version string) (map
 	}
 	obj, err := crc.DynamicClient.Resource(gvr).List(context.TODO(), v1.ListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("Can't get sitemanager objects: group=%s, version=%s, resource=%s", gvr.Group, gvr.Version, gvr.Resource)
+		return nil, fmt.Errorf("Can't get sitemanager objects group=%s, version=%s, resource=%s: %s", gvr.Group, gvr.Version, gvr.Resource, err)
 	}
 
 	return ConvertToMap(obj), nil
