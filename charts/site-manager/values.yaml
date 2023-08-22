@@ -53,6 +53,9 @@ controller:
     repository: ghcr.io/netcracker/site-manager-cr-controller
     pullPolicy: Always
     tag: v1.0
+  limits:
+    cpu: "300m"
+    memory: "150Mi"
 
 ingress:
   create: true

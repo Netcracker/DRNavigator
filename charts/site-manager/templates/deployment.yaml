@@ -110,8 +110,8 @@ spec:
             value: "{{ .Values.env.SM_PLURAL }}"
           - name: SM_VERSION
             value: "{{ .Values.env.SM_VERSION }}"
-          - name: GOMEMLIMIT
-            value: "135MiB"
+          - name: SM_GET_REQUEST_TIMEOUT
+            value: "{{ .Values.env.SM_GET_REQUEST_TIMEOUT }}"
         ports:
           - containerPort: 8442
             protocol: TCP
@@ -121,9 +121,8 @@ spec:
             name: sm-certs
         resources:
           limits:
-            cpu: "150m"
-            # If you change memory limit, you should add GOMEMLIMIT env with 90-95% of new value
-            memory: "150Mi"
+            cpu: "{{ .Values.controller.limits.cpu }}"
+            memory: "{{ .Values.controller.limits.memory }}"
         readinessProbe:
           httpGet:
             path: /health

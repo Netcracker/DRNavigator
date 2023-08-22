@@ -24,6 +24,9 @@ services:
       - service-b.test-local-k8s.com
 
 plugins:
+  nginx-ingress-controller:
+    config_map:
+      use-proxy-protocol: "false"
   site-manager:
     install: true
     installation:
@@ -46,6 +49,9 @@ plugins:
                 image:
                   repository: ghcr.io/netcracker/site-manager-cr-controller
                   tag: <SM_TAG>
+                limits:
+                  cpu: "150m"
+                  memory: "150Mi"
               image:
                 repository: ghcr.io/netcracker/site-manager
                 tag: <SM_TAG>
