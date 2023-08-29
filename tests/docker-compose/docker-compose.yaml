@@ -1,0 +1,173 @@
+version: '3.8'
+
+networks:
+  cluster-1:
+    driver: bridge
+  cluster-2:
+    driver: bridge
+  cluster-3:
+    driver: bridge
+    
+services:
+  # Cluster-1
+  serviceA-1:
+    image: sm-dummy
+    container_name: serviceA-1
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE=active
+    expose:
+      - 8080
+    ports:
+      - "9001:8080"
+    networks:
+      - cluster-1
+  serviceB-1:
+    image: sm-dummy
+    container_name: serviceB-1
+    restart: unless-stopped
+    environment:
+        - SMA_DEBUG=True
+        - SMA_INIT_MODE=active
+    expose:
+      - 8080
+    ports:
+      - "9002:8080"
+    networks:
+      - cluster-1
+  serviceC-1:
+    image: sm-dummy
+    container_name: serviceC-1
+    restart: unless-stopped
+    environment:
+        - SMA_DEBUG=True
+        - SMA_INIT_MODE=active
+    expose:
+      - 8080
+    ports:
+      - "9003:8080"
+    networks:
+      - cluster-1
+  custom-service-1:
+    image: sm-dummy
+    container_name: custom-service-1
+    restart: unless-stopped
+    environment:
+        - SMA_DEBUG=True
+        - SMA_INIT_MODE=active
+    expose:
+      - 8080
+    ports:
+      - "9004:8080"
+    networks:
+      - cluster-1
+
+      
+  site-manager-1:
+    image: site-manager
+    container_name: site-manager-1
+    restart: unless-stopped
+    volumes:
+      - ./site-manager-config.yaml:/val/config.yaml
+    command:
+      - "--bind=0.0.0.0:8080"
+      - '--worker-class=gevent'
+      - "-w 2"
+      - "site-manager:app"
+    environment: 
+      - SM_CONFIG_FILE=/val/config.yaml
+      - SM_DEBUG=True
+      - FRONT_HTTP_AUTH=True
+      - SM_GET_REQUEST_TIMEOUT=20
+      - SM_POST_REQUEST_TIMEOUT=1
+    expose:
+       - 8080
+    ports:
+      - "9010:8080"
+    networks:
+      - cluster-1
+
+  
+  # Cluster-2
+  serviceA-2:
+    image: sm-dummy
+    container_name: serviceA-2
+    restart: unless-stopped
+    environment:
+      - SMA_DEBUG=True
+      - SMA_INIT_MODE=standby
+    expose:
+      - 8080
+    ports:
+      - "9005:8080"
+    networks:
+      - cluster-2
+         
+  serviceB-2:
+    image: sm-dummy
+    container_name: serviceB-2
+    restart: unless-stopped
+    environment:
+        - SMA_DEBUG=True
+        - SMA_INIT_MODE=standby
+    expose:
+      - 8080
+    ports:
+      - "9006:8080"
+    networks:
+      - cluster-2
+  serviceC-2:
+    image: sm-dummy
+    container_name: serviceC-2
+    restart: unless-stopped
+    environment:
+        - SMA_DEBUG=True
+        - SMA_INIT_MODE=standby
+    expose:
+      - 8080
+    ports:
+      - "9007:8080"
+    networks:
+      - cluster-2
+  custom-service-2:
+    image: sm-dummy
+    container_name: custom-service-2
+    restart: unless-stopped
+    environment:
+        - SMA_DEBUG=True
+        - SMA_INIT_MODE=standby
+    expose:
+      - 8080
+    ports:
+      - "9008:8080"
+    networks:
+      - cluster-2
+
+      
+  site-manager-2:
+    image: site-manager
+    container_name: site-manager-2
+    restart: unless-stopped
+    volumes:
+      - ./site-manager-config-2.yaml:/val/config.yaml
+    command:
+      - "--bind=0.0.0.0:8080"
+      - '--worker-class=gevent'
+      - "-w 2"
+      - "site-manager:app"
+    environment: 
+      - SM_CONFIG_FILE=/val/config.yaml
+      - SM_DEBUG=True
+      - FRONT_HTTP_AUTH=True
+      - SM_GET_REQUEST_TIMEOUT=1
+      - SM_POST_REQUEST_TIMEOUT=1
+    expose:
+      - 8080
+    ports:
+      - "9011:8080"
+    networks:
+      - cluster-2
+
+  
+
