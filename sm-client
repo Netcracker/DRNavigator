@@ -121,11 +121,11 @@ def run(services: list = None, cmd="", site=""):
     except NotValid:
         sys.exit(1)
 
+    print_service_order(sm_dict, cmd, site)
+
     if settings.dry_run:  # Check if it's a dry run
         logging.info("Dry run mode enabled. Operation will not be executed.")
         sys.exit(0)  # Exit with success status
-
-    print_service_order(sm_dict, cmd, site)
 
     settings.ignored_services.extend(sm_dict.make_ignored_services(service_dep_ordered))
 
@@ -243,6 +243,8 @@ def parse_command_line(command_args) -> argparse.Namespace:
 
     parser.add_argument('--run-services', default='', help='define the list of services to apply DR action, by default all services participate')
     parser.add_argument('--skip-services',  default='', help='define the list of services what will not participate in DR action')
+    parser.add_argument('--dry-run', default=False, action='store_true',
+                        help='perform a dry run without actually executing the operation')
 
     subparsers = parser.add_subparsers()
     subparsers.required=True
@@ -289,7 +291,7 @@ def main(command_args=None):
     """Main function"""
     global args
     args = parse_command_line(command_args)
-    settings.dry_run=args.dry_run
+    settings.dry_run = args.dry_run
 
     # get version command
     if args.command in "version":
