@@ -16,8 +16,8 @@ The purpose of the dry-run is to provide users with insights into the execution 
 
 ### Command Line Interface (CLI) Usage
 
-To execute the command in dry-run, users need to include the `--without-act` flag when running the SM Client. For example:
-./sm-client -k --without-act move cluster-2
+To execute the command in dry-run, users need to include the `--dry-run` flag when running the SM Client. For example:
+./sm-client --dry-run -v move cluster-2
 
 ### Workflow
 

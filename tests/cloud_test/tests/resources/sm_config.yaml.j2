@@ -10,6 +10,6 @@ sm-client:
   service_default_timeout: 100
 
 flow:
-  - replicator: [standby, disable]
+  - custom_module: [standby, disable]
   - stateful:
-  - replicator: [active]
+  - custom_module: [active]
