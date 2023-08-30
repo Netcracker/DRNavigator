@@ -843,7 +843,11 @@ The main idea of `sm-client` is to control the sequence of DR procedures for eve
 
 ```
 $ ./sm-client --help
-usage: sm-client [-h] [-v] [-c CONFIG] [-f] [--run-services RUN_SERVICES] [--skip-services SKIP_SERVICES] {move,stop,return,disable,active,standby,list,status,daemon} ...
+usage: sm-client [-h] [-v] [-c CONFIG] [-f] [-k] [-o OUTPUT] [-r]
+                 [--run-services RUN_SERVICES] [--skip-services SKIP_SERVICES]
+                 [--dry-run]
+                 {move,stop,return,disable,active,standby,list,status,version}
+                 ...
 
 Script to manage DR cases in kubernetes Active-Standby scheme
 
@@ -857,31 +861,38 @@ How to use commands:
   | ACTIVE       | STANDBY       |  ===>  | STANDBY      | ACTIVE        |  =  | move    |
   | failed       | STANDBY       |  ===>  | stopped      | ACTIVE        |  =  | stop    |
   | stopped      | ACTIVE        |  ===>  | STANDBY      | ACTIVE        |  =  | return  |
+  | ACTIVE       | stopped       |  ===>  | ACTIVE       | STANDBY       |  =  | return  |
   | ACTIVE       | STANDBY       |  ===>  | ACTIVE       | stopped       |  =  | disable |
   +--------------+---------------+--------+--------------+---------------+-----+---------+
 
 positional arguments:
-  {move,stop,return,disable,active,standby,list,status}
+  {move,stop,return,disable,active,standby,list,status,version}
     move                move Active functionality to Standby site
     stop                excludes site from Active-Standby scheme
-    return              return stopped kubernetes cluster to Standby role
+    return              return stopped Kubernetes cluster to Standby role
     disable             stop Standby kubernetes cluster for maintenance
     active              set kubernetes cluster services to active mode
     standby             set kubernetes cluster services to standby mode
-    list                list all services from Active-Standby scheme managed by SiteManager with dependencies
+    list                list all services from Active-Standby scheme managed by site-manager with dependencies
     status              show current status of clusters and all services
+    version             get current version
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   -v, --verbose         enable the verbosity mode
   -c CONFIG, --config CONFIG
                         define the path to configuration file
   -f, --force           force apply DR action and ignore healthz
+  -k, --insecure        enable self-signed certificates
+  -o OUTPUT, --output OUTPUT
+                        define the filename for logging output
+  -r, --ignore-restrictions
+                        skip state restrictions validation
   --run-services RUN_SERVICES
                         define the list of services to apply DR action, by default all services participate
   --skip-services SKIP_SERVICES
                         define the list of services what will not participate in DR action
-  -k, --insecure        enable self-signed certificates
+  --dry-run             perform a dry run without actually executing the operation
 ```
 
 Where:
@@ -1099,6 +1110,12 @@ The above example implies the following DR sequences:
 2. Disable `stateful` services 
 
 **Note**: The `stateful` module is default. It should not be specified in the config in case of no custom modules.
+
+## Dry-run support
+
+Dry-run mode can be enabled for any procedure in sm-client using '--dry-run' option.
+In that case, sm-client does only read-only requests to site-manager (e.g. to get services statuses) and validate, if 
+specified procedure can be executed without running real processing.
 
 # Installation Procedure
 
