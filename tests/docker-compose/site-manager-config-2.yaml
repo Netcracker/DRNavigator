@@ -67,4 +67,3 @@ testing:
         - standby
         - active
         timeout: 200
-        

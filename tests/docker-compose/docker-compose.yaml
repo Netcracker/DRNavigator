@@ -5,8 +5,6 @@ networks:
     driver: bridge
   cluster-2:
     driver: bridge
-  cluster-3:
-    driver: bridge
     
 services:
   # Cluster-1
@@ -168,6 +166,3 @@ services:
       - "9011:8080"
     networks:
       - cluster-2
-
-  
-
