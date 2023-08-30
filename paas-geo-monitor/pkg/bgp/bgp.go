@@ -16,11 +16,28 @@ import (
 )
 
 type BGPMetrics struct {
-	bgpPeer  *prometheus.GaugeVec
-	bgpRoute *prometheus.GaugeVec
+	BgpPeer  *prometheus.GaugeVec
+	BgpRoute *prometheus.GaugeVec
 }
 
-func getClientSet() (clientSet *clientset.Clientset) {
+var BgpMetrics = &BGPMetrics{
+	prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "paas_geo_monitor_bgp_peer",
+			Help: "paas_geo_monitor bgp global peer: : 1 - Established, 0 - not Established, -1 - did not update",
+		},
+		[]string{"node", "peer_ip", "state", "type"},
+	),
+	prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "paas_geo_monitor_bgp_route",
+			Help: "paas_geo_monitor bgp route: 1 - existed, 0 - not existed, -1 - did not update",
+		},
+		[]string{"node", "destination", "source_type", "peer_ip", "type", "interface"},
+	),
+}
+
+func GetClientSet() (clientSet *clientset.Clientset) {
 
 	var (
 		kubeconfig *rest.Config
@@ -54,7 +71,7 @@ func getClientSet() (clientSet *clientset.Clientset) {
 	return clientSet
 }
 
-func getCrStatus(clientSet *clientset.Clientset) (list *v3.CalicoNodeStatusList) {
+func GetCrStatus(clientSet *clientset.Clientset) (list *v3.CalicoNodeStatusList) {
 
 	// List Calico Node Statuses.
 	list, err := clientSet.ProjectcalicoV3().CalicoNodeStatuses().List(context.Background(), v1.ListOptions{})
@@ -66,7 +83,7 @@ func getCrStatus(clientSet *clientset.Clientset) (list *v3.CalicoNodeStatusList)
 	return list
 }
 
-func updateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList) {
+func UpdateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList) {
 
 	var (
 		peer_status  float64
@@ -91,7 +108,7 @@ func updateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList) {
 					peer_status = -1
 				}
 
-				bgpMetrics.bgpPeer.With(prometheus.Labels{
+				bgpMetrics.BgpPeer.With(prometheus.Labels{
 					"node":    item.Spec.Node,
 					"peer_ip": peer.PeerIP,
 					"state":   string(peer.State),
@@ -115,7 +132,7 @@ func updateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList) {
 					route_status = -1
 				}
 
-				bgpMetrics.bgpRoute.With(prometheus.Labels{
+				bgpMetrics.BgpRoute.With(prometheus.Labels{
 					"node":        item.Spec.Node,
 					"destination": route.Destination,
 					"source_type": string(route.LearnedFrom.SourceType),
