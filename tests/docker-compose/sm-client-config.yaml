@@ -1,0 +1,22 @@
+---
+sites:
+  - name: site-1
+    site-manager: http://localhost:9010/sitemanager
+    token: "12345"
+  - name: site-2
+    site-manager: http://localhost:9011/sitemanager
+    token: "12345"
+sm-client:
+  http_auth: True
+  service_default_timeout: 100
+  get_request_timeout: 100
+  post_request_timeout: 100
+
+flow:
+  - custom_module: [standby, disable]
+  - stateful: 
+  - custom_module: [active]
+
+restrictions:
+  "*":
+    - standby-standby

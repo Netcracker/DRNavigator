@@ -1,0 +1,65 @@
+testing:
+  enabled: True
+  token: "12345"
+  sm_dict:
+    services:
+      serviceA:
+        after: []
+        allowedStandbyStateList:
+        - up
+        before: []
+        name: serviceA
+        namespace: ns1
+        module: stateful
+        parameters:
+            healthzEndpoint: http://serviceA-1:8080/healthz
+            serviceEndpoint: http://serviceA-1:8080/sitemanager
+        sequence:
+        - active
+        - standby
+        timeout: 200
+      serviceB:
+        after: [serviceA]
+        allowedStandbyStateList:
+        - up
+        before: []
+        name: serviceB
+        namespace: ns2
+        module: stateful
+        parameters:
+            healthzEndpoint: http://serviceB-1:8080/healthz
+            serviceEndpoint: http://serviceB-1:8080/sitemanager
+        sequence:
+        - standby
+        - active
+        timeout: 200
+      serviceC:
+        after: []
+        allowedStandbyStateList:
+        - up
+        before: []
+        name: serviceC
+        namespace: ns2
+        module: stateful
+        parameters:
+            healthzEndpoint: http://serviceC-1:8080/healthz
+            serviceEndpoint: http://serviceC-1:8080/sitemanager
+        sequence:
+        - standby
+        - active
+        timeout: 200
+      customService:
+        after: []
+        allowedStandbyStateList:
+        - up
+        before: []
+        name: customService
+        namespace: ns3
+        module: custom_module
+        parameters:
+            healthzEndpoint: http://custom-service-1:8080/healthz
+            serviceEndpoint: http://custom-service-1:8080/sitemanager
+        sequence:
+        - standby
+        - active
+        timeout: 200

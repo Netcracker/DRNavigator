@@ -4,8 +4,10 @@ from sm_client.data.structures import SMConf
 # consts
 default_module = 'stateful'
 readonly_cmd = ("status", "list")
-dr_procedures = ("move", "stop") + readonly_cmd  # DR procedures: switchover, failover
-site_cmds = ("active", "standby", "return", "disable") + readonly_cmd  # per site commands
+dr_processing_cmd = ("move", "stop")
+dr_procedures = dr_processing_cmd + readonly_cmd  # DR procedures: switchover, failover
+site_processing_cmd = ("active", "standby", "return", "disable")
+site_cmds = site_processing_cmd + readonly_cmd  # per site commands
 
 # Parameters from config
 sm_conf: SMConf
@@ -25,3 +27,4 @@ skipped_due_deps_services: list = []  # Services, that were skipped, because the
 run_services: list = []
 skip_services: list = []
 force = False
+dry_run = False
