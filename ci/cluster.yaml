@@ -24,6 +24,9 @@ services:
       - service-b.test-local-k8s.com
 
 plugins:
+  nginx-ingress-controller:
+    config_map:
+      use-proxy-protocol: "false"
   site-manager:
     install: true
     installation:
@@ -42,6 +45,13 @@ plugins:
                 install: false
               ingress:
                 name: site-manager.test-local-k8s.com
+              controller:
+                image:
+                  repository: ghcr.io/netcracker/site-manager-cr-controller
+                  tag: <SM_TAG>
+                limits:
+                  cpu: "150m"
+                  memory: "150Mi"
               image:
                 repository: ghcr.io/netcracker/site-manager
                 tag: <SM_TAG>
@@ -59,10 +69,6 @@ plugins:
             deployments:
               - name: site-manager
                 namespace: site-manager
-        # Restart is needed in case of cert regeneration
-        - shell:
-            command: kubectl rollout restart deployment site-manager -n site-manager
-            sudo: true
         - expect:
             pods:
             - site-manager
