@@ -1,13 +1,11 @@
 ---
 sites:
   - name: site_1
-    site-manager: https://localhost:{{ env.sites.site_1.exposed_ports.site_manager }}/sitemanager
+    site-manager: http://localhost:{{ env.sites.site_1.exposed_ports.site_manager }}/sitemanager
     token: "{{ env.sites.site_1.token }}"
-    cacert: {{ env.config_dir }}{{ env.os_path_sep }}secrets{{ env.os_path_sep }}ca.crt
   - name: site_2
-    site-manager: https://localhost:{{ env.sites.site_2.exposed_ports.site_manager }}/sitemanager
+    site-manager: http://localhost:{{ env.sites.site_2.exposed_ports.site_manager }}/sitemanager
     token: "{{ env.sites.site_2.token }}"
-    cacert: {{ env.config_dir }}{{ env.os_path_sep }}secrets{{ env.os_path_sep }}ca.crt
 sm-client:
   http_auth: True
 

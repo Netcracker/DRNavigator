@@ -74,12 +74,9 @@ services:
     restart: unless-stopped
     volumes:
       - {{ env.config_dir }}{{ env.os_path_sep }}site-manager-config.yaml:/val/config.yaml
-      - {{ env.config_dir }}{{ env.os_path_sep }}secrets:/tls
     command:
-      - "--bind=0.0.0.0:8443"
+      - "--bind=0.0.0.0:8080"
       - '--worker-class=gevent'
-      - "--certfile=/tls/site-manager-tls.crt"
-      - "--keyfile=/tls/site-manager-tls.key"
       - "-w 2"
       - "site-manager:app"
     environment:
@@ -89,9 +86,9 @@ services:
       - SM_GET_REQUEST_TIMEOUT=1
       - SM_POST_REQUEST_TIMEOUT=1
     expose:
-      - 8443
+      - 8080
     ports:
-      - "{{ env.sites.site_1.exposed_ports.site_manager }}:8443"
+      - "{{ env.sites.site_1.exposed_ports.site_manager }}:8080"
     networks:
       - site-1
 
@@ -163,12 +160,9 @@ services:
     restart: unless-stopped
     volumes:
       - {{ env.config_dir }}{{ env.os_path_sep }}site-manager-config-2.yaml:/val/config.yaml
-      - {{ env.config_dir }}{{ env.os_path_sep }}secrets:/tls
     command:
-      - "--bind=0.0.0.0:8443"
+      - "--bind=0.0.0.0:8080"
       - '--worker-class=gevent'
-      - "--certfile=/tls/site-manager-tls.crt"
-      - "--keyfile=/tls/site-manager-tls.key"
       - "-w 2"
       - "site-manager:app"
     environment:
@@ -178,8 +172,8 @@ services:
       - SM_GET_REQUEST_TIMEOUT=1
       - SM_POST_REQUEST_TIMEOUT=1
     expose:
-      - 8443
+      - 8080
     ports:
-      - "{{ env.sites.site_2.exposed_ports.site_manager }}:8443"
+      - "{{ env.sites.site_2.exposed_ports.site_manager }}:8080"
     networks:
       - site-2
