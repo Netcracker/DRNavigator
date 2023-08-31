@@ -126,7 +126,15 @@ func Serve(cfg *Config) error {
 		if paasBgpCheckPeriodEnv, exist := os.LookupEnv("PAAS_BGP_CHECK_PERIOD"); exist {
 			paasBgpCheckPeriod, err = strconv.Atoi(paasBgpCheckPeriodEnv)
 			if err != nil {
-				fmt.Printf("Can't parse PAAS_BGP_CHECK_PERIOD: %s", err)
+				return fmt.Errorf("Can't parse PAAS_BGP_CHECK_PERIOD: %s", err)
+			}
+		}
+
+		paasBgpCheckTimeout := 30
+		if paasBgpCheckTimeoutEnv, exist := os.LookupEnv("PAAS_BGP_CHECK_TIMEOUT"); exist {
+			paasBgpCheckTimeout, err = strconv.Atoi(paasBgpCheckTimeoutEnv)
+			if err != nil {
+				return fmt.Errorf("Can't parse PAAS_BGP_CHECK_TIMEOUT value: %s \n", err)
 			}
 		}
 
@@ -134,7 +142,7 @@ func Serve(cfg *Config) error {
 			clientSet := bgp.GetClientSet()
 			for {
 				calicoStatusList := bgp.GetCrStatus(clientSet)
-				bgp.UpdateBgpMetrics(bgp.BgpMetrics, calicoStatusList)
+				bgp.UpdateBgpMetrics(bgp.BgpMetrics, calicoStatusList, paasBgpCheckTimeout)
 				time.Sleep(time.Duration(paasBgpCheckPeriod) * time.Second)
 			}
 		}()
