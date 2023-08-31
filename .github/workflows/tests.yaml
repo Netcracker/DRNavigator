@@ -71,6 +71,32 @@ jobs:
           path: test-dump/
           retention-days: 7
 
+  site-manager-cr-controller-unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.20'
+      - name: Run tests
+        run: |
+          cd site-manager-cr-controller
+          go test -vet=all -shuffle=on -v ./tests/
+
+  paas-geo-monitor-unittest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up Go
+        uses: actions/setup-go@v3
+        with:
+          go-version: '1.20'
+      - name: Run tests
+        run: |
+          cd paas-geo-monitor
+          go test -vet=all -shuffle=on -v ./...
+
   publish-test-sm-image:
     runs-on: ubuntu-latest
     steps:
@@ -87,8 +113,16 @@ jobs:
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }}
 
+  publish-test-sm-cr-controller-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - run: docker build -t ghcr.io/netcracker/site-manager-cr-controller:${{ env.SM_TAG_NAME }} -f site-manager-cr-controller/Dockerfile site-manager-cr-controller
+      - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
+      - run: docker push ghcr.io/netcracker/site-manager-cr-controller:${{ env.SM_TAG_NAME }}
+
   cloud-tests:
-    needs: [publish-test-sm-image, publish-test-sm-dummy-image]
+    needs: [publish-test-sm-image, publish-test-sm-dummy-image, publish-test-sm-cr-controller-image]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repo
@@ -102,7 +136,7 @@ jobs:
           ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa -q
           cp ~/.ssh/id_rsa.pub ~/.ssh/authorized_keys
           ssh-keyscan -H 172.17.0.1 >> ~/.ssh/known_hosts
-          mkdir results
+          mkdir -p results/logs
       - name: Remove moby-runc to resolve conflicts
         run: sudo apt remove moby-runc
       - name: Install kubemarine & yq package
@@ -121,18 +155,25 @@ jobs:
           python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.ca |= "'"$(< ca.crt)"'"' ci/cluster.yaml
           python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.crt |= "'"$(< site-manager-tls.crt)"'"' ci/cluster.yaml
           python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.key |= "'"$(< site-manager-tls.key)"'"' ci/cluster.yaml
-        # TODO Change to --dump-location ./results/kubemarine/ after secure runtime values implementation
       - name: Run kubemarine install with site-manager and sm-dummy
-        run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --disable-dump
+        run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --dump-location ./results/kubemarine/
       - name: Install dependencies
         run: |
           pip3 install -r requirements-sc-test.txt -r requirements-sc.txt
       - name: Run tests on cluster
         run: python3 -m pytest tests/cloud_test --kubeconfig='./kubeconfig'
-
       - name: Get SM logs from pod
         if: failure()
-        run: sudo kubectl logs -n site-manager -l app=site-manager > ./results/sm.log
+        run: sudo kubectl logs -n site-manager -l app=site-manager -c site-manager > ./results/logs/sm.log
+      - name: Get SM-cr-controller logs from pod
+        if: failure()
+        run: sudo kubectl logs -n site-manager -l app=site-manager -c site-manager-cr-controller > ./results/logs/sm-cr-controller.log
+      - name: Get service-a from pod
+        if: failure()
+        run: sudo kubectl logs -n test-services -l app=service-a > ./results/logs/service-a.log
+      - name: Get service-b from pod
+        if: failure()
+        run: sudo kubectl logs -n test-services -l app=service-b > ./results/logs/service-b.log
       - name: Collect kubemarine artifacts
         if: failure()
         uses: actions/upload-artifact@v3
@@ -145,7 +186,7 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: site-manager logs
-          path: ./results/sm.log
+          path: ./results/logs
           retention-days: 7
 
   remove-test-sm-image:
@@ -158,6 +199,19 @@ jobs:
         with:
           owner: netcracker
           name: site-manager
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag: ${{ env.SM_TAG_NAME }}
+
+  remove-test-sm-cr-controller-image:
+    needs: [cloud-tests]
+    if: ${{ always() && needs.publish-test-sm-cr-controller-image.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete image site-manager-cr-controller
+        uses: bots-house/ghcr-delete-image-action@v1.1.0
+        with:
+          owner: netcracker
+          name: site-manager-cr-controller
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.SM_TAG_NAME }}
 

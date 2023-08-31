@@ -16,8 +16,10 @@ jobs:
       - run: docker build -t ghcr.io/netcracker/sm-client:${{ env.TAG_NAME }} -f Dockerfile-sc .
       - run: docker build -t ghcr.io/netcracker/sm-dummy:${{ env.TAG_NAME }} -f tests/sm-dummy/Dockerfile .
       - run: docker build -t ghcr.io/netcracker/paas-geo-monitor:${{ env.TAG_NAME }} -f paas-geo-monitor/Dockerfile paas-geo-monitor/
+      - run: docker build -t ghcr.io/netcracker/site-manager-cr-controller:${{ env.TAG_NAME }} -f site-manager-cr-controller/Dockerfile --no-cache site-manager-cr-controller
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/site-manager:${{ env.TAG_NAME }}
       - run: docker push ghcr.io/netcracker/sm-client:${{ env.TAG_NAME }}
       - run: docker push ghcr.io/netcracker/sm-dummy:${{ env.TAG_NAME }}
       - run: docker push ghcr.io/netcracker/paas-geo-monitor:${{ env.TAG_NAME }}
+      - run: docker push ghcr.io/netcracker/site-manager-cr-controller:${{ env.TAG_NAME }}
