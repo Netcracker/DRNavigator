@@ -152,7 +152,4 @@ func UpdateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList, paa
 		}
 
 	}
-
-	// fmt.Printf("bgpMetrics.bgpPeer: %v\n", bgpMetrics.bgpPeer)
-	// fmt.Printf("bgpMetrics.bgpRoute: %v\n", bgpMetrics.bgpRoute)
 }
