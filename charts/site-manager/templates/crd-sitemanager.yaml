@@ -5,7 +5,12 @@ metadata:
   name: sitemanagers.netcracker.com
   {{- if .Values.tls.generateCerts.enabled }}
   annotations:
+    {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
+    {{- else if eq .Values.tls.generateCerts.executor "openshift" }}
+    service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
+    service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
+    {{- end }}
   {{- end }}
 spec:
   group: netcracker.com
@@ -239,8 +244,9 @@ spec:
       clientConfig:
         service:
           namespace: site-manager
-          name: site-manager
+          name: {{ .Chart.Name }}
           path: /convert
+          port: 442
         caBundle: "{{ .Values.tls.ca | b64enc }}"
 ---
 apiVersion: admissionregistration.k8s.io/v1
@@ -249,7 +255,12 @@ metadata:
   name: "site-manager-crd-validating-webhook-configuration"
   {{- if .Values.tls.generateCerts.enabled }}
   annotations:
+    {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
+    {{- else if eq .Values.tls.generateCerts.executor "openshift" }}
+    service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
+    service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
+    {{- end }}
   {{- end }}
 webhooks:
 - name: "site-manager-crd-validating-webhook.netcracker.com"
@@ -257,8 +268,9 @@ webhooks:
   clientConfig:
     service:
       namespace: site-manager
-      name: site-manager
+      name: {{ .Chart.Name }}
       path: /validate
+      port: 442
     caBundle: "{{ .Values.tls.ca | b64enc }}"
   rules:
   - apiGroups:   ["netcracker.com"]

@@ -6,11 +6,20 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     app: site-manager
+  annotations:
+    {{- if and .Values.tls.generateCerts.enabled ( eq .Values.tls.generateCerts.executor "openshift" ) }}
+    service.alpha.openshift.io/serving-cert-secret-name: "sm-certs" # for openshift 3.X
+    service.beta.openshift.io/serving-cert-secret-name: "sm-certs"  # for openshift 4.X
+    {{- end }}
 spec:
   ports:
     - name: web
       protocol: TCP
       port: 443
       targetPort: 8443
+    - name: webhook
+      protocol: TCP
+      port: 442
+      targetPort: 8442
   selector:
     app: site-manager
