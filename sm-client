@@ -15,7 +15,7 @@ Description: Client util to communicate with site-manager in kubernetes based cl
 import argparse
 import logging
 import sys
-from typing import Optional
+import copy
 
 from prettytable import PrettyTable  # type: ignore
 
@@ -54,19 +54,24 @@ This site:
 args: argparse.Namespace
 
 
-def print_service_order(ts: Optional[TopologicalSorter2], sm_dict: SMClusterState):
+def print_service_order(sm_dict: SMClusterState, cmd, site):
     """ Show service list ordered by dependency in debug mode"""
-    stage=0
+    stage = 0
     logging.debug("Service order by dependency:")
     for mod_i in [ i for i in settings.sm_conf.get_modules() if i not in settings.default_module]: #@todo to rework module support
         logging.debug("--------------------")
         for service_name in sm_dict.get_module_services(sm_dict.get_available_sites()[0],mod_i): #@todo if not
             logging.debug(f"{service_name}")
+
+    ts = copy.deepcopy(sm_dict.globals[settings.default_module]['ts'])
     while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
         stage += 1
         logging.debug(f"------ Stage {stage} -------")
         for serv in ts.get_ready():
-            logging.debug(f"{serv}")
+            serv_sequence_info = "" if cmd not in settings.dr_processing_cmd else \
+                "( " + " ".join(map(lambda site_mode: f"-> {site_mode[1]} on {site_mode[0]}",
+                                    sm_dict.get_dr_operation_sequence(serv, cmd, site))) + " )"
+            logging.debug(f"{serv} {serv_sequence_info}")
             ts.done(serv)
     logging.debug("Done. ----------------")
 
@@ -116,12 +121,17 @@ def run(services: list = None, cmd="", site=""):
     except NotValid:
         sys.exit(1)
 
+    print_service_order(sm_dict, cmd, site)
+
+    if settings.dry_run:  # Check if it's a dry run
+        logging.info("Dry run mode enabled. Operation will not be executed.")
+        sys.exit(0)  # Exit with success status
+
     settings.ignored_services.extend(sm_dict.make_ignored_services(service_dep_ordered))
 
     # main flow by command
     if cmd in "status":
         run_status_procedure(sm_dict, service_dep_ordered)
-        print_service_order(ts,sm_dict)
         print_main_table(sm_dict, service_dep_ordered, [site] if site else list(settings.sm_conf.keys()))
     elif cmd in "list":
         print("---------------------------------------------------------------------\n" +
@@ -233,6 +243,8 @@ def parse_command_line(command_args) -> argparse.Namespace:
 
     parser.add_argument('--run-services', default='', help='define the list of services to apply DR action, by default all services participate')
     parser.add_argument('--skip-services',  default='', help='define the list of services what will not participate in DR action')
+    parser.add_argument('--dry-run', default=False, action='store_true',
+                        help='perform a dry run without actually executing the operation')
 
     subparsers = parser.add_subparsers()
     subparsers.required=True
@@ -279,6 +291,7 @@ def main(command_args=None):
     """Main function"""
     global args
     args = parse_command_line(command_args)
+    settings.dry_run = args.dry_run
 
     # get version command
     if args.command in "version":
