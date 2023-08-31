@@ -82,7 +82,7 @@ paasGeoMonitor:
     PAAS_PING_TIME: "5"
     PAAS_DEBUG: "false"
     PAAS_BGP_METRICS: "true"
-    PAAS_BGP_UPDATE_INTERVAL: "10"
-    PAAS_BGP_UPDATE_TIMEOUT: "30"
+    PAAS_BGP_CHECK_PERIOD: "10"
+    PAAS_BGP_CHECK_TIMEOUT: "30"
   config:
     peers: []

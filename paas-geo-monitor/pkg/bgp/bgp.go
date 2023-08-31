@@ -2,7 +2,9 @@ package bgp
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/netcracker/drnavigator/paas-geo-monitor/logger"
@@ -88,12 +90,21 @@ func UpdateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList) {
 	var (
 		peer_status  float64
 		route_status float64
+		err          error
 	)
+
+	paasBgpCheckTimeout := 30
+	if paasBgpCheckTimeoutEnv, exist := os.LookupEnv("PAAS_BGP_CHECK_TIMEOUT"); exist {
+		paasBgpCheckTimeout, err = strconv.Atoi(paasBgpCheckTimeoutEnv)
+		if err != nil {
+			fmt.Printf("Can't parse PAAS_BGP_CHECK_TIMEOUT value: %s", err)
+		}
+	}
 
 	log := logger.SimpleLogger()
 
-	// bgpMetrics.bgpPeer.Reset()
-	// bgpMetrics.bgpRoute.Reset()
+	bgpMetrics.BgpPeer.Reset()
+	bgpMetrics.BgpRoute.Reset()
 
 	for _, item := range list.Items {
 		for _, peer := range item.Status.BGP.PeersV4 {
@@ -104,7 +115,7 @@ func UpdateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList) {
 					peer_status = 0
 				}
 
-				if item.Status.LastUpdated.Unix() < time.Now().Unix()-30 {
+				if item.Status.LastUpdated.Unix() < time.Now().Unix()-int64(paasBgpCheckTimeout) {
 					peer_status = -1
 				}
 

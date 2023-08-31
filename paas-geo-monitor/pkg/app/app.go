@@ -122,12 +122,20 @@ func Serve(cfg *Config) error {
 			return fmt.Errorf("Can't regist bgp_route prometheus metric: %s", err)
 		}
 
+		paasBgpCheckPeriod := 10
+		if paasBgpCheckPeriodEnv, exist := os.LookupEnv("PAAS_BGP_CHECK_PERIOD"); exist {
+			paasBgpCheckPeriod, err = strconv.Atoi(paasBgpCheckPeriodEnv)
+			if err != nil {
+				fmt.Printf("Can't parse PAAS_BGP_CHECK_PERIOD: %s", err)
+			}
+		}
+
 		go func() {
 			clientSet := bgp.GetClientSet()
 			for {
 				calicoStatusList := bgp.GetCrStatus(clientSet)
 				bgp.UpdateBgpMetrics(bgp.BgpMetrics, calicoStatusList)
-				time.Sleep(10 * time.Second)
+				time.Sleep(time.Duration(paasBgpCheckPeriod) * time.Second)
 			}
 		}()
 	}
