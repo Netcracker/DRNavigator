@@ -1,5 +1,7 @@
+{{ if .Values.paasGeoMonitor.install }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: paas-geo-monitor
   namespace: {{ .Release.Namespace }}
+{{ end }}
