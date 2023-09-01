@@ -1,6 +1,6 @@
 namespace: site-manager
 
-createClusterAdminEntities: true
+createClusterAdminEntities: false
 
 env:
   # set authentication mode
@@ -89,7 +89,7 @@ crd:
 
 paasGeoMonitor:
   image: ghcr.io/netcracker/paas-geo-monitor:0.9.0
-  install: true
+  install: false
   env:
     PAAS_PING_PEERS: "true"
     PAAS_PING_TIME: "5"
