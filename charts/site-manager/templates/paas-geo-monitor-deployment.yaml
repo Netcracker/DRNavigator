@@ -42,9 +42,9 @@ spec:
           - name: PAAS_BGP_METRICS
             value: "{{ .Values.paasGeoMonitor.env.PAAS_BGP_METRICS }}"
           - name: PAAS_BGP_CHECK_PERIOD
-            value: "{{ .Values.paasGeoMonitor.env.PAAS_DEBUG }}"
+            value: "{{ .Values.paasGeoMonitor.env.PAAS_BGP_CHECK_PERIOD }}"
           - name: PAAS_BGP_CHECK_TIMEOUT
-            value: "{{ .Values.paasGeoMonitor.env.PAAS_BGP_METRICS }}"
+            value: "{{ .Values.paasGeoMonitor.env.PAAS_BGP_CHECK_TIMEOUT }}"
           - name: GOMEMLIMIT
             value: 135MiB
         ports:
