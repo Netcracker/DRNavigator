@@ -1,4 +1,4 @@
-{{ if eq .Values.paasGeoMonitor.env.PAAS_BGP_METRICS "true" }}
+{{ if .Values.createClusterAdminEntities }}
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:

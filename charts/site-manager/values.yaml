@@ -1,5 +1,7 @@
 namespace: site-manager
 
+createClusterAdminEntities: true
+
 env:
   # set authentication mode
   FRONT_HTTP_AUTH: "Yes"
