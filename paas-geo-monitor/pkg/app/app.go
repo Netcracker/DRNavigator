@@ -149,12 +149,7 @@ func Serve(cfg *Config) error {
 					continue
 				}
 
-				err = bgp.UpdateBgpMetrics(bgp.BgpMetrics, calicoStatusList, paasBgpCheckTimeout)
-				if err != nil {
-					log.Errorf("Can't update Calico BGP Metrics: %s", err)
-					continue
-				}
-
+				bgp.UpdateBgpMetrics(bgp.BgpMetrics, calicoStatusList, paasBgpCheckTimeout)
 				time.Sleep(time.Duration(paasBgpCheckPeriod) * time.Second)
 			}
 		}()

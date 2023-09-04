@@ -88,7 +88,7 @@ func GetCrStatus(clientSet *clientset.Clientset) (list *v3.CalicoNodeStatusList,
 	return list, nil
 }
 
-func UpdateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList, paasBgpCheckTimeout int) error {
+func UpdateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList, paasBgpCheckTimeout int) {
 
 	var (
 		peer_status  float64
@@ -157,6 +157,4 @@ func UpdateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList, paa
 		}
 
 	}
-
-	return nil
 }
