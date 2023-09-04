@@ -2,6 +2,7 @@ package bgp
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -48,7 +49,9 @@ func GetClientSet() (clientSet *clientset.Clientset) {
 
 		config, err := clientcmd.BuildConfigFromFlags("", os.Getenv("KUBECONFIG"))
 		if err != nil {
-			panic(err.Error())
+			// panic(err.Error())
+			errorString := fmt.Sprintf("Can't parse KUBECONFIG file: %s", err)
+			panic(errorString)
 		}
 		kubeconfig = config
 
@@ -56,7 +59,8 @@ func GetClientSet() (clientSet *clientset.Clientset) {
 
 		config, err := rest.InClusterConfig()
 		if err != nil {
-			panic(err.Error())
+			errorString := fmt.Sprintf("Can't use InClusterConfig: %s", err)
+			panic(errorString)
 		}
 		kubeconfig = config
 
@@ -71,19 +75,20 @@ func GetClientSet() (clientSet *clientset.Clientset) {
 	return clientSet
 }
 
-func GetCrStatus(clientSet *clientset.Clientset) (list *v3.CalicoNodeStatusList) {
+func GetCrStatus(clientSet *clientset.Clientset) (list *v3.CalicoNodeStatusList, err error) {
 
 	// List Calico Node Statuses.
-	list, err := clientSet.ProjectcalicoV3().CalicoNodeStatuses().List(context.Background(), v1.ListOptions{})
+	list, err = clientSet.ProjectcalicoV3().CalicoNodeStatuses().List(context.Background(), v1.ListOptions{})
 
 	if err != nil {
-		panic(err.Error())
+		// panic(err.Error())
+		return list, err
 	}
 
-	return list
+	return list, nil
 }
 
-func UpdateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList, paasBgpCheckTimeout int) {
+func UpdateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList, paasBgpCheckTimeout int) error {
 
 	var (
 		peer_status  float64
@@ -152,4 +157,6 @@ func UpdateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList, paa
 		}
 
 	}
+
+	return nil
 }

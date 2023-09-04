@@ -34,6 +34,7 @@ type PeersMetrics struct {
 func Serve(cfg *Config) error {
 	e := echo.New()
 	e.Use(middleware.Logger())
+	log := logger.SimpleLogger()
 
 	// Create custom metrics
 	paasHealth := prometheus.NewGauge(
@@ -139,10 +140,21 @@ func Serve(cfg *Config) error {
 		}
 
 		go func() {
+
 			clientSet := bgp.GetClientSet()
 			for {
-				calicoStatusList := bgp.GetCrStatus(clientSet)
-				bgp.UpdateBgpMetrics(bgp.BgpMetrics, calicoStatusList, paasBgpCheckTimeout)
+				calicoStatusList, err := bgp.GetCrStatus(clientSet)
+				if err != nil {
+					log.Errorf("Can't get current CalicoNodeStatus CR: %s", err)
+					continue
+				}
+
+				err = bgp.UpdateBgpMetrics(bgp.BgpMetrics, calicoStatusList, paasBgpCheckTimeout)
+				if err != nil {
+					log.Errorf("Can't update Calico BGP Metrics: %s", err)
+					continue
+				}
+
 				time.Sleep(time.Duration(paasBgpCheckPeriod) * time.Second)
 			}
 		}()
