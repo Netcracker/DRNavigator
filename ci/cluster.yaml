@@ -41,6 +41,7 @@ plugins:
             # Install site-manager
             chart_path: ./charts/site-manager
             values:
+              createClusterAdminEntities: true
               metricCollector:
                 install: false
               ingress:
