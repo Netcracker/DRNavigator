@@ -1,6 +1,6 @@
 namespace: site-manager
 
-createClusterAdminEntities: false
+createClusterAdminEntities: true
 
 env:
   # set authentication mode
