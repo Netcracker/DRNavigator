@@ -77,7 +77,6 @@ func GetCrStatus(clientSet *clientset.Clientset) (list *v3.CalicoNodeStatusList,
 	list, err = clientSet.ProjectcalicoV3().CalicoNodeStatuses().List(context.Background(), v1.ListOptions{})
 
 	if err != nil {
-		// panic(err.Error())
 		return list, err
 	}
 
