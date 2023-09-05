@@ -149,10 +149,10 @@ func Serve(cfg *Config) error {
 				calicoStatusList, err := bgp.GetCrStatus(clientSet)
 				if err != nil {
 					log.Errorf("Can't get current CalicoNodeStatus CR: %s", err)
-					continue
+				} else {
+					bgp.UpdateBgpMetrics(bgp.BgpMetrics, calicoStatusList, paasBgpCheckTimeout)
 				}
 
-				bgp.UpdateBgpMetrics(bgp.BgpMetrics, calicoStatusList, paasBgpCheckTimeout)
 				time.Sleep(time.Duration(paasBgpCheckPeriod) * time.Second)
 			}
 		}()
