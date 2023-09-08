@@ -13,6 +13,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"github.com/netcracker/drnavigator/paas-geo-monitor/logger"
+	"github.com/netcracker/drnavigator/paas-geo-monitor/pkg/bgp"
 	"github.com/netcracker/drnavigator/paas-geo-monitor/pkg/client"
 	"github.com/netcracker/drnavigator/paas-geo-monitor/pkg/resources"
 	"github.com/prometheus/client_golang/prometheus"
@@ -33,6 +34,7 @@ type PeersMetrics struct {
 func Serve(cfg *Config) error {
 	e := echo.New()
 	e.Use(middleware.Logger())
+	log := logger.SimpleLogger()
 
 	// Create custom metrics
 	paasHealth := prometheus.NewGauge(
@@ -41,6 +43,7 @@ func Serve(cfg *Config) error {
 			Help: "paas-geo-monitor pod health",
 		},
 	)
+
 	peersMetrics := &PeersMetrics{
 		prometheus.NewGaugeVec(
 			prometheus.GaugeOpts{
@@ -109,6 +112,50 @@ func Serve(cfg *Config) error {
 		for i := range cfg.Peers {
 			go pingPeersStatus(cfg.Peers[i], peersMetrics, paasPingTime)
 		}
+	}
+
+	if os.Getenv("PAAS_BGP_METRICS") == "true" {
+
+		if err := prometheus.Register(bgp.BgpMetrics.BgpPeer); err != nil {
+			return fmt.Errorf("Can't regist bgp_peer prometheus metric: %s", err)
+		}
+		if err := prometheus.Register(bgp.BgpMetrics.BgpRoute); err != nil {
+			return fmt.Errorf("Can't regist bgp_route prometheus metric: %s", err)
+		}
+
+		paasBgpCheckPeriod := 10
+		if paasBgpCheckPeriodEnv, exist := os.LookupEnv("PAAS_BGP_CHECK_PERIOD"); exist {
+			paasBgpCheckPeriod, err = strconv.Atoi(paasBgpCheckPeriodEnv)
+			if err != nil {
+				return fmt.Errorf("Can't parse PAAS_BGP_CHECK_PERIOD: %s", err)
+			}
+		}
+
+		paasBgpCheckTimeout := 30
+		if paasBgpCheckTimeoutEnv, exist := os.LookupEnv("PAAS_BGP_CHECK_TIMEOUT"); exist {
+			paasBgpCheckTimeout, err = strconv.Atoi(paasBgpCheckTimeoutEnv)
+			if err != nil {
+				return fmt.Errorf("Can't parse PAAS_BGP_CHECK_TIMEOUT value: %s \n", err)
+			}
+		}
+
+		clientSet, err := bgp.GetClientSet()
+		if err != nil {
+			return fmt.Errorf("Can't get clientSet: %s", err)
+		}
+
+		go func() {
+			for {
+				calicoStatusList, err := bgp.GetCrStatus(clientSet)
+				if err != nil {
+					log.Errorf("Can't get current CalicoNodeStatus CR: %s", err)
+				} else {
+					bgp.UpdateBgpMetrics(bgp.BgpMetrics, calicoStatusList, paasBgpCheckTimeout)
+				}
+
+				time.Sleep(time.Duration(paasBgpCheckPeriod) * time.Second)
+			}
+		}()
 	}
 
 	// todo: support TLS
