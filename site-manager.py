@@ -72,7 +72,7 @@ def get_sitemanagers_dict(api_version=server_utils.SM_VERSION):
         response = client.CustomObjectsApi().list_cluster_custom_object(group=server_utils.SM_GROUP,
                                                                         version=api_version,
                                                                         plural=server_utils.SM_PLURAL,
-                                                                        _request_timeout=utils.SM_GET_REQUEST_TIMEOUT)
+                                                                        _request_timeout=utils.SM_POST_REQUEST_TIMEOUT)
 
     except ApiException as e:
         if e.status == 404:

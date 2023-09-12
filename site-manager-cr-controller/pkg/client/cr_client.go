@@ -48,7 +48,7 @@ func NewCRClient() (*CRClient, error) {
 			return nil, fmt.Errorf("error config for kubernetes client: %s", err)
 		}
 	}
-	config.Timeout = time.Duration(envconfig.EnvConfig.GetRequestTimeout) * time.Second
+	config.Timeout = time.Duration(envconfig.EnvConfig.PostRequestTimeout) * time.Second
 	client, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("error creating kube client for CR: %s", err)
