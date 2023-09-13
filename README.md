@@ -1127,6 +1127,19 @@ Before the installation, ensure that you have enough resources for DRNavigator.
 For one pod, it is recommended to use 100m CPU and 80Mi memory limits per worker and by default, DRNavigator uses 2 workers.
 You can override the worker count and cpu/memory limits using helm environments.
 
+Default quotas:
+
+|                            | CPU Limit         | Memory Limit          |
+|----------------------------|-------------------|-----------------------|
+| site-manager               | 200m              | 160Mi                 |
+| site-manager-cr-controller | 300m              | 150Mi                 |
+| **Total**                  | 500m              | 310Mi                 |
+
+Needed quotas depends on the number of services, for this reason, if you have problems with services processing (typically, with timeouts),
+you can do one of following solutions:
+* Increase timeouts for site-manager and sm-client;
+* Increase quotas for site-manager;
+
 ### Prerequisites
  
 Prepare a Kubernetes cluster to work with DRNavigator.
