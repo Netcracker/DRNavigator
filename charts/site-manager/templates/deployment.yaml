@@ -110,8 +110,8 @@ spec:
             value: "{{ .Values.env.SM_PLURAL }}"
           - name: SM_VERSION
             value: "{{ .Values.env.SM_VERSION }}"
-          - name: SM_GET_REQUEST_TIMEOUT
-            value: "{{ .Values.env.SM_GET_REQUEST_TIMEOUT }}"
+          - name: SM_POST_REQUEST_TIMEOUT
+            value: "{{ .Values.env.SM_POST_REQUEST_TIMEOUT }}"
         ports:
           - containerPort: 8442
             protocol: TCP

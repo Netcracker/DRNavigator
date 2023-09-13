@@ -12,7 +12,7 @@ type Config struct {
 	CRPrural  string `envconfig:"SM_PRURAL" default:"sitemanagers"`
 	CRVersion string `envconfig:"SM_VERSION" default:"v3"`
 
-	GetRequestTimeout int64 `envconfig:"SM_GET_REQUEST_TIMEOUT" default:"10"`
+	PostRequestTimeout int64 `envconfig:"SM_POST_REQUEST_TIMEOUT" default:"30"`
 }
 
 var EnvConfig Config
