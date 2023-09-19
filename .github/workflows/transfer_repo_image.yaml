@@ -22,15 +22,15 @@ jobs:
         run: |
           git clone --bare https://$GITHUB_ACTOR:${{ secrets.GITHUB_TOKEN }}@github.com/Netcracker/DRNavigator
           zip -r repository.zip DRNavigator.git
-      - name: Build Docker Image for site-manager-transfer-transfer
-        run: docker build -t site-manager-transfer-transfer -f ci/Dockerfile-transfer --no-cache .
+      - name: Build Docker Image for site-manager-transfer
+        run: docker build -t site-manager-transfer -f ci/Dockerfile-transfer --no-cache .
       - name: Publish to ghcr.io
         if: github.ref_name == 'autosync' || inputs.publish
         run: |
           GHCRIO_TAG=$(echo "${{ github.ref_name }}" | sed 's/\//_/g')
-          GHCRIO_IMAGE=ghcr.io/netcracker/site-manager-transfer-transfer:$GHCRIO_TAG
+          GHCRIO_IMAGE=ghcr.io/netcracker/site-manager-transfer:$GHCRIO_TAG
           
-          docker tag site-manager-transfer-transfer $GHCRIO_IMAGE
+          docker tag site-manager-transfer $GHCRIO_IMAGE
           
           echo -e "\033[0;32mPushing image ${GHCRIO_IMAGE}\033[0m"
           echo ${{ secrets.GITHUB_TOKEN }} | docker login https://ghcr.io -u $GITHUB_ACTOR --password-stdin
