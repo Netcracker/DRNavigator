@@ -95,7 +95,7 @@ class SitemanagerTestCase:
         resp = requests.post(url, json=http_body, headers=headers,
                              verify=config_dir['template_env']['sites']['site_1']['ca_cert'])
         resp_json = resp.json()
-        assert "You should define procedure from list: ['active', 'standby', 'disable', 'list', 'status']" == resp_json[
+        assert "You should define procedure from list: [list status active standby disable]" == resp_json[
             'message']
         assert resp.status_code == 400
 
