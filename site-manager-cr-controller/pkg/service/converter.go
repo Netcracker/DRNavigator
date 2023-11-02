@@ -4,22 +4,22 @@ import (
 	"fmt"
 
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/logger"
-	cr_client "github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/client"
+	cr_client "github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/client/cr"
+	"github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/model"
+	"github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/utils"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// Converter provides the set of functions for CR conversion
-type Converter struct {
-	Client cr_client.CRClientInterface
+// IConverter provides the set of functions for CR conversion
+type IConverter interface {
+	// Convert converts the given CR to desired api version
+	// Checks that CR api version and unstructed api version is supported and returns the new converted object
+	Convert(cr *unstructured.Unstructured, desiredApiVersion string) (*unstructured.Unstructured, error)
 }
 
-func findFirstCR(smDict map[string]unstructured.Unstructured, filterFunc func(*unstructured.Unstructured) bool) string {
-	for serviceName, obj := range smDict {
-		if filterFunc(&obj) {
-			return serviceName
-		}
-	}
-	return ""
+// Converter provides the set of functions for CR conversion
+type Converter struct {
+	CRManager ICRManager
 }
 
 func (c *Converter) convertV1ToV2(cr *unstructured.Unstructured) error {
@@ -79,29 +79,28 @@ func (c *Converter) convertV2ToV3(cr *unstructured.Unstructured) error {
 	beforeServices, _, _ := unstructured.NestedStringSlice(cr.Object, "spec", "sitemanager", "before")
 	afterServices, _, _ := unstructured.NestedStringSlice(cr.Object, "spec", "sitemanager", "after")
 	if len(beforeServices) > 0 || len(afterServices) > 0 {
-		smDict, err := c.Client.GetAllServicesWithSpecifiedVersion("v2")
+		smDict, err := c.CRManager.GetAllServicesWithSpecifiedVersion("v2")
 		if err != nil {
-			log.Errorf("Can't get SM objects: %s", err.Error())
 			return err
 		}
 		for i, beforeServiceName := range beforeServices {
-			beforeService := findFirstCR(smDict, func(obj *unstructured.Unstructured) bool {
-				return obj.GetName() == beforeServiceName
+			beforeService := utils.FindFirstFromMap(smDict.Services, func(obj model.SMObject) bool {
+				return obj.CRName == beforeServiceName
 			})
-			if beforeService == "" {
+			if beforeService == nil {
 				log.Errorf("Found non-exist before dependency %s for CR %s on namespace %s", beforeServiceName, cr.GetName(), cr.GetNamespace())
 			} else {
-				beforeServices[i] = beforeService
+				beforeServices[i] = *beforeService
 			}
 		}
 		for i, afterServiceName := range afterServices {
-			afterService := findFirstCR(smDict, func(obj *unstructured.Unstructured) bool {
-				return obj.GetName() == afterServiceName
+			afterService := utils.FindFirstFromMap(smDict.Services, func(obj model.SMObject) bool {
+				return obj.CRName == afterServiceName
 			})
-			if afterService == "" {
+			if afterService == nil {
 				log.Errorf("Found non-exist after dependency %s for CR %s on namespace %s", afterServiceName, cr.GetName(), cr.GetNamespace())
 			} else {
-				afterServices[i] = afterService
+				afterServices[i] = *afterService
 			}
 		}
 		unstructured.SetNestedStringSlice(cr.Object, beforeServices, "spec", "sitemanager", "before")
@@ -178,10 +177,10 @@ func (c *Converter) Convert(cr *unstructured.Unstructured, desiredApiVersion str
 }
 
 // NewConverter creates the new Converter object
-func NewConverter() (*Converter, error) {
-	client, err := cr_client.NewCRClient()
+func NewConverter(smConfig *model.SMConfig) (IConverter, error) {
+	crManager, err := NewCRManager(smConfig)
 	if err != nil {
 		return nil, err
 	}
-	return &Converter{Client: client}, nil
+	return &Converter{CRManager: crManager}, nil
 }

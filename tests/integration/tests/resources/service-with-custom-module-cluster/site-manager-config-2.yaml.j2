@@ -1,6 +1,6 @@
+token: "{{ env.sites.site_2.token }}"
 testing:
   enabled: True
-  token: "{{ env.sites.site_2.token }}"
   sm_dict:
     services:
       stateful_service:
@@ -8,11 +8,12 @@ testing:
         allowedStandbyStateList:
         - up
         before: []
+        CRname: stateful_service
+        name: stateful_service
         namespace: stateful_service-ns
         module: stateful
         parameters:
             healthzEndpoint: http://stateful_service-site-2:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://stateful_service-site-2:8080/sitemanager
         sequence:
         - standby
@@ -23,11 +24,12 @@ testing:
         allowedStandbyStateList:
         - up
         before: []
+        CRname: custom_module_service
+        name: custom_module_service
         namespace: custom_module_service-ns
         module: custom_module
         parameters:
             healthzEndpoint: http://custom_module_service-site-2:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://custom_module_service-site-2:8080/sitemanager
         sequence:
         - standby
@@ -38,11 +40,12 @@ testing:
         allowedStandbyStateList:
         - up
         before: []
+        CRname: custom_module_service2
+        name: custom_module_service2
         namespace: custom_module_service-ns
         module: custom_module
         parameters:
             healthzEndpoint: http://custom_module_service2-site-2:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://custom_module_service2-site-2:8080/sitemanager
         sequence:
         - standby

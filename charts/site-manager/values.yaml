@@ -4,8 +4,8 @@ createClusterAdminEntities: true
 
 env:
   # set authentication mode
-  FRONT_HTTP_AUTH: "Yes"
-  BACK_HTTP_AUTH: "Yes"
+  FRONT_HTTP_AUTH: "True"
+  BACK_HTTP_AUTH: "True"
 
   # set logging verbosity
   SM_DEBUG: "False"
@@ -23,8 +23,6 @@ env:
   # Default timeouts for requests to services
   SM_GET_REQUEST_TIMEOUT: 10
   SM_POST_REQUEST_TIMEOUT: 30
-
-workerCount: 2
 
 # Pod Security Context
 # ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
@@ -46,18 +44,9 @@ serviceAccount:
   name: site-manager-sa
 
 image:
-  repository: ghcr.io/netcracker/site-manager
+  repository: ghcr.io/netcracker/site-manager-cr-controller
   pullPolicy: Always
   tag: v1.0
-
-controller:
-  image:
-    repository: ghcr.io/netcracker/site-manager-cr-controller
-    pullPolicy: Always
-    tag: v1.0
-  limits:
-    cpu: "300m"
-    memory: "150Mi"
 
 ingress:
   create: true

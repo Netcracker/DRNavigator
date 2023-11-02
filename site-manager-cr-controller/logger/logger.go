@@ -1,7 +1,7 @@
 package logger
 
 import (
-	"github.com/netcracker/drnavigator/site-manager-cr-controller/config"
+	envconfig "github.com/netcracker/drnavigator/site-manager-cr-controller/config"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -10,7 +10,7 @@ import (
 var log *zap.SugaredLogger = nil
 
 func getZapLogLevel() (zap.AtomicLevel, error) {
-	if config.EnvConfig.Debug {
+	if envconfig.EnvConfig.Debug {
 		return zap.NewAtomicLevelAt(zapcore.DebugLevel), nil
 	}
 	return zap.NewAtomicLevelAt(zapcore.InfoLevel), nil

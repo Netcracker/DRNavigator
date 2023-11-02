@@ -1,18 +1,19 @@
+token: "{{ env.sites.site_1.token }}"
 testing:
   enabled: True
-  token: "{{ env.sites.site_1.token }}"
   sm_dict:
     services:
       serviceASite1:
         after: []
         allowedStandbyStateList:
         - up
+        CRname: serviceASite1
+        name: serviceASite1
         before: []
         namespace: serviceA-ns
         module: stateful
         parameters:
             healthzEndpoint: http://serviceA-site-1:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://serviceA-site-1:8080/sitemanager
         sequence:
         - standby
@@ -22,12 +23,13 @@ testing:
         after: [serviceASite1]
         allowedStandbyStateList:
         - up
+        CRname: serviceB
+        name: serviceB
         before: []
         namespace: serviceB-ns
         module: stateful
         parameters:
             healthzEndpoint: http://serviceB-site-1:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://serviceB-site-1:8080/sitemanager
         sequence:
         - standby
@@ -38,11 +40,12 @@ testing:
         allowedStandbyStateList:
         - up
         before: []
+        CRname: serviceC
+        name: serviceC
         namespace: serviceC-ns
         module: custom_module
         parameters:
             healthzEndpoint: http://serviceC-site-1:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://serviceC-site-1:8080/sitemanager
         sequence:
         - standby
@@ -53,11 +56,12 @@ testing:
         allowedStandbyStateList:
         - up
         before: []
+        CRname: serviceD
+        name: serviceD
         namespace: serviceD-ns
         module: custom_module
         parameters:
             healthzEndpoint: http://serviceD-site-1:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://serviceD-site-1:8080/sitemanager
         sequence:
         - standby

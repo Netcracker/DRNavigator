@@ -28,15 +28,16 @@ spec:
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
         args:
           - "--bind=0.0.0.0:8443"
-          - "--config=site_manager/flank_exporter_config.py"
-          - '--worker-class=gevent'
-          {{- if .Values.tls.enabled }}
           - "--certfile=/certs/tls.crt"
           - "--keyfile=/certs/tls.key"
-          {{- end }}
-          - "-w {{ .Values.workerCount}}"
-          - "site-manager:app"
+          - "--bind-webhook=0.0.0.0:8442"
         env:
+          - name: POD_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: HTTPS_ENABLED
+            value: "{{ .Values.tls.enabled }}"
           - name: FRONT_HTTP_AUTH
             value: "{{ .Values.env.FRONT_HTTP_AUTH }}"
           - name: BACK_HTTP_AUTH
@@ -59,6 +60,8 @@ spec:
             value: "{{ .Values.env.SM_POST_REQUEST_TIMEOUT }}"
         ports:
           - containerPort: 8443
+            protocol: TCP
+          - containerPort: 8442
             protocol: TCP
         volumeMounts:
           - readOnly: true
@@ -91,59 +94,6 @@ spec:
           failureThreshold: 5
         terminationMessagePath: /dev/termination-log
         imagePullPolicy: {{ .Values.image.pullPolicy }}
-      - name: {{ .Chart.Name }}-cr-controller
-        {{- with .Values.containerSecurityContext }}
-        securityContext:
-          {{- toYaml . | nindent 12 }}
-        {{- end }}
-        image: {{ printf "%s:%s" .Values.controller.image.repository .Values.controller.image.tag }}
-        args:
-          - "--bind=0.0.0.0:8442"
-          - "--certfile=/certs/tls.crt"
-          - "--keyfile=/certs/tls.key"
-        env:
-          - name: SM_DEBUG
-            value: "{{ .Values.env.SM_DEBUG }}"
-          - name: SM_GROUP
-            value: "{{ .Values.env.SM_GROUP }}"
-          - name: SM_PLURAL
-            value: "{{ .Values.env.SM_PLURAL }}"
-          - name: SM_VERSION
-            value: "{{ .Values.env.SM_VERSION }}"
-          - name: SM_POST_REQUEST_TIMEOUT
-            value: "{{ .Values.env.SM_POST_REQUEST_TIMEOUT }}"
-        ports:
-          - containerPort: 8442
-            protocol: TCP
-        volumeMounts:
-          - readOnly: true
-            mountPath: /certs
-            name: sm-certs
-        resources:
-          limits:
-            cpu: "{{ .Values.controller.limits.cpu }}"
-            memory: "{{ .Values.controller.limits.memory }}"
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8442
-            scheme: HTTPS
-          initialDelaySeconds: 5
-          timeoutSeconds: 1
-          periodSeconds: 2
-          successThreshold: 1
-          failureThreshold: 5
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8442
-            scheme: HTTPS
-          timeoutSeconds: 2
-          periodSeconds: 20
-          successThreshold: 1
-          failureThreshold: 5
-        terminationMessagePath: /dev/termination-log
-        imagePullPolicy: {{ .Values.controller.image.pullPolicy }}
       volumes:
         - name: sm-certs
           secret:
