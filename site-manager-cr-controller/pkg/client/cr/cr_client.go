@@ -51,7 +51,7 @@ func (crc *crClient) List(apiVersion string) (*unstructured.UnstructuredList, er
 	}
 	crs, err := crc.dynamicClient.Resource(gvr).List(context.TODO(), v1.ListOptions{})
 	if err != nil {
-		return nil, fmt.Errorf("Can't get sitemanager objects group=%s, version=%s, resource=%s: %s", gvr.Group, gvr.Version, gvr.Resource, err)
+		return nil, fmt.Errorf("can't get sitemanager objects group=%s, version=%s, resource=%s: %s", gvr.Group, gvr.Version, gvr.Resource, err)
 	}
 	return crs, nil
 }

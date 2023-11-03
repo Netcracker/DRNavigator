@@ -124,7 +124,7 @@ func (c *Converter) convertV3ToV2(cr *unstructured.Unstructured) error {
 // Checks that CR api version and unstructed api version is supported and returns the new converted object
 func (c *Converter) Convert(cr *unstructured.Unstructured, desiredApiVersion string) (*unstructured.Unstructured, error) {
 	if !cr_client.CheckIfApiVersionSupported(desiredApiVersion) {
-		return nil, fmt.Errorf("Desired API version %s is not supported", desiredApiVersion)
+		return nil, fmt.Errorf("desired API version %s is not supported", desiredApiVersion)
 	}
 	if !cr_client.CheckIfApiVersionSupported(cr.GetAPIVersion()) {
 		return nil, fmt.Errorf("API version %s is not supported", cr.GetAPIVersion())

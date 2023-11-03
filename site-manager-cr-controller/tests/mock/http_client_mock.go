@@ -30,6 +30,6 @@ func (hcm *HttpClientMock) Do(req *http.Request) (*http.Response, error) {
 			Body:       ioutil.NopCloser(bytes.NewReader(byteData)),
 		}, nil
 	default:
-		return nil, fmt.Errorf("Http mock does not support path %s", req.URL.Path)
+		return nil, fmt.Errorf("http mock does not support path %s", req.URL.Path)
 	}
 }

@@ -60,7 +60,7 @@ func Serve(bindAddress string, bindWebhookAddress string, certFile string, keyFi
 		go ServeWebhookServer(bindWebhookAddress, certFile, keyFile, crValidator, crConverter, errorChannel)
 	}
 	// initialize api for main site-manager in separate gorutine
-	go ServeWMainServer(bindAddress, bindWebhookAddress, certFile, keyFile, crManager, smConfig, errorChannel)
+	go ServeMainServer(bindAddress, bindWebhookAddress, certFile, keyFile, crManager, smConfig, errorChannel)
 
 	// wait when some gorutine returns an error
 	return <-errorChannel
@@ -71,12 +71,12 @@ func handleToken(TokenChannel chan string, errChannel chan error) {
 	logger := logger.SimpleLogger()
 	config, err := kube_config.GetKubeConfig()
 	if err != nil {
-		errChannel <- fmt.Errorf("Can't create kubeconfig to handle token from secret %s", err)
+		errChannel <- fmt.Errorf("can't create kubeconfig to handle token from secret %s", err)
 		return
 	}
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		errChannel <- fmt.Errorf("Can't initialize kubernetes client to handle token from secret %s", err)
+		errChannel <- fmt.Errorf("can't initialize kubernetes client to handle token from secret %s", err)
 		return
 	}
 
@@ -90,7 +90,7 @@ func handleToken(TokenChannel chan string, errChannel chan error) {
 
 	watcher, err := toolsWatch.NewRetryWatcher("1", &cache.ListWatch{WatchFunc: watchFunc})
 	if err != nil {
-		errChannel <- fmt.Errorf("Can't initialize watcher to handle token from secret %s", err)
+		errChannel <- fmt.Errorf("can't initialize watcher to handle token from secret %s", err)
 		return
 	}
 
@@ -99,8 +99,14 @@ func handleToken(TokenChannel chan string, errChannel chan error) {
 		if !ok {
 			logger.Errorf("Watch SA event channel is closed")
 			errChannel <- fmt.Errorf("can't handle token: channel is closed")
+			return
 		}
-		serviceAccount := event.Object.(*corev1.ServiceAccount)
+		serviceAccount, ok := event.Object.(*corev1.ServiceAccount)
+		if !ok {
+			logger.Errorf("can't get SA from event: %s")
+			errChannel <- fmt.Errorf("can't handle SA from watching event")
+			return
+		}
 		if serviceAccount.GetName() != smServiceAccountName {
 			continue
 		}
@@ -116,19 +122,20 @@ func handleToken(TokenChannel chan string, errChannel chan error) {
 			if err != nil {
 				logger.Errorf("Can't get secret with name %s from namespace %s: %s", secretRef.Name, namespace, err)
 				errChannel <- fmt.Errorf("can't handle token from secret %s for SA %s", secretRef.Name, smServiceAccountName)
-				continue
+				return
 			}
 			btoken, found := secret.Data["token"]
 			if !found {
 				logger.Errorf("Can't get token from secret with name %s from namespace %s: %s", secretRef.Name, namespace, err)
 				errChannel <- fmt.Errorf("can't handle token from secret %s for SA %s", secretRef.Name, smServiceAccountName)
-				continue
+				return
 			}
 			TokenChannel <- string(btoken)
 			logger.Infof("Service-account %s was %s. Token was updated.", smServiceAccountName, event.Type)
 		} else if event.Type == watch.Deleted {
 			logger.Errorf("Service-account %s was deleted. Exit", smServiceAccountName)
 			errChannel <- fmt.Errorf("service-account %s was deleted", smServiceAccountName)
+			return
 		}
 	}
 }

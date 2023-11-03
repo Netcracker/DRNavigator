@@ -19,7 +19,7 @@ import (
 )
 
 // Serve main Server initialize main SM API
-func ServeWMainServer(bindAddress string, bindWebhookAddress string, certFile string, keyFile string, crManager service.ICRManager, smConfig *model.SMConfig, errChannel chan error) {
+func ServeMainServer(bindAddress string, bindWebhookAddress string, certFile string, keyFile string, crManager service.ICRManager, smConfig *model.SMConfig, errChannel chan error) {
 	e := echo.New()
 	e.Use(echoprometheus.NewMiddleware("site_manager"))
 	e.GET("/", rootGet())
