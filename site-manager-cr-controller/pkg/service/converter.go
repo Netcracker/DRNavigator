@@ -48,9 +48,7 @@ func (c *Converter) convertV1ToV2(cr *unstructured.Unstructured) error {
 
 func (c *Converter) convertV2ToV1(cr *unstructured.Unstructured) error {
 	// Remove module
-	if value, found, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "module"); found && value != "stateful" {
-		return fmt.Errorf("Can't convert to v1, specified not stateful module in CR %s on namespace %s", cr.GetName(), cr.GetNamespace())
-	} else if found {
+	if _, found, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "module"); found {
 		unstructured.RemoveNestedField(cr.Object, "spec", "sitemanager", "module")
 	}
 	// Move endpoints
