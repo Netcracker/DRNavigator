@@ -32,7 +32,7 @@ func checkFieldUnexist(cr *unstructured.Unstructured, fields ...string) error {
 
 func TestConverter_ConvertV1ToV2(t *testing.T) {
 	// Test conversation from v1 to v2
-	config.InitConfig()
+	_ = config.InitConfig()
 	assert := require.New(t)
 
 	smConfig := model.SMConfig{
@@ -64,7 +64,7 @@ func TestConverter_ConvertV1ToV2(t *testing.T) {
 
 func TestConverter_ConvertV2ToV3(t *testing.T) {
 	// Test conversation from v2 to v3
-	config.InitConfig()
+	_ = config.InitConfig()
 	assert := require.New(t)
 
 	smConfig := model.SMConfig{
@@ -84,8 +84,8 @@ func TestConverter_ConvertV2ToV3(t *testing.T) {
 	testService := test_objects.ServiceV2.DeepCopy()
 	testServiceName := test_objects.ServiceV2Obj.CRName
 	unexistServiceDep := "unexist-service"
-	unstructured.SetNestedStringSlice(testService.Object, []string{test_objects.ServiceV1Obj.CRName}, "spec", "sitemanager", "after")
-	unstructured.SetNestedStringSlice(testService.Object, []string{unexistServiceDep}, "spec", "sitemanager", "before")
+	_ = unstructured.SetNestedStringSlice(testService.Object, []string{test_objects.ServiceV1Obj.CRName}, "spec", "sitemanager", "after")
+	_ = unstructured.SetNestedStringSlice(testService.Object, []string{unexistServiceDep}, "spec", "sitemanager", "before")
 
 	desiredAPIVersion := "netcracker.com/v3"
 	convertedService, err := converter.Convert(testService, desiredAPIVersion)
@@ -100,7 +100,7 @@ func TestConverter_ConvertV2ToV3(t *testing.T) {
 
 func TestConverter_ConvertV1ToV3(t *testing.T) {
 	// Test conversation from v2 to v3
-	config.InitConfig()
+	_ = config.InitConfig()
 	assert := require.New(t)
 
 	smConfig := model.SMConfig{
@@ -120,8 +120,8 @@ func TestConverter_ConvertV1ToV3(t *testing.T) {
 
 	testService := test_objects.ServiceV1.DeepCopy()
 	unexistServiceDep := "unexist-service"
-	unstructured.SetNestedStringSlice(testService.Object, []string{test_objects.ServiceV2Obj.CRName}, "spec", "sitemanager", "after")
-	unstructured.SetNestedStringSlice(testService.Object, []string{unexistServiceDep}, "spec", "sitemanager", "before")
+	_ = unstructured.SetNestedStringSlice(testService.Object, []string{test_objects.ServiceV2Obj.CRName}, "spec", "sitemanager", "after")
+	_ = unstructured.SetNestedStringSlice(testService.Object, []string{unexistServiceDep}, "spec", "sitemanager", "before")
 
 	desiredAPIVersion := "netcracker.com/v3"
 	convertedService, err := converter.Convert(testService, desiredAPIVersion)
@@ -144,7 +144,7 @@ func TestConverter_ConvertV1ToV3(t *testing.T) {
 
 func TestConverter_ConvertV2ToV1(t *testing.T) {
 	// Test conversation from v2 to v1
-	config.InitConfig()
+	_ = config.InitConfig()
 	assert := require.New(t)
 
 	smConfig := model.SMConfig{
@@ -158,7 +158,7 @@ func TestConverter_ConvertV2ToV1(t *testing.T) {
 
 	desiredAPIVersion := "netcracker.com/v1"
 	testService := test_objects.ServiceV2.DeepCopy()
-	unstructured.SetNestedField(testService.Object, "stateful", "spec", "sitemanager", "module")
+	_ = unstructured.SetNestedField(testService.Object, "stateful", "spec", "sitemanager", "module")
 	convertedService, err := converter.Convert(testService, desiredAPIVersion)
 	assert.NoError(err, "Conversion v2 to v1 fails")
 	assert.Equal(desiredAPIVersion, convertedService.GetAPIVersion(), "API version is not desired")
@@ -172,7 +172,7 @@ func TestConverter_ConvertV2ToV1(t *testing.T) {
 
 func TestConverter_ConvertV3ToV2(t *testing.T) {
 	// Test conversation from v2 to v1
-	config.InitConfig()
+	_ = config.InitConfig()
 	assert := require.New(t)
 
 	smConfig := model.SMConfig{
@@ -194,7 +194,7 @@ func TestConverter_ConvertV3ToV2(t *testing.T) {
 
 func TestConverter_ConvertV3ToV1(t *testing.T) {
 	// Test conversation from v3 to v1
-	config.InitConfig()
+	_ = config.InitConfig()
 	assert := require.New(t)
 
 	smConfig := model.SMConfig{

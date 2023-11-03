@@ -25,14 +25,14 @@ type Converter struct {
 func (c *Converter) convertV1ToV2(cr *unstructured.Unstructured) error {
 	// Set module
 	if _, found, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "module"); !found {
-		unstructured.SetNestedField(cr.Object, "stateful", "spec", "sitemanager", "module")
+		_ = unstructured.SetNestedField(cr.Object, "stateful", "spec", "sitemanager", "module")
 	}
 	// Move endpoints
 	if _, found, _ := unstructured.NestedMap(cr.Object, "spec", "sitemanager", "parameters"); !found {
 		serviceEndpoint, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "serviceEndpoint")
 		ingressEndpoint, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "ingressEndpoint")
 		healthzEndpoint, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "healthzEndpoint")
-		unstructured.SetNestedMap(cr.Object, map[string]interface{}{
+		_ = unstructured.SetNestedMap(cr.Object, map[string]interface{}{
 			"serviceEndpoint": serviceEndpoint,
 			"ingressEndpoint": ingressEndpoint,
 			"healthzEndpoint": healthzEndpoint,
@@ -56,9 +56,9 @@ func (c *Converter) convertV2ToV1(cr *unstructured.Unstructured) error {
 		serviceEndpoint, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "parameters", "serviceEndpoint")
 		ingressEndpoint, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "parameters", "ingressEndpoint")
 		healthzEndpoint, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "parameters", "healthzEndpoint")
-		unstructured.SetNestedField(cr.Object, serviceEndpoint, "spec", "sitemanager", "serviceEndpoint")
-		unstructured.SetNestedField(cr.Object, ingressEndpoint, "spec", "sitemanager", "ingressEndpoint")
-		unstructured.SetNestedField(cr.Object, healthzEndpoint, "spec", "sitemanager", "healthzEndpoint")
+		_ = unstructured.SetNestedField(cr.Object, serviceEndpoint, "spec", "sitemanager", "serviceEndpoint")
+		_ = unstructured.SetNestedField(cr.Object, ingressEndpoint, "spec", "sitemanager", "ingressEndpoint")
+		_ = unstructured.SetNestedField(cr.Object, healthzEndpoint, "spec", "sitemanager", "healthzEndpoint")
 		unstructured.RemoveNestedField(cr.Object, "spec", "sitemanager", "parameters")
 	}
 	// Set api version
@@ -71,7 +71,7 @@ func (c *Converter) convertV2ToV3(cr *unstructured.Unstructured) error {
 	// Set alias for not stateful module
 	// It's needed for automatic conversion not stateful modules
 	if value, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "module"); value != "stateful" {
-		unstructured.SetNestedField(cr.Object, cr.GetName(), "spec", "sitemanager", "alias")
+		_ = unstructured.SetNestedField(cr.Object, cr.GetName(), "spec", "sitemanager", "alias")
 	}
 	// Add namespace to dependencies
 	beforeServices, _, _ := unstructured.NestedStringSlice(cr.Object, "spec", "sitemanager", "before")
@@ -101,8 +101,8 @@ func (c *Converter) convertV2ToV3(cr *unstructured.Unstructured) error {
 				afterServices[i] = *afterService
 			}
 		}
-		unstructured.SetNestedStringSlice(cr.Object, beforeServices, "spec", "sitemanager", "before")
-		unstructured.SetNestedStringSlice(cr.Object, afterServices, "spec", "sitemanager", "after")
+		_ = unstructured.SetNestedStringSlice(cr.Object, beforeServices, "spec", "sitemanager", "before")
+		_ = unstructured.SetNestedStringSlice(cr.Object, afterServices, "spec", "sitemanager", "after")
 	}
 
 	//Remove ingressEndpoint

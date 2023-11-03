@@ -16,7 +16,8 @@ import (
 
 func TestCRManager_MappingV1ToSMDictionary(t *testing.T) {
 	// Test, that v1 object is mapped corectly to SM Dictionary object
-	envconfig.InitConfig()
+	_ = envconfig.InitConfig()
+
 	crList := unstructured.UnstructuredList{
 		Object: map[string]interface{}{
 			"apiVersion": "v1",
@@ -41,7 +42,7 @@ func TestCRManager_MappingV1ToSMDictionary(t *testing.T) {
 }
 
 func TestCRManager_MappingV2ToSMDictionary(t *testing.T) {
-	envconfig.InitConfig()
+	_ = envconfig.InitConfig()
 	// Test, that v2 object is mapped corectly to SM Dictionary object
 	crList := unstructured.UnstructuredList{
 		Object: map[string]interface{}{
@@ -67,7 +68,7 @@ func TestCRManager_MappingV2ToSMDictionary(t *testing.T) {
 }
 
 func TestCRManager_MappingV3ToSMDictionary(t *testing.T) {
-	envconfig.InitConfig()
+	_ = envconfig.InitConfig()
 	// Test, that v3 object is mapped corectly to SM Dictionary object
 	crList := unstructured.UnstructuredList{
 		Object: map[string]interface{}{
@@ -93,7 +94,7 @@ func TestCRManager_MappingV3ToSMDictionary(t *testing.T) {
 }
 
 func TestCRManager_MappingDefaults(t *testing.T) {
-	envconfig.InitConfig()
+	_ = envconfig.InitConfig()
 	// Test, that defaults of SM objects are applied correctly
 	emptyCRName := "some-name"
 	emptyNamespace := "some-namespace"
@@ -149,7 +150,7 @@ func TestCRManager_MappingDefaults(t *testing.T) {
 }
 
 func TestCRManager_DisabledTestingInSMConfig(t *testing.T) {
-	envconfig.InitConfig()
+	_ = envconfig.InitConfig()
 	// Test, that if testing is disabled in SM config, CRs will be got from kube client
 	crList := unstructured.UnstructuredList{
 		Object: map[string]interface{}{
@@ -184,7 +185,7 @@ func TestCRManager_DisabledTestingInSMConfig(t *testing.T) {
 }
 
 func TestCRManager_EnabledTestingInSMConfig(t *testing.T) {
-	envconfig.InitConfig()
+	_ = envconfig.InitConfig()
 	// Test, that if testing is enabled in SM config, kube client was not initialized and CRs will be got from SM config
 	smConfig := model.SMConfig{
 		Testing: model.SMConfigTesting{

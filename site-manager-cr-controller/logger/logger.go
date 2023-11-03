@@ -41,7 +41,6 @@ func SimpleLogger() *zap.SugaredLogger {
 				EncodeCaller:   zapcore.ShortCallerEncoder,
 			},
 		}
-		zap.NewDevelopmentEncoderConfig()
 
 		logger, err := cfg.Build()
 		if err != nil {

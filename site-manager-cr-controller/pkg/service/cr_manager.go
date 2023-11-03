@@ -4,8 +4,8 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -54,7 +54,7 @@ func NewCRManager(smConfig *model.SMConfig) (ICRManager, error) {
 		if err := utils.CheckFile(envconfig.EnvConfig.SMCaCert); err != nil {
 			return nil, fmt.Errorf("can't initialize http clients: %s", err)
 		}
-		caCert, err := ioutil.ReadFile(envconfig.EnvConfig.SMCaCert)
+		caCert, err := os.ReadFile(envconfig.EnvConfig.SMCaCert)
 		if err != nil {
 			return nil, fmt.Errorf("can't initialize http clients: %s", err)
 		}

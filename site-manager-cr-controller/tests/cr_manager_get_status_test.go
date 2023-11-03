@@ -95,7 +95,7 @@ var (
 )
 
 func TestCRManager_StatusWithDeps(t *testing.T) {
-	envconfig.InitConfig()
+	_ = envconfig.InitConfig()
 	assert := require.New(t)
 	httpClientMock := mock.HttpClientMock{
 		ServiceStatus: model.ServiceSiteManagerResponse{Mode: "active", Status: "done"},
@@ -146,7 +146,7 @@ func TestCRManager_StatusWithDeps(t *testing.T) {
 }
 
 func TestCRManager_StatusWithoutDeps(t *testing.T) {
-	envconfig.InitConfig()
+	_ = envconfig.InitConfig()
 	assert := require.New(t)
 	httpClientMock := mock.HttpClientMock{
 		ServiceStatus: model.ServiceSiteManagerResponse{Mode: "active", Status: "done"},
@@ -183,7 +183,7 @@ func TestCRManager_StatusWithoutDeps(t *testing.T) {
 }
 
 func TestCRManager_NotExistDeps(t *testing.T) {
-	envconfig.InitConfig()
+	_ = envconfig.InitConfig()
 	assert := require.New(t)
 
 	httpClientMock := mock.HttpClientMock{
@@ -245,7 +245,7 @@ func TestCRManager_NotExistDeps(t *testing.T) {
 }
 
 func TestCRManager_CRCycles(t *testing.T) {
-	envconfig.InitConfig()
+	_ = envconfig.InitConfig()
 	assert := require.New(t)
 
 	httpClientMock := mock.HttpClientMock{
@@ -303,7 +303,7 @@ func TestCRManager_CRCycles(t *testing.T) {
 }
 
 func TestCRManager_DepsCycles(t *testing.T) {
-	envconfig.InitConfig()
+	_ = envconfig.InitConfig()
 	assert := require.New(t)
 
 	httpClientMock := mock.HttpClientMock{

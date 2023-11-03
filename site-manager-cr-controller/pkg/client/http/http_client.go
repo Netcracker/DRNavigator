@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/logger"
@@ -44,7 +44,7 @@ func DoGetRequest[V any](client HttpClientInterface, url string, token string, u
 
 	if response != nil {
 		defer response.Body.Close()
-		textData, err := ioutil.ReadAll(response.Body)
+		textData, err := io.ReadAll(response.Body)
 		if err != nil {
 			log.Errorf("Can't retreive response body: %s", err)
 			return 0, err
@@ -95,7 +95,7 @@ func DoPostRequest[V any, T any](client HttpClientInterface, url string, bodyObj
 
 	if response != nil {
 		defer response.Body.Close()
-		textData, err := ioutil.ReadAll(response.Body)
+		textData, err := io.ReadAll(response.Body)
 		if err != nil {
 			log.Errorf("Can't retreive response body: %s", err)
 			return 0, err

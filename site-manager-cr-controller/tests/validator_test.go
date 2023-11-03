@@ -63,7 +63,7 @@ func createCRFromTemplate(name string, namespace string, uid string, alias *stri
 		},
 	}
 	if alias != nil {
-		unstructured.SetNestedField(serviceCR.Object, *alias, "spec", "sitemanager", "alias")
+		_ = unstructured.SetNestedField(serviceCR.Object, *alias, "spec", "sitemanager", "alias")
 	}
 	return &serviceCR
 }
@@ -84,7 +84,7 @@ func failedValidation(assert *require.Assertions, validator service.IValidator, 
 
 func TestValidator_ValidatesNewCRCreation(t *testing.T) {
 	// Tests validation for new service without alias
-	config.InitConfig()
+	_ = config.InitConfig()
 	assert := require.New(t)
 
 	smConfig := model.SMConfig{
@@ -116,7 +116,7 @@ func TestValidator_ValidatesNewCRCreation(t *testing.T) {
 
 func TestValidator_ValidatesNewCRCreation_ProideAlias(t *testing.T) {
 	// Tests validation for new service with alias
-	config.InitConfig()
+	_ = config.InitConfig()
 	assert := require.New(t)
 
 	smConfig := model.SMConfig{
@@ -157,7 +157,7 @@ func TestValidator_ValidatesNewCRCreation_ProideAlias(t *testing.T) {
 
 func TestValidator_ValidatesNewCRCreation_ServiceDefinedAsAlias(t *testing.T) {
 	// Tests validation for new service with cr-name.namespace is used as alias for another service
-	config.InitConfig()
+	_ = config.InitConfig()
 	assert := require.New(t)
 
 	smConfig := model.SMConfig{
@@ -188,7 +188,7 @@ func TestValidator_ValidatesNewCRCreation_ServiceDefinedAsAlias(t *testing.T) {
 
 func TestValidator_ValidatesCRUpdate(t *testing.T) {
 	// Tests validation for new service with cr-name.namespace is used as alias for another service
-	config.InitConfig()
+	_ = config.InitConfig()
 	assert := require.New(t)
 
 	smConfig := model.SMConfig{

@@ -4,7 +4,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 
 	"github.com/labstack/echo-contrib/echoprometheus"
@@ -125,7 +125,7 @@ func getServices(crManager service.ICRManager) func(c echo.Context) error {
 func processService(crManager service.ICRManager) func(c echo.Context) error {
 	log := logger.SimpleLogger()
 	return func(c echo.Context) error {
-		smBytes, err := ioutil.ReadAll(c.Request().Body)
+		smBytes, err := io.ReadAll(c.Request().Body)
 		if err != nil {
 			log.Errorf("Some problem occurred: %s", err)
 			return &echo.HTTPError{

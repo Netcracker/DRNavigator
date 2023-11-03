@@ -27,7 +27,7 @@ func Serve(bindAddress string, bindWebhookAddress string, certFile string, keyFi
 	// Collects sm config
 	smConfig := &model.SMConfig{TokenChannel: make(chan string)}
 	if smConfigFile := envconfig.EnvConfig.SMConfigFile; smConfigFile != "" {
-		log.Debug("SMConfig file detected: %s", smConfigFile)
+		log.Debugf("SMConfig file detected: %s", smConfigFile)
 		if err := utils.ParseYamlFile(smConfigFile, smConfig); err != nil {
 			return fmt.Errorf("error parsing sm config file: %s", err)
 		}
