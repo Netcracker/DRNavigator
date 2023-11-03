@@ -31,7 +31,7 @@ func ServeWMainServer(bindAddress string, bindWebhookAddress string, certFile st
 	if envconfig.EnvConfig.FrontHttpAuth {
 		g.Use(middleware.KeyAuthWithConfig(middleware.KeyAuthConfig{
 			Validator: func(key string, c echo.Context) (bool, error) {
-				return smConfig.Token == key, nil
+				return smConfig.GetToken() == key, nil
 			},
 			ErrorHandler: func(err error, c echo.Context) error {
 				if _, ok := err.(*middleware.ErrKeyAuthMissing); ok {

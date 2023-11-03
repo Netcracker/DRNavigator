@@ -25,7 +25,7 @@ const smServiceAccountName = "sm-auth-sa"
 // Serve starts new https server app
 func Serve(bindAddress string, bindWebhookAddress string, certFile string, keyFile string) error {
 	// Collects sm config
-	smConfig := &model.SMConfig{}
+	smConfig := &model.SMConfig{TokenChannel: make(chan string)}
 	if smConfigFile := envconfig.EnvConfig.SMConfigFile; smConfigFile != "" {
 		log.Debug("SMConfig file detected: %s", smConfigFile)
 		if err := utils.ParseYamlFile(smConfigFile, smConfig); err != nil {
@@ -51,8 +51,8 @@ func Serve(bindAddress string, bindWebhookAddress string, certFile string, keyFi
 	errorChannel := make(chan error)
 
 	// Handle token if authorization is enabled in separate gorutine
-	if envconfig.EnvConfig.BackHttpAuth || envconfig.EnvConfig.FrontHttpAuth {
-		go handleToken(smConfig, errorChannel)
+	if !smConfig.Testing.Enabled && (envconfig.EnvConfig.BackHttpAuth || envconfig.EnvConfig.FrontHttpAuth) {
+		go handleToken(smConfig.TokenChannel, errorChannel)
 	}
 
 	// initialize api for webhook in separate gorutine
@@ -67,12 +67,7 @@ func Serve(bindAddress string, bindWebhookAddress string, certFile string, keyFi
 }
 
 // handleToken gets token of sm-auth-sa from kubernetes when it updates
-func handleToken(smConfig *model.SMConfig, errChannel chan error) {
-	// Return if testing mode is enabled in sm config. In that case token should already be presented
-	if smConfig.Testing.Enabled {
-		return
-	}
-
+func handleToken(TokenChannel chan string, errChannel chan error) {
 	logger := logger.SimpleLogger()
 	config, err := kube_config.GetKubeConfig()
 	if err != nil {
@@ -129,8 +124,7 @@ func handleToken(smConfig *model.SMConfig, errChannel chan error) {
 				errChannel <- fmt.Errorf("can't handle token from secret %s for SA %s", secretRef.Name, smServiceAccountName)
 				continue
 			}
-			token := string(btoken)
-			smConfig.Token = token
+			TokenChannel <- string(btoken)
 			logger.Infof("Service-account %s was %s. Token was updated.", smServiceAccountName, event.Type)
 		} else if event.Type == watch.Deleted {
 			logger.Errorf("Service-account %s was deleted. Exit", smServiceAccountName)

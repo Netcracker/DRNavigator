@@ -157,7 +157,7 @@ func (crm *CRManager) ProcessService(serviceName *string, procedure string, noWa
 		NoWait: noWait,
 	}
 	processResponse := &model.ServiceProcessResponse{}
-	code, err := http_client.DoPostRequest(crm.PostHttpClient, smObj.Parameters.ServiceEndpoint, processRequest, crm.SMConfig.Token, envconfig.EnvConfig.BackHttpAuth, 3, processResponse)
+	code, err := http_client.DoPostRequest(crm.PostHttpClient, smObj.Parameters.ServiceEndpoint, processRequest, crm.SMConfig.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, processResponse)
 	if err != nil {
 		return nil, &model.SMError{Message: fmt.Sprintf("Processing service error: %s", err), Service: serviceName}
 	}
@@ -214,12 +214,12 @@ func (crm *CRManager) getServiceStatus(smObj *model.SMObject) model.SMStatus {
 		Status:  "--",
 	}
 
-	_, _ = http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.ServiceEndpoint, crm.SMConfig.Token, envconfig.EnvConfig.BackHttpAuth, 3, serviceSMResponse)
+	_, _ = http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.ServiceEndpoint, crm.SMConfig.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, serviceSMResponse)
 
 	serviceHealthResponse := &model.ServiceHealthzResponse{
 		Status: "--",
 	}
-	_, _ = http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.HealthzEndpoint, crm.SMConfig.Token, envconfig.EnvConfig.BackHttpAuth, 3, serviceHealthResponse)
+	_, _ = http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.HealthzEndpoint, crm.SMConfig.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, serviceHealthResponse)
 
 	return model.SMStatus{
 		Mode:    serviceSMResponse.Mode,
