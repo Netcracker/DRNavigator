@@ -209,6 +209,7 @@ func TestConverter_ConvertV3ToV1(t *testing.T) {
 
 	desiredAPIVersion := "netcracker.com/v1"
 	testService := &test_objects.ServiceV3
-	_, err = converter.Convert(testService, desiredAPIVersion)
-	assert.ErrorContains(err, "Can't convert to v1, specified not stateful module", "Conversion v3 to v1 shoud fail with custom-module error")
+	convertedService, err := converter.Convert(testService, desiredAPIVersion)
+	assert.NoError(err, "Conversion v3 to v2 fails")
+	assert.Equal(desiredAPIVersion, convertedService.GetAPIVersion(), "API version is not desired")
 }
