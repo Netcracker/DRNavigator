@@ -75,7 +75,8 @@ func rootGet() func(c echo.Context) error {
 // @Router       /health [get]
 func health(bindWebhookAddress string) func(c echo.Context) error {
 	tr := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+		DisableKeepAlives: true,
 	}
 	http_client := &http.Client{Transport: tr}
 	return func(c echo.Context) error {

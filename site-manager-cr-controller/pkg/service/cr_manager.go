@@ -64,13 +64,15 @@ func NewCRManager(smConfig *model.SMConfig) (ICRManager, error) {
 	}
 	crManager.GetHttpClient = &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
+			TLSClientConfig:   tlsConfig,
+			DisableKeepAlives: true,
 		},
 		Timeout: time.Duration(envconfig.EnvConfig.GetRequestTimeout) * time.Second,
 	}
 	crManager.PostHttpClient = &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: tlsConfig,
+			TLSClientConfig:   tlsConfig,
+			DisableKeepAlives: true,
 		},
 		Timeout: time.Duration(envconfig.EnvConfig.PostRequestTimeout) * time.Second,
 	}
