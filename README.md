@@ -1124,16 +1124,8 @@ specified procedure can be executed without running real processing.
 ### Requirements 
  
 Before the installation, ensure that you have enough resources for DRNavigator.
-For one pod, it is recommended to use 100m CPU and 80Mi memory limits per worker and by default, DRNavigator uses 2 workers.
-You can override the worker count and cpu/memory limits using helm environments.
-
-Default quotas:
-
-|                            | CPU Limit         | Memory Limit          |
-|----------------------------|-------------------|-----------------------|
-| site-manager               | 200m              | 160Mi                 |
-| site-manager-cr-controller | 300m              | 150Mi                 |
-| **Total**                  | 500m              | 310Mi                 |
+For one pod by default DRNavigator uses 300m CPU and 150Mi memory.
+You can override cpu/memory limits using helm environments.
 
 Needed quotas depends on the number of services, for this reason, if you have problems with services processing (typically, with timeouts),
 you can do one of following solutions:
@@ -1301,11 +1293,6 @@ To support the ability of services to be managed by `site-manager`, implement th
     
 | Parameter                                                      | Description                                                                                                                                                              | Default value                   |
 |----------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------|
-| controller.image.repository                                    | The docker image repository name for cr-controller                                                                                                                       | ghcr.io/netcracker/site-manager-cr-controller |
-| controller.image.pullPolicy                                    | The docker image pull policy for cr-controller                                                                                                                           | Always                          |
-| controller.image.tag                                           | The docker image tag for cr-controller                                                                                                                                   | v1.0                            |
-| controller.limits.cpu                                          | CPU limits per pod for cr-controller                                                                                                                                     | 300m                            |
-| controller.limits.memory                                       | Memory limits per pod for cr-controller                                                                                                                                  | 150Mi                           |
 | crd.install                                                    | Enable/disable site-manager CRD installation                                                                                                                             | false                           |
 | env.FRONT_HTTP_AUTH                                            | Set the authentication mode between sm-client and Site-Manager.                               | "Yes"                           |
 | env.BACK_HTTP_AUTH                                             | Set the authentication mode between Site-Manager and manageable services.                     | "Yes"                           |

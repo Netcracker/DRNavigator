@@ -134,7 +134,7 @@ func handleToken(tokenChannel chan string, errChannel chan error) {
 				} else {
 					token = string(btoken)
 				}
-				logger.Infof("Service-account %s was %s. Token was updated.", smServiceAccountName, event.Type)
+				logger.Debugf("Service-account %s was %s. Token was updated.", smServiceAccountName, event.Type)
 			} else if event.Type == watch.Deleted {
 				logger.Errorf("Service-account %s was deleted. Exit", smServiceAccountName)
 				errChannel <- fmt.Errorf("service-account %s was deleted", smServiceAccountName)
