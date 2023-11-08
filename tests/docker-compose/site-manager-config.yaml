@@ -1,6 +1,6 @@
-token: "12345"
 testing:
   enabled: True
+  token: "12345"
   sm_dict:
     services:
       serviceA:
