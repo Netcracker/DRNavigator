@@ -1,134 +1,145 @@
 package app
 
 import (
-	"encoding/json"
+	"context"
 	"fmt"
-	"net/http"
+	"strings"
 
-	"github.com/labstack/echo-contrib/echoprometheus"
-	"github.com/labstack/echo/v4"
+	"github.com/labstack/gommon/log"
+	envconfig "github.com/netcracker/drnavigator/site-manager-cr-controller/config"
+	kube_config "github.com/netcracker/drnavigator/site-manager-cr-controller/config/kube_config"
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/logger"
+	"github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/model"
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/service"
-	admissionv1 "k8s.io/api/admission/v1"
-	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/utils"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/cache"
+	toolsWatch "k8s.io/client-go/tools/watch"
 )
 
+const smServiceAccountName = "sm-auth-sa"
+
 // Serve starts new https server app
-func Serve(bindAddress string, certFile string, keyFile string) error {
-	crValidator, err := service.NewValidator()
+func Serve(bindAddress string, bindWebhookAddress string, certFile string, keyFile string) error {
+	// Collects sm config
+	smConfig := &model.SMConfig{TokenChannel: make(chan string)}
+	if smConfigFile := envconfig.EnvConfig.SMConfigFile; smConfigFile != "" {
+		log.Debugf("SMConfig file detected: %s", smConfigFile)
+		if err := utils.ParseYamlFile(smConfigFile, smConfig); err != nil {
+			return fmt.Errorf("error parsing sm config file: %s", err)
+		}
+	}
+
+	// Initalize services
+	crManager, err := service.NewCRManager(smConfig)
+	if err != nil {
+		return fmt.Errorf("can't initialize cr manager service: %s", err)
+	}
+	crValidator, err := service.NewValidator(smConfig)
 	if err != nil {
 		return fmt.Errorf("can't initialize cr validator: %s", err)
 	}
-
-	crConverter, err := service.NewConverter()
+	crConverter, err := service.NewConverter(smConfig)
 	if err != nil {
 		return fmt.Errorf("can't initialize cr converter: %s", err)
 	}
 
-	e := echo.New()
+	// initialize cross gorutine error, that is used for every worked gorutine until it returns an error
+	errorChannel := make(chan error)
 
-	e.Use(echoprometheus.NewMiddleware("sm_cr_controller"))
-	e.GET("/metrics", echoprometheus.NewHandler())
-	e.GET("/health", health())
-	e.POST("/validate", validate(crValidator))
-	e.POST("/convert", convert(crConverter))
-
-	return e.StartTLS(bindAddress, certFile, keyFile)
-}
-
-func health() func(c echo.Context) error {
-	return func(c echo.Context) error {
-		return c.String(http.StatusNoContent, "")
+	// Handle token if authorization is enabled in separate gorutine
+	if !smConfig.Testing.Enabled && (envconfig.EnvConfig.BackHttpAuth || envconfig.EnvConfig.FrontHttpAuth) {
+		go handleToken(smConfig.TokenChannel, errorChannel)
 	}
-}
 
-func validate(validator *service.Validator) func(c echo.Context) error {
-	return func(c echo.Context) error {
-		log := logger.SimpleLogger()
-
-		input := admissionv1.AdmissionReview{}
-		if err := json.NewDecoder(c.Request().Body).Decode(&input); err != nil {
-			msg := fmt.Sprintf("Can't parse admission review object: %s", err)
-			log.Errorf(msg)
-			return c.String(http.StatusInternalServerError, msg)
-		}
-
-		log.Debugf("Initial object from API for validating:\n%s", string(input.Request.Object.Raw))
-
-		cr := unstructured.Unstructured{}
-		if err := cr.UnmarshalJSON(input.Request.Object.Raw); err != nil {
-			msg := fmt.Sprintf("Can't parse cr object: %s", err)
-			log.Errorf(msg)
-			return c.String(http.StatusInternalServerError, msg)
-		}
-		allowed, message, err := validator.Validate(&cr)
-
-		if err != nil {
-			log.Errorf(err.Error())
-			return c.String(http.StatusInternalServerError, err.Error())
-		}
-		if !allowed {
-			log.Debugf("CR validation fails: %s", message)
-		}
-
-		output := admissionv1.AdmissionReview{
-			TypeMeta: input.TypeMeta,
-			Response: &admissionv1.AdmissionResponse{
-				UID:     input.Request.UID,
-				Allowed: allowed,
-				Result: &metav1.Status{
-					Message: message,
-				},
-			},
-		}
-		return c.JSON(http.StatusOK, output)
+	// initialize api for webhook in separate gorutine
+	if bindWebhookAddress != "" {
+		go ServeWebhookServer(bindWebhookAddress, certFile, keyFile, crValidator, crConverter, errorChannel)
 	}
+	// initialize api for main site-manager in separate gorutine
+	go ServeMainServer(bindAddress, bindWebhookAddress, certFile, keyFile, crManager, smConfig, errorChannel)
+
+	// wait when some gorutine returns an error
+	return <-errorChannel
 }
 
-func convert(converter *service.Converter) func(c echo.Context) error {
-	return func(c echo.Context) error {
-		log := logger.SimpleLogger()
-		input := apiextensionsv1.ConversionReview{}
-		if err := json.NewDecoder(c.Request().Body).Decode(&input); err != nil {
-			msg := fmt.Sprintf("Can't parse conversion review object: %s", err)
-			log.Error(msg)
-			return c.String(http.StatusInternalServerError, msg)
-		}
+// handleToken gets token of sm-auth-sa from kubernetes when it updates
+func handleToken(tokenChannel chan string, errChannel chan error) {
+	logger := logger.SimpleLogger()
+	config, err := kube_config.GetKubeConfig()
+	if err != nil {
+		errChannel <- fmt.Errorf("can't create kubeconfig to handle token from secret %s", err)
+		return
+	}
+	clientset, err := kubernetes.NewForConfig(config)
+	if err != nil {
+		errChannel <- fmt.Errorf("can't initialize kubernetes client to handle token from secret %s", err)
+		return
+	}
 
-		log.Debugf("CR convertation is started.")
-		var convertedObjects []runtime.RawExtension
+	namespace := envconfig.EnvConfig.PodNamespace
+	logger.Infof("Current namespace: %s", namespace)
 
-		for _, obj := range input.Request.Objects {
-			cr := unstructured.Unstructured{}
-			if err := cr.UnmarshalJSON(obj.Raw); err != nil {
-				msg := fmt.Sprintf("Can't parse unstructured object: %s", err)
-				log.Error(msg)
-				return c.String(http.StatusInternalServerError, msg)
+	timeout := int64(30)
+	watchFunc := func(options metav1.ListOptions) (watch.Interface, error) {
+		return clientset.CoreV1().ServiceAccounts(namespace).Watch(context.Background(), metav1.ListOptions{TimeoutSeconds: &timeout})
+	}
+
+	watcher, err := toolsWatch.NewRetryWatcher("1", &cache.ListWatch{WatchFunc: watchFunc})
+	if err != nil {
+		errChannel <- fmt.Errorf("can't initialize watcher to handle token from secret %s", err)
+		return
+	}
+
+	var token string
+	for {
+		select {
+		case tokenChannel <- token:
+		case event, ok := <-watcher.ResultChan():
+			if !ok {
+				logger.Errorf("Watch SA event channel is closed")
+				errChannel <- fmt.Errorf("can't handle token: channel is closed")
+				return
 			}
-			log.Debugf("Initial spec:%s", cr)
-			convertedCR, err := converter.Convert(&cr, input.Request.DesiredAPIVersion)
-
-			if err != nil {
-				return c.String(http.StatusInternalServerError, err.Error())
+			serviceAccount, ok := event.Object.(*corev1.ServiceAccount)
+			if !ok {
+				logger.Errorf("can't get SA from event: %s")
+				errChannel <- fmt.Errorf("can't handle SA from watching event")
+				return
 			}
-
-			log.Debugf("Modified spec: %s", convertedCR)
-			convertedObjects = append(convertedObjects, runtime.RawExtension{Object: convertedCR})
+			if serviceAccount.GetName() != smServiceAccountName {
+				continue
+			}
+			if event.Type == watch.Added || event.Type == watch.Modified {
+				secretRef := utils.FindFirstFromSlice(serviceAccount.Secrets, func(secretRef corev1.ObjectReference) bool {
+					return strings.Contains(secretRef.Name, "token")
+				})
+				if secretRef == nil {
+					logger.Warnf("Secret for appropriate SA is not ready yet")
+					continue
+				}
+				secret, err := clientset.CoreV1().Secrets(namespace).Get(context.Background(), secretRef.Name, metav1.GetOptions{})
+				if err != nil {
+					logger.Errorf("Can't get secret with name %s from namespace %s: %s", secretRef.Name, namespace, err)
+					errChannel <- fmt.Errorf("can't handle token from secret %s for SA %s", secretRef.Name, smServiceAccountName)
+					return
+				}
+				if btoken, found := secret.Data["token"]; !found {
+					logger.Errorf("Can't get token from secret with name %s from namespace %s: %s", secretRef.Name, namespace, err)
+					errChannel <- fmt.Errorf("can't handle token from secret %s for SA %s", secretRef.Name, smServiceAccountName)
+					return
+				} else {
+					token = string(btoken)
+				}
+				logger.Debugf("Service-account %s was %s. Token was updated.", smServiceAccountName, event.Type)
+			} else if event.Type == watch.Deleted {
+				logger.Errorf("Service-account %s was deleted. Exit", smServiceAccountName)
+				errChannel <- fmt.Errorf("service-account %s was deleted", smServiceAccountName)
+				return
+			}
 		}
-
-		output := apiextensionsv1.ConversionReview{
-			TypeMeta: input.TypeMeta,
-			Response: &apiextensionsv1.ConversionResponse{
-				UID: input.Request.UID,
-				Result: metav1.Status{
-					Status: "Success",
-				},
-				ConvertedObjects: convertedObjects,
-			},
-		}
-		return c.JSON(http.StatusOK, output)
 	}
 }

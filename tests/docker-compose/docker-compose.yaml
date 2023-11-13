@@ -63,21 +63,18 @@ services:
 
       
   site-manager-1:
-    image: site-manager
+    image: site-manager-cr-controller
     container_name: site-manager-1
     restart: unless-stopped
     volumes:
       - ./site-manager-config.yaml:/val/config.yaml
     command:
       - "--bind=0.0.0.0:8080"
-      - '--worker-class=gevent'
-      - "-w 2"
-      - "site-manager:app"
     environment: 
       - SM_CONFIG_FILE=/val/config.yaml
       - SM_DEBUG=True
       - FRONT_HTTP_AUTH=True
-      - SM_GET_REQUEST_TIMEOUT=20
+      - SM_GET_REQUEST_TIMEOUT=1
       - SM_POST_REQUEST_TIMEOUT=1
     expose:
        - 8080
@@ -86,7 +83,6 @@ services:
     networks:
       - cluster-1
 
-  
   # Cluster-2
   serviceA-2:
     image: sm-dummy
@@ -144,16 +140,13 @@ services:
 
       
   site-manager-2:
-    image: site-manager
+    image: site-manager-cr-controller
     container_name: site-manager-2
     restart: unless-stopped
     volumes:
       - ./site-manager-config-2.yaml:/val/config.yaml
     command:
       - "--bind=0.0.0.0:8080"
-      - '--worker-class=gevent'
-      - "-w 2"
-      - "site-manager:app"
     environment: 
       - SM_CONFIG_FILE=/val/config.yaml
       - SM_DEBUG=True

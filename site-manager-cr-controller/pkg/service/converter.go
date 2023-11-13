@@ -4,35 +4,35 @@ import (
 	"fmt"
 
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/logger"
-	cr_client "github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/client"
+	cr_client "github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/client/cr"
+	"github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/model"
+	"github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/utils"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
-// Converter provides the set of functions for CR conversion
-type Converter struct {
-	Client cr_client.CRClientInterface
+// IConverter provides the set of functions for CR conversion
+type IConverter interface {
+	// Convert converts the given CR to desired api version
+	// Checks that CR api version and unstructed api version is supported and returns the new converted object
+	Convert(cr *unstructured.Unstructured, desiredApiVersion string) (*unstructured.Unstructured, error)
 }
 
-func findFirstCR(smDict map[string]unstructured.Unstructured, filterFunc func(*unstructured.Unstructured) bool) string {
-	for serviceName, obj := range smDict {
-		if filterFunc(&obj) {
-			return serviceName
-		}
-	}
-	return ""
+// Converter provides the set of functions for CR conversion
+type Converter struct {
+	CRManager ICRManager
 }
 
 func (c *Converter) convertV1ToV2(cr *unstructured.Unstructured) error {
 	// Set module
 	if _, found, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "module"); !found {
-		unstructured.SetNestedField(cr.Object, "stateful", "spec", "sitemanager", "module")
+		_ = unstructured.SetNestedField(cr.Object, "stateful", "spec", "sitemanager", "module")
 	}
 	// Move endpoints
 	if _, found, _ := unstructured.NestedMap(cr.Object, "spec", "sitemanager", "parameters"); !found {
 		serviceEndpoint, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "serviceEndpoint")
 		ingressEndpoint, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "ingressEndpoint")
 		healthzEndpoint, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "healthzEndpoint")
-		unstructured.SetNestedMap(cr.Object, map[string]interface{}{
+		_ = unstructured.SetNestedMap(cr.Object, map[string]interface{}{
 			"serviceEndpoint": serviceEndpoint,
 			"ingressEndpoint": ingressEndpoint,
 			"healthzEndpoint": healthzEndpoint,
@@ -48,9 +48,7 @@ func (c *Converter) convertV1ToV2(cr *unstructured.Unstructured) error {
 
 func (c *Converter) convertV2ToV1(cr *unstructured.Unstructured) error {
 	// Remove module
-	if value, found, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "module"); found && value != "stateful" {
-		return fmt.Errorf("Can't convert to v1, specified not stateful module in CR %s on namespace %s", cr.GetName(), cr.GetNamespace())
-	} else if found {
+	if _, found, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "module"); found {
 		unstructured.RemoveNestedField(cr.Object, "spec", "sitemanager", "module")
 	}
 	// Move endpoints
@@ -58,9 +56,9 @@ func (c *Converter) convertV2ToV1(cr *unstructured.Unstructured) error {
 		serviceEndpoint, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "parameters", "serviceEndpoint")
 		ingressEndpoint, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "parameters", "ingressEndpoint")
 		healthzEndpoint, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "parameters", "healthzEndpoint")
-		unstructured.SetNestedField(cr.Object, serviceEndpoint, "spec", "sitemanager", "serviceEndpoint")
-		unstructured.SetNestedField(cr.Object, ingressEndpoint, "spec", "sitemanager", "ingressEndpoint")
-		unstructured.SetNestedField(cr.Object, healthzEndpoint, "spec", "sitemanager", "healthzEndpoint")
+		_ = unstructured.SetNestedField(cr.Object, serviceEndpoint, "spec", "sitemanager", "serviceEndpoint")
+		_ = unstructured.SetNestedField(cr.Object, ingressEndpoint, "spec", "sitemanager", "ingressEndpoint")
+		_ = unstructured.SetNestedField(cr.Object, healthzEndpoint, "spec", "sitemanager", "healthzEndpoint")
 		unstructured.RemoveNestedField(cr.Object, "spec", "sitemanager", "parameters")
 	}
 	// Set api version
@@ -73,39 +71,38 @@ func (c *Converter) convertV2ToV3(cr *unstructured.Unstructured) error {
 	// Set alias for not stateful module
 	// It's needed for automatic conversion not stateful modules
 	if value, _, _ := unstructured.NestedString(cr.Object, "spec", "sitemanager", "module"); value != "stateful" {
-		unstructured.SetNestedField(cr.Object, cr.GetName(), "spec", "sitemanager", "alias")
+		_ = unstructured.SetNestedField(cr.Object, cr.GetName(), "spec", "sitemanager", "alias")
 	}
 	// Add namespace to dependencies
 	beforeServices, _, _ := unstructured.NestedStringSlice(cr.Object, "spec", "sitemanager", "before")
 	afterServices, _, _ := unstructured.NestedStringSlice(cr.Object, "spec", "sitemanager", "after")
 	if len(beforeServices) > 0 || len(afterServices) > 0 {
-		smDict, err := c.Client.GetAllServicesWithSpecifiedVersion("v2")
+		smDict, err := c.CRManager.GetAllServicesWithSpecifiedVersion("v2")
 		if err != nil {
-			log.Errorf("Can't get SM objects: %s", err.Error())
 			return err
 		}
 		for i, beforeServiceName := range beforeServices {
-			beforeService := findFirstCR(smDict, func(obj *unstructured.Unstructured) bool {
-				return obj.GetName() == beforeServiceName
+			beforeService := utils.FindFirstFromMap(smDict.Services, func(obj model.SMObject) bool {
+				return obj.CRName == beforeServiceName
 			})
-			if beforeService == "" {
+			if beforeService == nil {
 				log.Errorf("Found non-exist before dependency %s for CR %s on namespace %s", beforeServiceName, cr.GetName(), cr.GetNamespace())
 			} else {
-				beforeServices[i] = beforeService
+				beforeServices[i] = *beforeService
 			}
 		}
 		for i, afterServiceName := range afterServices {
-			afterService := findFirstCR(smDict, func(obj *unstructured.Unstructured) bool {
-				return obj.GetName() == afterServiceName
+			afterService := utils.FindFirstFromMap(smDict.Services, func(obj model.SMObject) bool {
+				return obj.CRName == afterServiceName
 			})
-			if afterService == "" {
+			if afterService == nil {
 				log.Errorf("Found non-exist after dependency %s for CR %s on namespace %s", afterServiceName, cr.GetName(), cr.GetNamespace())
 			} else {
-				afterServices[i] = afterService
+				afterServices[i] = *afterService
 			}
 		}
-		unstructured.SetNestedStringSlice(cr.Object, beforeServices, "spec", "sitemanager", "before")
-		unstructured.SetNestedStringSlice(cr.Object, afterServices, "spec", "sitemanager", "after")
+		_ = unstructured.SetNestedStringSlice(cr.Object, beforeServices, "spec", "sitemanager", "before")
+		_ = unstructured.SetNestedStringSlice(cr.Object, afterServices, "spec", "sitemanager", "after")
 	}
 
 	//Remove ingressEndpoint
@@ -127,7 +124,7 @@ func (c *Converter) convertV3ToV2(cr *unstructured.Unstructured) error {
 // Checks that CR api version and unstructed api version is supported and returns the new converted object
 func (c *Converter) Convert(cr *unstructured.Unstructured, desiredApiVersion string) (*unstructured.Unstructured, error) {
 	if !cr_client.CheckIfApiVersionSupported(desiredApiVersion) {
-		return nil, fmt.Errorf("Desired API version %s is not supported", desiredApiVersion)
+		return nil, fmt.Errorf("desired API version %s is not supported", desiredApiVersion)
 	}
 	if !cr_client.CheckIfApiVersionSupported(cr.GetAPIVersion()) {
 		return nil, fmt.Errorf("API version %s is not supported", cr.GetAPIVersion())
@@ -178,10 +175,10 @@ func (c *Converter) Convert(cr *unstructured.Unstructured, desiredApiVersion str
 }
 
 // NewConverter creates the new Converter object
-func NewConverter() (*Converter, error) {
-	client, err := cr_client.NewCRClient()
+func NewConverter(smConfig *model.SMConfig) (IConverter, error) {
+	crManager, err := NewCRManager(smConfig)
 	if err != nil {
 		return nil, err
 	}
-	return &Converter{Client: client}, nil
+	return &Converter{CRManager: crManager}, nil
 }

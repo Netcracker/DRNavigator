@@ -8,11 +8,12 @@ testing:
         allowedStandbyStateList:
         - up
         before: []
+        CRname: serviceA
+        name: serviceA
         namespace: serviceA-ns
         module: stateful
         parameters:
             healthzEndpoint: http://serviceA-site-2:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://serviceA-site-2:8080/sitemanager
         sequence:
         - standby
@@ -23,11 +24,12 @@ testing:
         allowedStandbyStateList:
         - up
         before: []
+        CRname: serviceB
+        name: serviceB
         namespace: serviceB-ns
         module: stateful
         parameters:
             healthzEndpoint: http://serviceB-site-2:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://serviceB-site-2:8080/sitemanager
         sequence:
         - standby

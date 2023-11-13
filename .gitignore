@@ -4,6 +4,7 @@
 *.komodoproject
 .loadpath
 */.vscode
+config.yaml
 .project
 *.pyc
 .pydevproject

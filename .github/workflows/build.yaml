@@ -9,8 +9,6 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
-      - name: Build Docker Image for site-manager
-        run: docker build -t site-manager -f Dockerfile-sm --no-cache .
       - name: Build Docker Image for site-manager-cr-controller
         run: docker build -t site-manager-cr-controller -f site-manager-cr-controller/Dockerfile --no-cache site-manager-cr-controller
       - name: Build Docker Image for sm-client

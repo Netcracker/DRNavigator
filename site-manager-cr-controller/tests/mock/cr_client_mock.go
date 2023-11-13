@@ -1,21 +1,15 @@
 package mock
 
 import (
-	cr_client "github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/client"
+	cr_client "github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/client/cr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 type CRClientMock struct {
-	cr_client.CRClientInterface
-	Services *[]unstructured.Unstructured
+	cr_client.ICRClient
+	CRList unstructured.UnstructuredList
 }
 
-func (cm *CRClientMock) GetAllServices() (map[string]unstructured.Unstructured, error) {
-	return cr_client.ConvertToMap(&unstructured.UnstructuredList{
-		Items: *cm.Services,
-	}), nil
-}
-
-func (cm *CRClientMock) GetAllServicesWithSpecifiedVersion(_ string) (map[string]unstructured.Unstructured, error) {
-	return cm.GetAllServices()
+func (crcm *CRClientMock) List(apiVersion string) (*unstructured.UnstructuredList, error) {
+	return &crcm.CRList, nil
 }

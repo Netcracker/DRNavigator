@@ -8,6 +8,7 @@ COPY go.sum go.sum
 # cache deps before building and copying source so that we don't need to re-download as much
 # and so that source changes don't invalidate our downloaded layer
 RUN go mod download
+RUN go install github.com/swaggo/swag/cmd/swag@v1.16.2
 
 # Copy the go source
 COPY cmd/ cmd/
@@ -15,6 +16,10 @@ COPY pkg/ pkg/
 COPY logger/ logger/
 COPY config/ config/
 COPY main.go ./
+
+# Generate swagger
+RUN swag init --outputTypes go
+
 # Build
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o site-manager-cr-controller ./main.go
 

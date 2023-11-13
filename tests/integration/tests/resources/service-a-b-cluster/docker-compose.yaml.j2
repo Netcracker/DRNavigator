@@ -39,16 +39,13 @@ services:
       - site-1
 
   site-manager-site-1:
-    image: site-manager
+    image: site-manager-cr-controller
     container_name: site-manager-site-1
     restart: unless-stopped
     volumes:
       - {{ env.config_dir }}{{ env.os_path_sep }}site-manager-config.yaml:/val/config.yaml
     command:
       - "--bind=0.0.0.0:8080"
-      - '--worker-class=gevent'
-      - "-w 2"
-      - "site-manager:app"
     environment:
       - SM_CONFIG_FILE=/val/config.yaml
       - SM_DEBUG=True
@@ -95,16 +92,13 @@ services:
       - site-2
 
   site-manager-site-2:
-    image: site-manager
+    image: site-manager-cr-controller
     container_name: site-manager-site-2
     restart: unless-stopped
     volumes:
       - {{ env.config_dir }}{{ env.os_path_sep }}site-manager-config-2.yaml:/val/config.yaml
     command:
       - "--bind=0.0.0.0:8080"
-      - '--worker-class=gevent'
-      - "-w 2"
-      - "site-manager:app"
     environment:
       - SM_CONFIG_FILE=/val/config.yaml
       - SM_DEBUG=True

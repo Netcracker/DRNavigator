@@ -13,7 +13,6 @@ testing:
         module: stateful
         parameters:
             healthzEndpoint: http://serviceA-2:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://serviceA-2:8080/sitemanager
         sequence:
         - active
@@ -29,7 +28,6 @@ testing:
         module: stateful
         parameters:
             healthzEndpoint: http://serviceB-2:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://serviceB-2:8080/sitemanager
         sequence:
         - standby
@@ -45,7 +43,6 @@ testing:
         module: stateful
         parameters:
             healthzEndpoint: http://serviceC-2:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://serviceC-2:8080/sitemanager
         sequence:
         - standby
@@ -61,7 +58,6 @@ testing:
         module: custom_module
         parameters:
             healthzEndpoint: http://custom-service-2:8080/healthz
-            ingressEndpoint: ""
             serviceEndpoint: http://custom-service-2:8080/sitemanager
         sequence:
         - standby
