@@ -13,7 +13,7 @@ spec:
   versions:
   - name: v3
     served: true
-    storage: false
+    storage: true
     subresources:
       status: {}
     schema:
@@ -76,16 +76,24 @@ spec:
             type: object
           status:
             properties:
-              siteManagerStatus:
-                properties:
-                  status:
-                    type: string
-                type: object
+              summary:
+                type: string
+              serviceName:
+                type: string
             type: object
         type: object
+    additionalPrinterColumns:
+    - name: SERVICE NAME
+      type: string
+      description: Service name in site-manager
+      jsonPath: .status.serviceName
+    - name: STATUS
+      type: string
+      description: The summary status of service
+      jsonPath: .status.summary
   - name: v2
     served: true
-    storage: true
+    storage: false
     deprecated: true
     deprecationWarning: >-
       netcracker.com/v2 SiteManager is deprecated; use v3 and see actual
@@ -153,15 +161,23 @@ spec:
             type: object
           status:
             properties:
-              siteManagerStatus:
-                properties:
-                  status:
-                    type: string
-                type: object
+              summary:
+                type: string
+              serviceName:
+                type: string
             type: object
         type: object
+    additionalPrinterColumns:
+    - name: SERVICE NAME
+      type: string
+      description: Service name in site-manager
+      jsonPath: .status.serviceName
+    - name: STATUS
+      type: string
+      description: The summary status of service
+      jsonPath: .status.summary
   - name: v1
-    served: true
+    served: false
     storage: false
     deprecated: true
     deprecationWarning: "netcracker.com/v1 SiteManager is deprecated; use v2 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
@@ -220,13 +236,21 @@ spec:
             type: object
           status:
             properties:
-              siteManagerStatus:
-                properties:
-                  status:
-                    type: string
-                type: object
+              summary:
+                type: string
+              serviceName:
+                type: string
             type: object
         type: object
+    additionalPrinterColumns:
+    - name: SERVICE NAME
+      type: string
+      description: Service name in site-manager
+      jsonPath: .status.serviceName
+    - name: STATUS
+      type: string
+      description: The summary status of service
+      jsonPath: .status.summary
   conversion:
     strategy: Webhook
     webhook:
