@@ -171,37 +171,35 @@ func watchCRs(errChannel chan error) {
 		return
 	}
 	for {
-		select {
-		case event, ok := <-watcher.ResultChan():
-			if !ok {
-				logger.Errorf("Watch CRs event channel is closed")
-				errChannel <- fmt.Errorf("can't handle CRs: channel is closed")
-				return
+		event, ok := <-watcher.ResultChan()
+		if !ok {
+			logger.Errorf("Watch CRs event channel is closed")
+			errChannel <- fmt.Errorf("can't handle CRs: channel is closed")
+			return
+		}
+		cr, ok := event.Object.(*unstructured.Unstructured)
+		if !ok {
+			logger.Errorf("can't get CR from event: %s")
+			errChannel <- fmt.Errorf("can't handle CR from watching event")
+			return
+		}
+		if event.Type == watch.Added || event.Type == watch.Modified {
+			statusUpdated := false
+			if summary, found, _ := unstructured.NestedString(cr.Object, "status", "summary"); !found || summary != "Accepted" {
+				_ = unstructured.SetNestedField(cr.Object, "Accepted", "status", "summary")
+				statusUpdated = true
 			}
-			cr, ok := event.Object.(*unstructured.Unstructured)
-			if !ok {
-				logger.Errorf("can't get CR from event: %s")
-				errChannel <- fmt.Errorf("can't handle CR from watching event")
-				return
+			if serviceName, found, _ := unstructured.NestedString(cr.Object, "status", "serviceName"); !found || serviceName != cr_client.GetServiceName(cr) {
+				_ = unstructured.SetNestedField(cr.Object, cr_client.GetServiceName(cr), "status", "serviceName")
+				statusUpdated = true
 			}
-			if event.Type == watch.Added || event.Type == watch.Modified {
-				statusUpdated := false
-				if summary, found, _ := unstructured.NestedString(cr.Object, "status", "summary"); !found || summary != "Accepted" {
-					unstructured.SetNestedField(cr.Object, "Accepted", "status", "summary")
-					statusUpdated = true
+			if statusUpdated {
+				resultCR, err := crClient.UpdateStatus(envconfig.EnvConfig.CRVersion, cr)
+				if err != nil {
+					logger.Errorf("failed update status for CR: %s", err)
+					continue
 				}
-				if serviceName, found, _ := unstructured.NestedString(cr.Object, "status", "serviceName"); !found || serviceName != cr_client.GetServiceName(cr) {
-					unstructured.SetNestedField(cr.Object, cr_client.GetServiceName(cr), "status", "serviceName")
-					statusUpdated = true
-				}
-				if statusUpdated {
-					resultCR, err := crClient.UpdateStatus(envconfig.EnvConfig.CRVersion, cr)
-					if err != nil {
-						logger.Errorf("failed update status for CR: %s", err)
-						continue
-					}
-					logger.Debugf("Status updated for CR %s", cr_client.GetServiceName(resultCR))
-				}
+				logger.Debugf("Status updated for CR %s", cr_client.GetServiceName(resultCR))
 			}
 		}
 	}
