@@ -106,13 +106,13 @@ jobs:
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }}
 
-  publish-test-sm-cr-controller-image:
+  publish-test-site-manager-image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: docker build -t ghcr.io/netcracker/site-manager-cr-controller:${{ env.SM_TAG_NAME }} -f site-manager-cr-controller/Dockerfile site-manager-cr-controller
+      - run: docker build -t ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }} -f site-manager-cr-controller/Dockerfile site-manager-cr-controller
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
-      - run: docker push ghcr.io/netcracker/site-manager-cr-controller:${{ env.SM_TAG_NAME }}
+      - run: docker push ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }}
 
   cloud-tests:
     needs: [publish-test-sm-dummy-image, publish-test-sm-cr-controller-image]
@@ -158,9 +158,6 @@ jobs:
       - name: Get SM logs from pod
         if: failure()
         run: sudo kubectl logs -n site-manager -l app=site-manager -c site-manager > ./results/logs/sm.log
-      - name: Get SM-cr-controller logs from pod
-        if: failure()
-        run: sudo kubectl logs -n site-manager -l app=site-manager -c site-manager-cr-controller > ./results/logs/sm-cr-controller.log
       - name: Get service-a from pod
         if: failure()
         run: sudo kubectl logs -n test-services -l app=service-a > ./results/logs/service-a.log
@@ -182,16 +179,16 @@ jobs:
           path: ./results/logs
           retention-days: 7
 
-  remove-test-sm-cr-controller-image:
+  remove-test-site-managerr-image:
     needs: [cloud-tests]
-    if: ${{ always() && needs.publish-test-sm-cr-controller-image.result == 'success' }}
+    if: ${{ always() && needs.publish-test-site-manager-image.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
-      - name: Delete image site-manager-cr-controller
+      - name: Delete image site-manager
         uses: bots-house/ghcr-delete-image-action@v1.1.0
         with:
           owner: netcracker
-          name: site-manager-cr-controller
+          name: site-manager
           token: ${{ secrets.GITHUB_TOKEN }}
           tag: ${{ env.SM_TAG_NAME }}
 
