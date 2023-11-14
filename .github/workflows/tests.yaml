@@ -110,12 +110,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: docker build -t ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }} -f site-manager-cr-controller/Dockerfile site-manager-cr-controller
+      - run: docker build -t ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }} site-manager-cr-controller
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }}
 
   cloud-tests:
-    needs: [publish-test-sm-dummy-image, publish-test-sm-cr-controller-image]
+    needs: [publish-test-sm-dummy-image, publish-test-site-manager-image]
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repo
