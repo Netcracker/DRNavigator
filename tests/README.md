@@ -45,8 +45,8 @@ configuration files for site-managers on `site-1` and `site-2`. They collect inf
 
 1. Build site-manager and sm-dummy images from repository directory:
 ```bash
-docker build -t site-manager -f Dockerfile-sm --no-cache .
-docker build -t sm-dummy -f tests/sm-dummy/Dockerfile --no-cache .
+docker build -t site-manager --no-cache site-manager
+docker build -t sm-dummy --no-cache tests/sm-dummy
 ```
 
 2. Run docker-compose:

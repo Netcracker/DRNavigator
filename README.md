@@ -81,11 +81,11 @@ When all dependencies of two or more services are fulfilled, `site-manager` can 
 
 For one Kubernetes cluster:
 
-![](/documentation/images/site-manager-SM-dependency-1.png)
+![](/documentation/public/images/site-manager-SM-dependency-1.png)
 
 For two Kubernetes clusters:
 
-![](/documentation/images/site-manager-SM-dependency-2.png)
+![](/documentation/public/images/site-manager-SM-dependency-2.png)
 
 Where:
   - `1` is the first set of services.
@@ -306,7 +306,7 @@ status:
 
 Where, `site-manager` is the SiteManager's Namespace name and `sm-auth-sa` is the SA name.
 
-![](/documentation/images/site-manager-http-auth.png)
+![](/documentation/public/images/site-manager-http-auth.png)
 
 For more information about a token, see [SiteManager authorization](#security-authorization).
 
