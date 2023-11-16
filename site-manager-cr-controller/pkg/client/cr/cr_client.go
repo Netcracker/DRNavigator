@@ -12,6 +12,7 @@ import (
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 )
 
@@ -19,6 +20,10 @@ import (
 type ICRClient interface {
 	// List returns the list ob ustructured CR objects from the cluster
 	List(api_version string) (*unstructured.UnstructuredList, error)
+	// Watch returns the watcher ob ustructured CR objects from the cluster
+	Watch(apiVersion string) (watch.Interface, error)
+	// Update status updates the status for given CR
+	UpdateStatus(apiVersion string, cr *unstructured.Unstructured) (*unstructured.Unstructured, error)
 }
 
 // CRClient is the implementation of ICRClient
@@ -54,6 +59,35 @@ func (crc *crClient) List(apiVersion string) (*unstructured.UnstructuredList, er
 		return nil, fmt.Errorf("can't get sitemanager objects group=%s, version=%s, resource=%s: %s", gvr.Group, gvr.Version, gvr.Resource, err)
 	}
 	return crs, nil
+}
+
+// Watch returns the watcher ob ustructured CR objects from the cluster
+func (crc *crClient) Watch(apiVersion string) (watch.Interface, error) {
+	gvr := schema.GroupVersionResource{
+		Group:    envconfig.EnvConfig.CRGroup,
+		Version:  apiVersion,
+		Resource: envconfig.EnvConfig.CRPrural,
+	}
+	timeout := int64(30)
+	watcher, err := crc.dynamicClient.Resource(gvr).Watch(context.TODO(), v1.ListOptions{TimeoutSeconds: &timeout})
+	if err != nil {
+		return nil, fmt.Errorf("can't watch sitemanager objects group=%s, version=%s, resource=%s: %s", gvr.Group, gvr.Version, gvr.Resource, err)
+	}
+	return watcher, nil
+}
+
+// Update status updates the status for given CR
+func (crc *crClient) UpdateStatus(apiVersion string, cr *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+	gvr := schema.GroupVersionResource{
+		Group:    envconfig.EnvConfig.CRGroup,
+		Version:  apiVersion,
+		Resource: envconfig.EnvConfig.CRPrural,
+	}
+	resultCR, err := crc.dynamicClient.Resource(gvr).Namespace(cr.GetNamespace()).UpdateStatus(context.TODO(), cr, v1.UpdateOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("can't update status for cr %s: %s", GetServiceName(cr), err)
+	}
+	return resultCR, nil
 }
 
 // GetServiceName calculates the service name of CR

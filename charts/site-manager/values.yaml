@@ -44,7 +44,7 @@ serviceAccount:
   name: site-manager-sa
 
 image:
-  repository: ghcr.io/netcracker/site-manager-cr-controller
+  repository: ghcr.io/netcracker/site-manager
   pullPolicy: Always
   tag: v1.0
 

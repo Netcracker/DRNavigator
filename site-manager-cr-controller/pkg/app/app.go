@@ -9,11 +9,13 @@ import (
 	envconfig "github.com/netcracker/drnavigator/site-manager-cr-controller/config"
 	kube_config "github.com/netcracker/drnavigator/site-manager-cr-controller/config/kube_config"
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/logger"
+	cr_client "github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/client/cr"
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/model"
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/service"
 	"github.com/netcracker/drnavigator/site-manager-cr-controller/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
@@ -53,6 +55,11 @@ func Serve(bindAddress string, bindWebhookAddress string, certFile string, keyFi
 	// Handle token if authorization is enabled in separate gorutine
 	if !smConfig.Testing.Enabled && (envconfig.EnvConfig.BackHttpAuth || envconfig.EnvConfig.FrontHttpAuth) {
 		go handleToken(smConfig.TokenChannel, errorChannel)
+	}
+
+	// Handle CRs
+	if !smConfig.Testing.Enabled {
+		go watchCRs(errorChannel)
 	}
 
 	// initialize api for webhook in separate gorutine
@@ -106,7 +113,7 @@ func handleToken(tokenChannel chan string, errChannel chan error) {
 			}
 			serviceAccount, ok := event.Object.(*corev1.ServiceAccount)
 			if !ok {
-				logger.Errorf("can't get SA from event: %s")
+				logger.Errorf("can't get SA from event")
 				errChannel <- fmt.Errorf("can't handle SA from watching event")
 				return
 			}
@@ -139,6 +146,60 @@ func handleToken(tokenChannel chan string, errChannel chan error) {
 				logger.Errorf("Service-account %s was deleted. Exit", smServiceAccountName)
 				errChannel <- fmt.Errorf("service-account %s was deleted", smServiceAccountName)
 				return
+			}
+		}
+	}
+}
+
+// watchCRs watches CRs and applies status
+func watchCRs(errChannel chan error) {
+	logger := logger.SimpleLogger()
+
+	crClient, err := cr_client.NewCRClient()
+	if err != nil {
+		errChannel <- fmt.Errorf("can't initialize kubernetes client to handle CRs: %s", err)
+		return
+	}
+
+	watchFunc := func(options metav1.ListOptions) (watch.Interface, error) {
+		return crClient.Watch(envconfig.EnvConfig.CRVersion)
+	}
+
+	watcher, err := toolsWatch.NewRetryWatcher("1", &cache.ListWatch{WatchFunc: watchFunc})
+	if err != nil {
+		errChannel <- fmt.Errorf("can't initialize watcher to handle CRs: %s", err)
+		return
+	}
+	for {
+		event, ok := <-watcher.ResultChan()
+		if !ok {
+			logger.Errorf("Watch CRs event channel is closed")
+			errChannel <- fmt.Errorf("can't handle CRs: channel is closed")
+			return
+		}
+		cr, ok := event.Object.(*unstructured.Unstructured)
+		if !ok {
+			logger.Errorf("can't get CR from event")
+			errChannel <- fmt.Errorf("can't handle CR from watching event")
+			return
+		}
+		if event.Type == watch.Added || event.Type == watch.Modified {
+			statusUpdated := false
+			if summary, found, _ := unstructured.NestedString(cr.Object, "status", "summary"); !found || summary != "Accepted" {
+				_ = unstructured.SetNestedField(cr.Object, "Accepted", "status", "summary")
+				statusUpdated = true
+			}
+			if serviceName, found, _ := unstructured.NestedString(cr.Object, "status", "serviceName"); !found || serviceName != cr_client.GetServiceName(cr) {
+				_ = unstructured.SetNestedField(cr.Object, cr_client.GetServiceName(cr), "status", "serviceName")
+				statusUpdated = true
+			}
+			if statusUpdated {
+				resultCR, err := crClient.UpdateStatus(envconfig.EnvConfig.CRVersion, cr)
+				if err != nil {
+					logger.Errorf("failed update status for CR: %s", err)
+					continue
+				}
+				logger.Debugf("Status updated for CR %s", cr_client.GetServiceName(resultCR))
 			}
 		}
 	}

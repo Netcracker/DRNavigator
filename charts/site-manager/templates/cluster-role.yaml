@@ -7,7 +7,7 @@ rules:
   - apiGroups: ["netcracker.com"]
     resources: ["sitemanagers"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: [ "apps" ]
-    resources: [ "deployments" ]
-    verbs: [ "get", "list", "watch" ]
+  - apiGroups: ["netcracker.com"]
+    resources: ["sitemanagers/status"]
+    verbs: ["get", "list", "watch", "update"]
 {{ end }}
