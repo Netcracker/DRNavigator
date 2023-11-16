@@ -113,7 +113,7 @@ func handleToken(tokenChannel chan string, errChannel chan error) {
 			}
 			serviceAccount, ok := event.Object.(*corev1.ServiceAccount)
 			if !ok {
-				logger.Errorf("can't get SA from event: %s")
+				logger.Errorf("can't get SA from event")
 				errChannel <- fmt.Errorf("can't handle SA from watching event")
 				return
 			}
@@ -179,7 +179,7 @@ func watchCRs(errChannel chan error) {
 		}
 		cr, ok := event.Object.(*unstructured.Unstructured)
 		if !ok {
-			logger.Errorf("can't get CR from event: %s")
+			logger.Errorf("can't get CR from event")
 			errChannel <- fmt.Errorf("can't handle CR from watching event")
 			return
 		}
