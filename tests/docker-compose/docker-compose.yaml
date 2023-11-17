@@ -63,7 +63,7 @@ services:
 
       
   site-manager-1:
-    image: site-manager-cr-controller
+    image: site-manager
     container_name: site-manager-1
     restart: unless-stopped
     volumes:
@@ -140,7 +140,7 @@ services:
 
       
   site-manager-2:
-    image: site-manager-cr-controller
+    image: site-manager
     container_name: site-manager-2
     restart: unless-stopped
     volumes:

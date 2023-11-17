@@ -71,7 +71,7 @@ jobs:
           path: test-dump/
           retention-days: 7
 
-  site-manager-cr-controller-unittest:
+  site-manager-unittest:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
@@ -81,7 +81,7 @@ jobs:
           go-version: '1.20'
       - name: Run tests
         run: |
-          cd site-manager-cr-controller
+          cd site-manager
           go test -vet=all -shuffle=on -v ./tests/
 
   paas-geo-monitor-unittest:
@@ -102,7 +102,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: docker build -t ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }} -f tests/sm-dummy/Dockerfile .
+      - run: docker build -t ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }} tests/sm-dummy
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }}
 
@@ -110,7 +110,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
-      - run: docker build -t ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }} site-manager-cr-controller
+      - run: docker build -t ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }} site-manager
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }}
 
@@ -179,7 +179,7 @@ jobs:
           path: ./results/logs
           retention-days: 7
 
-  remove-test-site-managerr-image:
+  remove-test-site-manager-image:
     needs: [cloud-tests]
     if: ${{ always() && needs.publish-test-site-manager-image.result == 'success' }}
     runs-on: ubuntu-latest
