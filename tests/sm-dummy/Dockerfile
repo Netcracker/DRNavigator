@@ -5,8 +5,8 @@ USER root
 ARG USER_NAME=smdumme
 ARG USER_UID=1001
 
-COPY tests/sm-dummy/sm-dummy /app/
-COPY tests/sm-dummy/requirements.txt /app/requirements.txt
+COPY sm-dummy /app/
+COPY requirements.txt /app/requirements.txt
 
 WORKDIR /app/
 

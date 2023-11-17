@@ -58,10 +58,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        application: [site-manager-cr-controller, paas-geo-monitor]
+        application: [site-manager, paas-geo-monitor]
         include:
-          - working-directory: site-manager-cr-controller
-            application: site-manager-cr-controller
+          - working-directory: site-manager
+            application: site-manager
           - working-directory: paas-geo-monitor
             application: paas-geo-monitor
     steps:

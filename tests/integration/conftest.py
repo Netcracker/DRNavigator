@@ -17,11 +17,10 @@ def pytest_addoption(parser):
 def build_images(pytestconfig):
     if not pytestconfig.getoption("--skip-build"):
         logging.info("Build SM docker image")
-        os.system(f"docker build --rm -f {os.path.abspath('site-manager-cr-controller/Dockerfile')} "
-                  f"-t site-manager ./site-manager-cr-controller")
+        os.system(f"docker build --rm -t site-manager ./site-manager")
 
         logging.info("Build sm-dummy docker image")
-        os.system(f"docker build --rm -f {os.path.abspath('tests/sm-dummy/Dockerfile')} -t sm-dummy .")
+        os.system(f"docker build --rm -t sm-dummy ./tests/sm-dummy")
 
 
 @pytest.fixture(scope='class', name='config_dir')
