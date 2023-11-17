@@ -1,5 +1,5 @@
 @startuml
-header Move procedure
+header Switchover procedure
 
 box "Host"
 participant "sm-client" as smClient
