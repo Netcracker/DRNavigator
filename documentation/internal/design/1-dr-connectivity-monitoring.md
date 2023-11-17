@@ -46,7 +46,7 @@ from all `dr-monitor` instances.
 
 Below is the diagram showing the process of getting peers status.
 
-![](/documentation/images/dr-monitor.png)
+![](../images/dr-monitor.png)
 
 The information about peers is collected on demand when external tools 
 send HTTP GET requests to `/peers/status` path. 
