@@ -605,8 +605,8 @@ Output:
       "mode": "active|standby|disable", 
       "status": "running|done|failed", 
       "deps": {
-        "before": <before-services>, 
-        "after": <after-services>
+        "before": "<before-services>", 
+        "after": "<after-services>"
       }
     }
   }
@@ -664,7 +664,7 @@ Output:
       "deps": {
         "before": [
           "service-before-paas.some-namespace"
-        ]
+        ],
         "after": [
           "service-after-paas.some-namespace"
         ]
