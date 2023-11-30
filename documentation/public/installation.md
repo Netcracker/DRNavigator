@@ -328,7 +328,7 @@ peers.
 | Field                               | Description                                             |
 |-------------------------------------|---------------------------------------------------------|
 | **port**<br/>*int*                  | The port that the service should listen. Default 8080.  |
-| **peers**<br/>*array [Peer](architecture.md#peer)* | Array of peer service <br/>instances in other clusters. |
+| **peers**<br/>*array [Peer](architecture.md#peers-status)* | Array of peer service <br/>instances in other clusters. |
 
 ## sm-client
 
