@@ -1,0 +1,49 @@
+@startuml
+header Failover procedure
+
+box "Host"
+participant "sm-client" as smClient
+end box
+
+box "cluster-1"
+participant "site-manager" as SiteManager1
+participant PG_M
+participant Mongo_M
+end box
+
+box "cluster-2"
+participant "site-manager" as SiteManager2
+participant PG_S
+participant Mongo_S
+end box
+
+smClient  x-> SiteManager1 : set standby PG_M
+SiteManager1 x-> PG_M : set standby
+smClient -> SiteManager2 : set active Mongo_S
+SiteManager2 -> Mongo_S : set active
+
+smClient x--> SiteManager1 : polling PG_M
+SiteManager1 x--> PG_M : polling
+smClient --> SiteManager2 : polling MongoS
+SiteManager2 --> Mongo_S : polling
+
+PG_M x-> SiteManager1 : done
+SiteManager1 x-> smClient : done PG_M
+Mongo_S -> SiteManager2 : done
+SiteManager2 -> smClient : done Mongo_S
+
+smClient  -> SiteManager2 : set active PG_S
+SiteManager2 -> PG_S : set active
+smClient  x-> SiteManager1 : set active Mongo_M
+SiteManager1 x-> Mongo_M : set standby
+
+smClient  --> SiteManager2 : polling PG_S
+SiteManager2 --> PG_S : polling
+smClient x--> SiteManager1 : polling Mongo_M
+SiteManager1 x--> Mongo_M : polling
+
+PG_S -> SiteManager2 : done
+SiteManager2 -> smClient : done PG_S
+Mongo_M x-> SiteManager1 : done
+SiteManager1 x-> smClient : done Mongo_M
+@enduml
