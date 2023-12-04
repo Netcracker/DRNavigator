@@ -1,4 +1,4 @@
-FROM golang:1.20.2-alpine3.16 as builder
+FROM golang:1.20.11-alpine3.18 as builder
 
 WORKDIR /workspace
 
@@ -24,7 +24,7 @@ RUN swag init --outputTypes go
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o site-manager ./main.go
 
 
-FROM alpine:3.16.2
+FROM alpine:3.18.5
 
 ENV USER_UID=1001 USER_NAME=site-manager GROUP_NAME=site-manager
 
