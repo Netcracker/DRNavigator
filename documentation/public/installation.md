@@ -1,4 +1,4 @@
-# DR Navigator Installation procudure
+# DR Navigator Installation Procedure
 <!-- TOC -->
 - [Site-manager](#site-manager)
   - [Requirements](#requirements)
@@ -6,12 +6,12 @@
   - [Installation](#installation)
   - [Certificate Renewal Procedure](#certificate-renewal-procedure)
 - [Paas-Geo-Monitor](#paas-geo-monitor)
-  - [Installation procedure](#installation-procedure)
+  - [Installation Procedure](#installation-procedure)
   - [Configuration](#configuration)
 - [sm-client](#sm-client)
   - [Prepare Environment](#prepare-environment)
-  - [Running from cli](#running-from-cli)
-  - [Running from docker](#running-from-docker)
+  - [Running From CLI](#running-from-cli)
+  - [Running From Docker](#running-from-docker)
 <!-- TOC -->
 
 ## Site-manager
@@ -39,7 +39,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     kubectl create namespace site-manager
     ```
 
-2. Generate self-signed certificates for the `site-manager` service if you do not want to integrate with cert-manager or openshift service serving certificates mechanism.
+2. Generate self-signed certificates for the `site-manager` service if you do not want to integrate with cert-manager or OpenShift service serving certificates mechanism.
 
     2.1. Create a configuration file for generating the SSL certificate:
 
@@ -128,7 +128,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     kubectl annotate validatingwebhookconfigurations site-manager-crd-validating-webhook-configuration cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
     ```
 
-    3.2. In case of integration with openshift service serving certificates mechanism, add the following annotations in CustomResourceDefinition and ValidatingWebhookConfiguration templates, which helps to update caBundle in theirs webhook:
+    3.2. In case of integration with OpenShift service serving certificates mechanism, add the following annotations in CustomResourceDefinition and ValidatingWebhookConfiguration templates, which helps to update caBundle in theirs webhook:
 
     ```yaml
     apiVersion: apiextensions.k8s.io/v1
@@ -156,7 +156,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
     ```
 
-    If you already had site-manager CRD or ValidatingWebhookConfiguration in your cloud and want to migrate to integration with openshift service cerving certificates mechanism, it is enough to annotate it (choose *alpha* or *beta* according your openshift version):
+    If you already had site-manager CRD or ValidatingWebhookConfiguration in your cloud and want to migrate to integration with OpenShift service serving certificates mechanism, it is enough to annotate it (choose *alpha* or *beta* according your OpenShift version):
 
     ```bash
     kubectl annotate crds sitemanagers.netcracker.com service.alpha.openshift.io/inject-cabundle=true
@@ -219,7 +219,7 @@ To support the ability of services to be managed by `site-manager`, implement th
 | tls.ca                                                         | CA tls certificate (content of `ca.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled                       | ""                              |
 | tls.crt                                                        | SM public tls certificate (content of `site-manager-tls.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled  | ""                              |
 | tls.key                                                        | SM private tls certificate (content of `site-manager-tls.key` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled | ""                              |
-| tls.generateCerts.enabled                                      | Enable/disable certificates generation using cert-manager or openshift services serving certificates mechanism.                                                          | false                           |
+| tls.generateCerts.enabled                                      | Enable/disable certificates generation using cert-manager or OpenShift services serving certificates mechanism.                                                          | false                           |
 | tls.generateCerts.executor                                     | Choose executor for certificates generation. Possible values: "cert-manager" and "openshift"                                                                             | cert-manager                    |
 | tls.generateCerts.clusterIssuerName                            | In case of cert-manager integration, define the cluster name issuer if required (if empty, it is created by a self-signed issuer).                                       | ""                              |
 | tls.generateCerts.duration                                     | In case of cert-manager integration, define the duration (days) of created certificate using cert-manager.                                                               | 365                             |
@@ -282,7 +282,7 @@ To renew a certificate:
 
 ## Paas-Geo-Monitor
 
-### Installation procedure
+### Installation Procedure
 
 The installation is done using a [helm chart](/charts/site-manager). By default, this service is not installed.
 To install the service, it is required to enable it and provide information
@@ -367,7 +367,7 @@ kubectl get secret sm-auth-sa-token-pqkxj -n site-manager -o yaml | grep token: 
 
 - cacert is a content of `ca.crt` which has been generated during the SiteManager installation.
 
-### Running from cli
+### Running From CLI
 
 1. On the Linux host, install python with version 3.9 or newer.
 2. Copy or clone files from <https://github.com/Netcracker/DRNavigator> to a separate directory. For example, `/opt/sm-client`
@@ -379,7 +379,7 @@ kubectl get secret sm-auth-sa-token-pqkxj -n site-manager -o yaml | grep token: 
 
 4. Start script `sm-client` with the `status` argument to check the status of clusters and services.
 
-### Running from docker
+### Running From Docker
 
 1. Pull sm-client docker image, e.g.:
 
