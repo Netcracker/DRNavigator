@@ -5,48 +5,43 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/labstack/gommon/log"
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
 	kube_config "github.com/netcracker/drnavigator/site-manager/config/kube_config"
 	"github.com/netcracker/drnavigator/site-manager/logger"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
+	"github.com/netcracker/drnavigator/site-manager/pkg/controllers"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"
 	"github.com/netcracker/drnavigator/site-manager/pkg/service"
 	"github.com/netcracker/drnavigator/site-manager/pkg/utils"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
 	toolsWatch "k8s.io/client-go/tools/watch"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
 
 const smServiceAccountName = "sm-auth-sa"
 
+var appLog = ctrl.Log.WithName("app")
+
 // Serve starts new https server app
-func Serve(bindAddress string, bindWebhookAddress string, certFile string, keyFile string) error {
+func Serve(bindAddress string, bindWebhookAddress string, bindMetricsAddress string, devMode bool, certDir string, certFile string, keyFile string) error {
 	// Collects sm config
 	smConfig := &model.SMConfig{TokenChannel: make(chan string)}
 	if smConfigFile := envconfig.EnvConfig.SMConfigFile; smConfigFile != "" {
-		log.Debugf("SMConfig file detected: %s", smConfigFile)
+		appLog.V(1).Info("SMConfig file detected", smConfigFile)
 		if err := utils.ParseYamlFile(smConfigFile, smConfig); err != nil {
 			return fmt.Errorf("error parsing sm config file: %s", err)
 		}
 	}
 
-	// Initalize services
-	crManager, err := service.NewCRManager(smConfig)
+	// Initialize services
+	logger.SetupLogger()
+	mgr, crManager, err := initializeServices(smConfig, bindWebhookAddress, bindMetricsAddress, devMode, certDir, certFile, keyFile)
 	if err != nil {
-		return fmt.Errorf("can't initialize cr manager service: %s", err)
-	}
-	crValidator, err := service.NewValidator(smConfig)
-	if err != nil {
-		return fmt.Errorf("can't initialize cr validator: %s", err)
-	}
-	crConverter, err := service.NewConverter(smConfig)
-	if err != nil {
-		return fmt.Errorf("can't initialize cr converter: %s", err)
+		return err
 	}
 
 	// initialize cross gorutine error, that is used for every worked gorutine until it returns an error
@@ -57,25 +52,47 @@ func Serve(bindAddress string, bindWebhookAddress string, certFile string, keyFi
 		go handleToken(smConfig.TokenChannel, errorChannel)
 	}
 
-	// Handle CRs
-	if !smConfig.Testing.Enabled {
-		go watchCRs(errorChannel)
-	}
-
 	// initialize api for webhook in separate gorutine
 	if bindWebhookAddress != "" {
-		go ServeWebhookServer(bindWebhookAddress, certFile, keyFile, crValidator, crConverter, errorChannel)
+		go ServeWebhookServer(mgr, crManager, errorChannel)
 	}
 	// initialize api for main site-manager in separate gorutine
-	go ServeMainServer(bindAddress, bindWebhookAddress, certFile, keyFile, crManager, smConfig, errorChannel)
+	go ServeMainServer(bindAddress, bindWebhookAddress, certDir, certFile, keyFile, crManager, smConfig, errorChannel)
 
 	// wait when some gorutine returns an error
 	return <-errorChannel
 }
 
+// initializeServices initializes used services depended from configuration
+func initializeServices(smConfig *model.SMConfig, bindWebhookAddress string, bindMetricsAddress string, devMode bool, certDir string, certFile string, keyFile string) (ctrl.Manager, service.CRManager, error) {
+	if !smConfig.Testing.Enabled {
+		// init controller-runtime manager
+		mgr, err := controllers.NewControllerRuntimeManager(bindWebhookAddress, bindMetricsAddress, devMode, certDir, certFile, keyFile)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error initializing controller runtime manager: %s", err)
+		}
+		// init cr client
+		crClient, err := cr_client.NewNewCRClient(mgr.GetClient())
+		if err != nil {
+			return nil, nil, fmt.Errorf("error initializing cr-client: %s", err)
+		}
+		controllers.SetupCRReconciler(crClient, mgr)
+		crManager, err := service.NewCRManager(smConfig, crClient)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error initializing cr manager service: %s", err)
+		}
+		return mgr, crManager, nil
+	} else {
+		crManager, err := service.NewCRManager(smConfig, nil)
+		if err != nil {
+			return nil, nil, fmt.Errorf("error initializing cr manager service: %s", err)
+		}
+		return nil, crManager, nil
+	}
+}
+
 // handleToken gets token of sm-auth-sa from kubernetes when it updates
 func handleToken(tokenChannel chan string, errChannel chan error) {
-	logger := logger.SimpleLogger()
 	config, err := kube_config.GetKubeConfig()
 	if err != nil {
 		errChannel <- fmt.Errorf("can't create kubeconfig to handle token from secret %s", err)
@@ -88,7 +105,7 @@ func handleToken(tokenChannel chan string, errChannel chan error) {
 	}
 
 	namespace := envconfig.EnvConfig.PodNamespace
-	logger.Infof("Current namespace: %s", namespace)
+	appLog.Info("Namespace detected", "namespace", namespace)
 
 	timeout := int64(30)
 	watchFunc := func(options metav1.ListOptions) (watch.Interface, error) {
@@ -107,13 +124,13 @@ func handleToken(tokenChannel chan string, errChannel chan error) {
 		case tokenChannel <- token:
 		case event, ok := <-watcher.ResultChan():
 			if !ok {
-				logger.Errorf("Watch SA event channel is closed")
+				appLog.Error(nil, "Watch SA event channel is closed")
 				errChannel <- fmt.Errorf("can't handle token: channel is closed")
 				return
 			}
 			serviceAccount, ok := event.Object.(*corev1.ServiceAccount)
 			if !ok {
-				logger.Errorf("can't get SA from event")
+				appLog.Error(nil, "Can't get SA from event")
 				errChannel <- fmt.Errorf("can't handle SA from watching event")
 				return
 			}
@@ -125,81 +142,27 @@ func handleToken(tokenChannel chan string, errChannel chan error) {
 					return strings.Contains(secretRef.Name, "token")
 				})
 				if secretRef == nil {
-					logger.Warnf("Secret for appropriate SA is not ready yet")
+					appLog.Info("Secret for appropriate SA is not ready yet")
 					continue
 				}
 				secret, err := clientset.CoreV1().Secrets(namespace).Get(context.Background(), secretRef.Name, metav1.GetOptions{})
 				if err != nil {
-					logger.Errorf("Can't get secret with name %s from namespace %s: %s", secretRef.Name, namespace, err)
+					appLog.Error(err, "Can't get secret", "secret-name", secretRef.Name, "namespace", namespace)
 					errChannel <- fmt.Errorf("can't handle token from secret %s for SA %s", secretRef.Name, smServiceAccountName)
 					return
 				}
 				if btoken, found := secret.Data["token"]; !found {
-					logger.Errorf("Can't get token from secret with name %s from namespace %s: %s", secretRef.Name, namespace, err)
+					appLog.Error(nil, "Can't get token from secret", "secret-name", secretRef.Name, "namespace", namespace)
 					errChannel <- fmt.Errorf("can't handle token from secret %s for SA %s", secretRef.Name, smServiceAccountName)
 					return
 				} else {
 					token = string(btoken)
 				}
-				logger.Debugf("Service-account %s was %s. Token was updated.", smServiceAccountName, event.Type)
+				appLog.V(1).Info("Service-account event. Token was updated.", "sa-name", smServiceAccountName, "event-type", event.Type)
 			} else if event.Type == watch.Deleted {
-				logger.Errorf("Service-account %s was deleted. Exit", smServiceAccountName)
+				appLog.Error(nil, "Service-account was deleted. Exit", "sa-name", smServiceAccountName)
 				errChannel <- fmt.Errorf("service-account %s was deleted", smServiceAccountName)
 				return
-			}
-		}
-	}
-}
-
-// watchCRs watches CRs and applies status
-func watchCRs(errChannel chan error) {
-	logger := logger.SimpleLogger()
-
-	crClient, err := cr_client.NewCRClient()
-	if err != nil {
-		errChannel <- fmt.Errorf("can't initialize kubernetes client to handle CRs: %s", err)
-		return
-	}
-
-	watchFunc := func(options metav1.ListOptions) (watch.Interface, error) {
-		return crClient.Watch(envconfig.EnvConfig.CRVersion)
-	}
-
-	watcher, err := toolsWatch.NewRetryWatcher("1", &cache.ListWatch{WatchFunc: watchFunc})
-	if err != nil {
-		errChannel <- fmt.Errorf("can't initialize watcher to handle CRs: %s", err)
-		return
-	}
-	for {
-		event, ok := <-watcher.ResultChan()
-		if !ok {
-			logger.Errorf("Watch CRs event channel is closed")
-			errChannel <- fmt.Errorf("can't handle CRs: channel is closed")
-			return
-		}
-		cr, ok := event.Object.(*unstructured.Unstructured)
-		if !ok {
-			logger.Errorf("can't get CR from event")
-			errChannel <- fmt.Errorf("can't handle CR from watching event")
-			return
-		}
-		if event.Type == watch.Added || event.Type == watch.Modified {
-			statusUpdated := false
-			if summary, found, _ := unstructured.NestedString(cr.Object, "status", "summary"); !found || summary != "Accepted" {
-				_ = unstructured.SetNestedField(cr.Object, "Accepted", "status", "summary")
-				statusUpdated = true
-			}
-			if serviceName, found, _ := unstructured.NestedString(cr.Object, "status", "serviceName"); !found || serviceName != cr_client.GetServiceName(cr) {
-				_ = unstructured.SetNestedField(cr.Object, cr_client.GetServiceName(cr), "status", "serviceName")
-				statusUpdated = true
-			}
-			if statusUpdated {
-				resultCR, err := crClient.UpdateStatus(envconfig.EnvConfig.CRVersion, cr)
-				if err != nil {
-					logger.Errorf("failed update status for CR: %s", err)
-					continue
-				}
-				logger.Debugf("Status updated for CR %s", cr_client.GetServiceName(resultCR))
 			}
 		}
 	}

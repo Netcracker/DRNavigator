@@ -3,9 +3,11 @@ package test_objects
 import (
 	"fmt"
 
+	crv1 "github.com/netcracker/drnavigator/site-manager/pkg/api/v1"
+	crv2 "github.com/netcracker/drnavigator/site-manager/pkg/api/v2"
+	crv3 "github.com/netcracker/drnavigator/site-manager/pkg/api/v3"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"
-	test_utils "github.com/netcracker/drnavigator/site-manager/tests/utils"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
@@ -32,27 +34,31 @@ var (
 			HealthzEndpoint: ServiceV1HealthzEndpoint,
 		},
 	}
-	ServiceV1 = unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "netcracker.com/v1",
-			"kind":       "SiteManager",
-			"metadata": map[string]interface{}{
-				"name":      ServiceV1Obj.CRName,
-				"namespace": ServiceV1Obj.Namespace,
-				"uid":       string(ServiceV1Obj.UID),
+	ServiceV1 = crv1.CR{
+		TypeMeta: v1.TypeMeta{
+			APIVersion: "netcracker.com/v1",
+			Kind:       "SiteManager",
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      ServiceV1Obj.CRName,
+			Namespace: ServiceV1Obj.Namespace,
+			UID:       ServiceV1Obj.UID,
+		},
+		Spec: crv1.CRSpec{
+			SiteManager: crv1.CRSpecSiteManager{
+				After:                   ServiceV1Obj.After,
+				Before:                  ServiceV1Obj.Before,
+				Sequence:                ServiceV1Obj.Sequence,
+				AllowedStandbyStateList: ServiceV1Obj.AllowedStandbyStateList,
+				Timeout:                 ServiceV1Obj.Timeout,
+				ServiceEndpoint:         ServiceV1ServiceEndpoint,
+				IngressEndpoint:         ServiceV1IngressEndpoint,
+				HealthzEndpoint:         ServiceV1HealthzEndpoint,
 			},
-			"spec": map[string]interface{}{
-				"sitemanager": map[string]interface{}{
-					"after":                   test_utils.ToSliceOfInterfaces(ServiceV1Obj.After),
-					"before":                  test_utils.ToSliceOfInterfaces(ServiceV1Obj.Before),
-					"sequence":                test_utils.ToSliceOfInterfaces(ServiceV1Obj.Sequence),
-					"allowedStandbyStateList": test_utils.ToSliceOfInterfaces(ServiceV1Obj.AllowedStandbyStateList),
-					"timeout":                 *ServiceV1Obj.Timeout,
-					"serviceEndpoint":         ServiceV1ServiceEndpoint,
-					"ingressEndpoint":         ServiceV1IngressEndpoint,
-					"healthzEndpoint":         ServiceV1HealthzEndpoint,
-				},
-			},
+		},
+		Status: crv1.CRStatus{
+			Summary:     "Accepted",
+			ServiceName: ServiceV1Obj.Name,
 		},
 	}
 
@@ -63,9 +69,10 @@ var (
 	ServiceV2CRName          = "service-v2"
 	ServiceV2Namespace       = "ns-2"
 	ServiceV2Obj             = model.SMObject{
+		Alias:                   &ServiceV2CRName,
 		CRName:                  ServiceV2CRName,
 		Namespace:               ServiceV2Namespace,
-		Name:                    fmt.Sprintf("%s.%s", ServiceV2CRName, ServiceV2Namespace),
+		Name:                    ServiceV2CRName,
 		UID:                     types.UID("service-v2-uid"),
 		Module:                  "custom-module",
 		After:                   []string{"after-v2-deb"},
@@ -78,30 +85,34 @@ var (
 			HealthzEndpoint: ServiceV2HealthzEndpoint,
 		},
 	}
-	ServiceV2 = unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "netcracker.com/v2",
-			"kind":       "SiteManager",
-			"metadata": map[string]interface{}{
-				"name":      ServiceV2Obj.CRName,
-				"namespace": ServiceV2Obj.Namespace,
-				"uid":       string(ServiceV2Obj.UID),
-			},
-			"spec": map[string]interface{}{
-				"sitemanager": map[string]interface{}{
-					"module":                  ServiceV2Obj.Module,
-					"after":                   test_utils.ToSliceOfInterfaces(ServiceV2Obj.After),
-					"before":                  test_utils.ToSliceOfInterfaces(ServiceV2Obj.Before),
-					"sequence":                test_utils.ToSliceOfInterfaces(ServiceV2Obj.Sequence),
-					"allowedStandbyStateList": test_utils.ToSliceOfInterfaces(ServiceV2Obj.AllowedStandbyStateList),
-					"timeout":                 ServiceV2Timeout,
-					"parameters": map[string]interface{}{
-						"serviceEndpoint": ServiceV2ServiceEndpoint,
-						"ingressEndpoint": ServiceV2IngressEndpoint,
-						"healthzEndpoint": ServiceV2HealthzEndpoint,
-					},
+	ServiceV2 = crv2.CR{
+		TypeMeta: v1.TypeMeta{
+			APIVersion: "netcracker.com/v2",
+			Kind:       "SiteManager",
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      ServiceV2Obj.CRName,
+			Namespace: ServiceV2Obj.Namespace,
+			UID:       ServiceV2Obj.UID,
+		},
+		Spec: crv2.CRSpec{
+			SiteManager: crv2.CRSpecSiteManager{
+				Module:                  ServiceV2Obj.Module,
+				After:                   ServiceV2Obj.After,
+				Before:                  ServiceV2Obj.Before,
+				Sequence:                ServiceV2Obj.Sequence,
+				AllowedStandbyStateList: ServiceV2Obj.AllowedStandbyStateList,
+				Timeout:                 ServiceV2Obj.Timeout,
+				Parameters: crv2.CRSpecParameters{
+					ServiceEndpoint: ServiceV2ServiceEndpoint,
+					IngressEndpoint: ServiceV2IngressEndpoint,
+					HealthzEndpoint: ServiceV2HealthzEndpoint,
 				},
 			},
+		},
+		Status: crv2.CRStatus{
+			Summary:     "Accepted",
+			ServiceName: ServiceV2Obj.Name,
 		},
 	}
 
@@ -126,30 +137,34 @@ var (
 			HealthzEndpoint: ServiceV3HealthzEndpoint,
 		},
 	}
-	ServiceV3 = unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "netcracker.com/v3",
-			"kind":       "SiteManager",
-			"metadata": map[string]interface{}{
-				"name":      ServiceV3Obj.CRName,
-				"namespace": ServiceV3Obj.Namespace,
-				"uid":       string(ServiceV3Obj.UID),
-			},
-			"spec": map[string]interface{}{
-				"sitemanager": map[string]interface{}{
-					"module":                  ServiceV3Obj.Module,
-					"alias":                   ServiceV3Alias,
-					"after":                   test_utils.ToSliceOfInterfaces(ServiceV3Obj.After),
-					"before":                  test_utils.ToSliceOfInterfaces(ServiceV3Obj.Before),
-					"sequence":                test_utils.ToSliceOfInterfaces(ServiceV3Obj.Sequence),
-					"allowedStandbyStateList": test_utils.ToSliceOfInterfaces(ServiceV3Obj.AllowedStandbyStateList),
-					"timeout":                 ServiceV3Timeout,
-					"parameters": map[string]interface{}{
-						"serviceEndpoint": ServiceV3ServiceEndpoint,
-						"healthzEndpoint": ServiceV3HealthzEndpoint,
-					},
+	ServiceV3 = crv3.CR{
+		TypeMeta: v1.TypeMeta{
+			APIVersion: "netcracker.com/v3",
+			Kind:       "SiteManager",
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      ServiceV3Obj.CRName,
+			Namespace: ServiceV3Obj.Namespace,
+			UID:       ServiceV3Obj.UID,
+		},
+		Spec: crv3.CRSpec{
+			SiteManager: crv3.CRSpecSiteManager{
+				Module:                  ServiceV3Obj.Module,
+				Alias:                   ServiceV3Obj.Alias,
+				After:                   ServiceV3Obj.After,
+				Before:                  ServiceV3Obj.Before,
+				Sequence:                ServiceV3Obj.Sequence,
+				AllowedStandbyStateList: ServiceV3Obj.AllowedStandbyStateList,
+				Timeout:                 ServiceV3Obj.Timeout,
+				Parameters: crv3.CRSpecParameters{
+					ServiceEndpoint: ServiceV3ServiceEndpoint,
+					HealthzEndpoint: ServiceV3HealthzEndpoint,
 				},
 			},
+		},
+		Status: crv3.CRStatus{
+			Summary:     "Accepted",
+			ServiceName: ServiceV3Obj.Name,
 		},
 	}
 )

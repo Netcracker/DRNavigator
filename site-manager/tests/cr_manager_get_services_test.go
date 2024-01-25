@@ -1,91 +1,32 @@
 package test
 
 import (
+	"context"
 	"fmt"
 	"testing"
 
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
+	crv3 "github.com/netcracker/drnavigator/site-manager/pkg/api/v3"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"
 	"github.com/netcracker/drnavigator/site-manager/pkg/service"
 	test_objects "github.com/netcracker/drnavigator/site-manager/tests/data"
 	mock "github.com/netcracker/drnavigator/site-manager/tests/mock"
 	"github.com/stretchr/testify/require"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 )
 
-func TestCRManager_MappingV1ToSMDictionary(t *testing.T) {
-	// Test, that v1 object is mapped corectly to SM Dictionary object
-	_ = envconfig.InitConfig()
-
-	crList := unstructured.UnstructuredList{
-		Object: map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "List",
-		},
-		Items: []unstructured.Unstructured{test_objects.ServiceV1},
-	}
-	clientMock := &mock.CRClientMock{CRList: crList}
-	crManager := &service.CRManager{
-		SMConfig: nil,
-		CRClient: clientMock,
-	}
-
-	assert := require.New(t)
-
-	smDict, err := crManager.GetAllServices()
-	expectedSMDict := model.SMDictionary{Services: map[string]model.SMObject{
-		test_objects.ServiceV1Obj.Name: test_objects.ServiceV1Obj,
-	}}
-	assert.Nil(err, "Returned error during getting SM dictionary")
-	assert.Equal(expectedSMDict, *smDict, "Returned SM dictionary is not equal with expected one")
-}
-
-func TestCRManager_MappingV2ToSMDictionary(t *testing.T) {
-	_ = envconfig.InitConfig()
-	// Test, that v2 object is mapped corectly to SM Dictionary object
-	crList := unstructured.UnstructuredList{
-		Object: map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "List",
-		},
-		Items: []unstructured.Unstructured{test_objects.ServiceV2},
-	}
-	clientMock := &mock.CRClientMock{CRList: crList}
-	crManager := &service.CRManager{
-		SMConfig: nil,
-		CRClient: clientMock,
-	}
-
-	assert := require.New(t)
-
-	smDict, err := crManager.GetAllServices()
-	expectedSMDict := model.SMDictionary{Services: map[string]model.SMObject{
-		test_objects.ServiceV2Obj.Name: test_objects.ServiceV2Obj,
-	}}
-	assert.Nil(err, "Returned error during getting SM dictionary")
-	assert.Equal(expectedSMDict, *smDict, "Returned SM dictionary is not equal with expected one")
-}
-
 func TestCRManager_MappingV3ToSMDictionary(t *testing.T) {
 	_ = envconfig.InitConfig()
+	assert := require.New(t)
 	// Test, that v3 object is mapped corectly to SM Dictionary object
-	crList := unstructured.UnstructuredList{
-		Object: map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "List",
-		},
-		Items: []unstructured.Unstructured{test_objects.ServiceV3},
+	crList := crv3.CRList{
+		Items: []crv3.CR{test_objects.ServiceV3},
 	}
 	clientMock := &mock.CRClientMock{CRList: crList}
-	crManager := &service.CRManager{
-		SMConfig: nil,
-		CRClient: clientMock,
-	}
+	crManager := &service.CRManagerImpl{CRClient: clientMock}
 
-	assert := require.New(t)
-
-	smDict, err := crManager.GetAllServices()
+	smDict, err := crManager.GetAllServices(context.Background())
 	expectedSMDict := model.SMDictionary{Services: map[string]model.SMObject{
 		test_objects.ServiceV3Obj.Name: test_objects.ServiceV3Obj,
 	}}
@@ -95,6 +36,7 @@ func TestCRManager_MappingV3ToSMDictionary(t *testing.T) {
 
 func TestCRManager_MappingDefaults(t *testing.T) {
 	_ = envconfig.InitConfig()
+	assert := require.New(t)
 	// Test, that defaults of SM objects are applied correctly
 	emptyCRName := "some-name"
 	emptyNamespace := "some-namespace"
@@ -115,33 +57,25 @@ func TestCRManager_MappingDefaults(t *testing.T) {
 		Timeout: nil,
 		Alias:   nil,
 	}
-	emptyCR := unstructured.Unstructured{
-		Object: map[string]interface{}{
-			"apiVersion": "netcracker.com/v3",
-			"kind":       "SiteManager",
-			"metadata": map[string]interface{}{
-				"name":      emptyObj.CRName,
-				"namespace": emptyObj.Namespace,
-				"uid":       string(emptyObj.UID),
-			},
+	emptyCR := crv3.CR{
+		TypeMeta: v1.TypeMeta{
+			APIVersion: "netcracker.com/v3",
+			Kind:       "SiteManager",
+		},
+		ObjectMeta: v1.ObjectMeta{
+			Name:      emptyObj.CRName,
+			Namespace: emptyObj.Namespace,
+			UID:       emptyObj.UID,
 		},
 	}
-	crList := unstructured.UnstructuredList{
-		Object: map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "List",
-		},
-		Items: []unstructured.Unstructured{emptyCR},
+
+	crList := crv3.CRList{
+		Items: []crv3.CR{emptyCR},
 	}
 	clientMock := &mock.CRClientMock{CRList: crList}
-	crManager := &service.CRManager{
-		SMConfig: nil,
-		CRClient: clientMock,
-	}
+	crManager := &service.CRManagerImpl{CRClient: clientMock}
 
-	assert := require.New(t)
-
-	smDict, err := crManager.GetAllServices()
+	smDict, err := crManager.GetAllServices(context.Background())
 	expectedSMDict := model.SMDictionary{Services: map[string]model.SMObject{
 		emptyObj.Name: emptyObj,
 	}}
@@ -151,13 +85,14 @@ func TestCRManager_MappingDefaults(t *testing.T) {
 
 func TestCRManager_DisabledTestingInSMConfig(t *testing.T) {
 	_ = envconfig.InitConfig()
+	assert := require.New(t)
 	// Test, that if testing is disabled in SM config, CRs will be got from kube client
-	crList := unstructured.UnstructuredList{
-		Object: map[string]interface{}{
-			"apiVersion": "v1",
-			"kind":       "List",
-		},
-		Items: []unstructured.Unstructured{test_objects.ServiceV1, test_objects.ServiceV2},
+	cr1 := crv3.CR{}
+	cr2 := crv3.CR{}
+	test_objects.ServiceV1.ConvertTo(&cr1)
+	test_objects.ServiceV2.ConvertTo(&cr2)
+	crList := crv3.CRList{
+		Items: []crv3.CR{cr1, cr2},
 	}
 	smConfig := model.SMConfig{
 		Testing: model.SMConfigTesting{
@@ -168,14 +103,9 @@ func TestCRManager_DisabledTestingInSMConfig(t *testing.T) {
 		},
 	}
 	clientMock := &mock.CRClientMock{CRList: crList}
-	crManager := &service.CRManager{
-		SMConfig: &smConfig,
-		CRClient: clientMock,
-	}
+	crManager := &service.CRManagerImpl{SMConfig: &smConfig, CRClient: clientMock}
 
-	assert := require.New(t)
-
-	smDict, err := crManager.GetAllServices()
+	smDict, err := crManager.GetAllServices(context.Background())
 	expectedSMDict := model.SMDictionary{Services: map[string]model.SMObject{
 		test_objects.ServiceV1Obj.Name: test_objects.ServiceV1Obj,
 		test_objects.ServiceV2Obj.Name: test_objects.ServiceV2Obj,
@@ -186,6 +116,7 @@ func TestCRManager_DisabledTestingInSMConfig(t *testing.T) {
 
 func TestCRManager_EnabledTestingInSMConfig(t *testing.T) {
 	_ = envconfig.InitConfig()
+	assert := require.New(t)
 	// Test, that if testing is enabled in SM config, kube client was not initialized and CRs will be got from SM config
 	smConfig := model.SMConfig{
 		Testing: model.SMConfigTesting{
@@ -195,13 +126,9 @@ func TestCRManager_EnabledTestingInSMConfig(t *testing.T) {
 			}},
 		},
 	}
+	crManager := &service.CRManagerImpl{SMConfig: &smConfig}
 
-	assert := require.New(t)
-
-	crManager, err := service.NewCRManager(&smConfig)
-	assert.NoError(err, "can't initialize CR Manager for enabled testing in SM config")
-
-	smDict, err := crManager.GetAllServices()
+	smDict, err := crManager.GetAllServices(context.Background())
 	assert.Nil(err, "Returned error during getting SM dictionary")
 	assert.Equal(smConfig.Testing.SMDict, *smDict, "Returned SM dictionary is not equal with expected one")
 }

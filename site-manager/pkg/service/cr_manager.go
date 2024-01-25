@@ -1,52 +1,54 @@
 package service
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net/http"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
-	"github.com/netcracker/drnavigator/site-manager/logger"
+	crv3 "github.com/netcracker/drnavigator/site-manager/pkg/api/v3"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
 	http_client "github.com/netcracker/drnavigator/site-manager/pkg/client/http"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"
 	"github.com/netcracker/drnavigator/site-manager/pkg/utils"
 	"golang.org/x/exp/maps"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ICRManager is a interface to manage CR objects
-type ICRManager interface {
-	// GetAllServicesWithSpecifiedVersion returns all sitemanager CRs for specified api version mapped by calculated service name
-	GetAllServicesWithSpecifiedVersion(apiVersion string) (*model.SMDictionary, *model.SMError)
+var crManagerLog = ctrl.Log.WithName("cr-manager")
+
+// CRManager is a interface to manage CR objects
+type CRManager interface {
 	// GetAllServices returns all sitemanager CRs for default api version mapped by calculated service name
-	GetAllServices() (*model.SMDictionary, *model.SMError)
+	GetAllServices(ctx context.Context) (*model.SMDictionary, *model.SMError)
 	// GetServicesList returns the list of available services
-	GetServicesList() (*model.SMListResponse, *model.SMError)
+	GetServicesList(ctx context.Context) (*model.SMListResponse, *model.SMError)
 	// GetServiceStatus returns the status of given service
-	GetServiceStatus(serviceName *string, withDeps bool) (*model.SMStatusResponse, *model.SMError)
+	GetServiceStatus(ctx context.Context, serviceName *string, withDeps bool) (*model.SMStatusResponse, *model.SMError)
 	// ProcessService do given procudedure for given service
-	ProcessService(serviceName *string, procedure string, noWait bool) (*model.SMProcedureResponse, *model.SMError)
+	ProcessService(ctx context.Context, serviceName *string, procedure string, noWait bool) (*model.SMProcedureResponse, *model.SMError)
 }
 
-// CRManager is an implementation if ICRManager
-type CRManager struct {
+// CRManagerImpl is an implementation if CRManager
+type CRManagerImpl struct {
 	SMConfig       *model.SMConfig
-	CRClient       cr_client.ICRClient
+	CRClient       cr_client.CRClient
 	GetHttpClient  http_client.HttpClientInterface
 	PostHttpClient http_client.HttpClientInterface
 }
 
 // NewCRManager creates new CR manager
-func NewCRManager(smConfig *model.SMConfig) (ICRManager, error) {
-	crManager := &CRManager{SMConfig: smConfig}
-	log := logger.SimpleLogger()
+func NewCRManager(smConfig *model.SMConfig, crClient cr_client.CRClient) (CRManager, error) {
+	crManager := &CRManagerImpl{SMConfig: smConfig}
 
-	log.Debugf("Try to initialize http clients for services...")
+	crManagerLog.V(1).Info("Try to initialize http clients for services...")
 	tlsConfig := &tls.Config{}
 	if caCertEnabled, err := strconv.ParseBool(envconfig.EnvConfig.SMCaCert); err == nil {
 		tlsConfig.InsecureSkipVerify = !caCertEnabled
@@ -69,6 +71,7 @@ func NewCRManager(smConfig *model.SMConfig) (ICRManager, error) {
 		},
 		Timeout: time.Duration(envconfig.EnvConfig.GetRequestTimeout) * time.Second,
 	}
+
 	crManager.PostHttpClient = &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig:   tlsConfig,
@@ -76,47 +79,35 @@ func NewCRManager(smConfig *model.SMConfig) (ICRManager, error) {
 		},
 		Timeout: time.Duration(envconfig.EnvConfig.PostRequestTimeout) * time.Second,
 	}
-	log.Debugf("Http clients are initialized")
+	crManagerLog.V(1).Info("Http clients are initialized")
 
 	if !crManager.SMConfig.Testing.Enabled {
-		// Initialize kube clients for cr for all supported versions
-		log.Debugf("Try to initialize kube client for CRs...")
-		crClient, err := cr_client.NewCRClient()
-		if err != nil {
-			return nil, err
-		}
 		crManager.CRClient = crClient
-		log.Debugf("Kube client for CRs was initialized")
 	} else {
-		log.Debugf("Testing mod is enabled, SM objects will be used from specified sm configuration")
+		crManagerLog.V(1).Info("Testing mod is enabled, SM objects will be used from specified sm configuration")
 	}
 	return crManager, nil
 }
 
-// GetAllServicesWithSpecifiedVersion returns all sitemanager CRs for specified api version mapped by calculated service name
-func (crm *CRManager) GetAllServicesWithSpecifiedVersion(apiVersion string) (*model.SMDictionary, *model.SMError) {
+// GetAllServices returns all sitemanager CRs for default api version mapped by calculated service name
+func (crm *CRManagerImpl) GetAllServices(ctx context.Context) (*model.SMDictionary, *model.SMError) {
 	if crm.SMConfig != nil && crm.SMConfig.Testing.Enabled {
 		return &crm.SMConfig.Testing.SMDict, nil
 	}
 
-	log := logger.SimpleLogger()
-	crs, err := crm.CRClient.List(apiVersion)
+	crs, err := crm.CRClient.List(ctx, &client.ListOptions{})
 	if err != nil {
-		log.Error(err.Error())
+		crManagerLog.Error(err, fmt.Sprintf("can't get sitemanager objects group=%s, version=%s, kind=%s",
+			envconfig.EnvConfig.CRGroup, crv3.CRVersion, envconfig.EnvConfig.CRKindList))
 		return nil, &model.SMError{Message: err.Error(), IsInternalServerError: true}
 	}
 
-	return crm.convertToDict(crs.Items), nil
-}
-
-// GetAllServices returns all sitemanager CRs for default api version mapped by calculated service name
-func (crm *CRManager) GetAllServices() (*model.SMDictionary, *model.SMError) {
-	return crm.GetAllServicesWithSpecifiedVersion(envconfig.EnvConfig.CRVersion)
+	return crm.convertToDict(crs), nil
 }
 
 // GetServicesList returns the list of available services
-func (crm *CRManager) GetServicesList() (*model.SMListResponse, *model.SMError) {
-	smDict, err := crm.GetAllServices()
+func (crm *CRManagerImpl) GetServicesList(ctx context.Context) (*model.SMListResponse, *model.SMError) {
+	smDict, err := crm.GetAllServices(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -124,12 +115,12 @@ func (crm *CRManager) GetServicesList() (*model.SMListResponse, *model.SMError) 
 }
 
 // GetServiceStatus returns the status of given service
-func (crm *CRManager) GetServiceStatus(serviceName *string, withDeps bool) (*model.SMStatusResponse, *model.SMError) {
-	smDict, smErr := crm.GetAllServices()
+func (crm *CRManagerImpl) GetServiceStatus(ctx context.Context, serviceName *string, withDeps bool) (*model.SMStatusResponse, *model.SMError) {
+	smDict, smErr := crm.GetAllServices(ctx)
 	if smErr != nil {
 		return nil, smErr
 	}
-	_, smErr = crm.getServiceObject(serviceName, smDict)
+	_, smErr = crm.getServiceObject(serviceName, smDict, true)
 	if smErr != nil {
 		return nil, smErr
 	}
@@ -142,17 +133,16 @@ func (crm *CRManager) GetServiceStatus(serviceName *string, withDeps bool) (*mod
 }
 
 // ProcessService do given procudedure for given service
-func (crm *CRManager) ProcessService(serviceName *string, procedure string, noWait bool) (*model.SMProcedureResponse, *model.SMError) {
-	smDict, smErr := crm.GetAllServices()
+func (crm *CRManagerImpl) ProcessService(ctx context.Context, serviceName *string, procedure string, noWait bool) (*model.SMProcedureResponse, *model.SMError) {
+	smDict, smErr := crm.GetAllServices(ctx)
 	if smErr != nil {
 		return nil, smErr
 	}
-	smObj, smErr := crm.getServiceObject(serviceName, smDict)
+	smObj, smErr := crm.getServiceObject(serviceName, smDict, false)
 	if smErr != nil {
 		return nil, smErr
 	}
-	log := logger.SimpleLogger()
-	log.Infof("Service: %s. Set mode %s. serviceEndpoint = %s. No-wait %t", *serviceName, procedure, smObj.Parameters.ServiceEndpoint, noWait)
+	crManagerLog.Info("Process service", "service-name", *serviceName, "mode", procedure, "service-endpoint", smObj.Parameters.ServiceEndpoint, "no-wait", noWait)
 
 	processRequest := &model.ServiceProcessRequest{
 		Mode:   procedure,
@@ -179,12 +169,11 @@ func (crm *CRManager) ProcessService(serviceName *string, procedure string, noWa
 }
 
 // collectServicesStatuses collects statuses for given services to sm status response
-func (crm *CRManager) collectServicesStatuses(services []string, smDict *model.SMDictionary, parentService *string, withDeps bool, resultStatus *model.SMStatusResponse) *model.SMError {
-	log := logger.SimpleLogger()
+func (crm *CRManagerImpl) collectServicesStatuses(services []string, smDict *model.SMDictionary, parentService *string, withDeps bool, resultStatus *model.SMStatusResponse) *model.SMError {
 	for _, service := range services {
-		serviceObj, err := crm.getServiceObject(&service, smDict)
+		serviceObj, err := crm.getServiceObject(&service, smDict, false)
 		if err != nil {
-			log.Errorf("Found not exist dependency: %s in %s CR", service, *parentService)
+			crManagerLog.Error(nil, "Found not exist dependency", "dep", service, "problem-cr", *parentService)
 			return &model.SMError{Message: "Dependency defined in CR doesn't exist", Service: err.Service, ProblemCR: parentService}
 		}
 		if _, found := resultStatus.Services[service]; !found {
@@ -209,7 +198,7 @@ func (crm *CRManager) collectServicesStatuses(services []string, smDict *model.S
 }
 
 // getServiceStatus returns the status only for specific object (without dependencies)
-func (crm *CRManager) getServiceStatus(smObj *model.SMObject) model.SMStatus {
+func (crm *CRManagerImpl) getServiceStatus(smObj *model.SMObject) model.SMStatus {
 	serviceSMResponse := &model.ServiceSiteManagerResponse{
 		Message: "",
 		Mode:    "--",
@@ -232,42 +221,73 @@ func (crm *CRManager) getServiceStatus(smObj *model.SMObject) model.SMStatus {
 }
 
 // getServiceObject returns the sm object for given service name from sm dictionary
-func (crm *CRManager) getServiceObject(serviceName *string, smDict *model.SMDictionary) (*model.SMObject, *model.SMError) {
+func (crm *CRManagerImpl) getServiceObject(serviceName *string, smDict *model.SMDictionary, silent bool) (*model.SMObject, *model.SMError) {
 	if serviceName == nil {
 		return nil, &model.SMError{Message: "run-service value should be defined and have String type"}
 	}
 	if obj, found := smDict.Services[*serviceName]; found {
-		log := logger.SimpleLogger()
-		log.Infof("Following service will be processed: %s", *serviceName)
+		if !silent {
+			crManagerLog.Info("Following service will be processed", "service-name", *serviceName)
+		}
 		return &obj, nil
 	}
 	return nil, &model.SMError{Message: "Service doesn't exist", Service: serviceName}
 }
 
 // convertToDict converts the list of CRs t SMDict objects
-func (crm *CRManager) convertToDict(objList []unstructured.Unstructured) *model.SMDictionary {
+func (crm *CRManagerImpl) convertToDict(objList *crv3.CRList) *model.SMDictionary {
 	result := &model.SMDictionary{
 		Services: map[string]model.SMObject{},
 	}
-	//TODO apply http and other
-	for _, obj := range objList {
-		result.Services[cr_client.GetServiceName(&obj)] = model.SMObject{
+	for _, obj := range objList.Items {
+		smObj := model.SMObject{
 			CRName:                  obj.GetName(),
 			Namespace:               obj.GetNamespace(),
 			UID:                     obj.GetUID(),
-			Name:                    cr_client.GetServiceName(&obj),
-			Module:                  cr_client.GetModule(&obj),
-			After:                   cr_client.GetAfter(&obj),
-			Before:                  cr_client.GetBefore(&obj),
-			Sequence:                cr_client.GetSequence(&obj),
-			AllowedStandbyStateList: cr_client.GetAllowedStandbyStateList(&obj),
+			Name:                    obj.GetServiceName(),
+			Module:                  obj.Spec.SiteManager.Module,
+			After:                   obj.Spec.SiteManager.After,
+			Before:                  obj.Spec.SiteManager.Before,
+			Sequence:                obj.Spec.SiteManager.Sequence,
+			AllowedStandbyStateList: obj.Spec.SiteManager.AllowedStandbyStateList,
 			Parameters: model.SMObjectParameters{
-				ServiceEndpoint: cr_client.GetServiceEndpoint(&obj),
-				HealthzEndpoint: cr_client.GetHealthzEndpoint(&obj),
+				ServiceEndpoint: obj.Spec.SiteManager.Parameters.ServiceEndpoint,
+				HealthzEndpoint: obj.Spec.SiteManager.Parameters.HealthzEndpoint,
 			},
-			Timeout: cr_client.GetTimeout(&obj),
-			Alias:   cr_client.GetAlias(&obj),
+			Timeout: obj.Spec.SiteManager.Timeout,
+			Alias:   obj.Spec.SiteManager.Alias,
 		}
+		applyDefaults(&smObj)
+		result.Services[obj.GetServiceName()] = smObj
 	}
 	return result
+}
+
+// applyDefaults applies default values to specified obj
+func applyDefaults(obj *model.SMObject) {
+	if obj.After == nil {
+		obj.After = []string{}
+	}
+	if obj.Before == nil {
+		obj.Before = []string{}
+	}
+	if len(obj.Module) == 0 {
+		obj.Module = "stateful"
+	}
+	if len(obj.Sequence) == 0 {
+		obj.Sequence = []string{"standby", "active"}
+	}
+	if len(obj.AllowedStandbyStateList) == 0 {
+		obj.AllowedStandbyStateList = []string{"up"}
+	}
+	obj.Parameters.ServiceEndpoint = applyHttpScheme(obj.Parameters.ServiceEndpoint)
+	obj.Parameters.HealthzEndpoint = applyHttpScheme(obj.Parameters.HealthzEndpoint)
+}
+
+// applyHttpScheme apply defaunt http scheme to endpoint if it's not already presended
+func applyHttpScheme(endpoint string) string {
+	if len(endpoint) == 0 || strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https//") {
+		return endpoint
+	}
+	return fmt.Sprintf("%s%s", envconfig.EnvConfig.HttpScheme, endpoint)
 }

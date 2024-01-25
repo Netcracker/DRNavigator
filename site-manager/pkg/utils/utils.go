@@ -51,16 +51,6 @@ func Contains[E comparable](s []E, v E) bool {
 	return false
 }
 
-// FindFirstFromMap finds the first element in map which value meets specified filter func and returns its key pointer
-func FindFirstFromMap[T comparable, V interface{}](objects map[T]V, filter func(V) bool) *T {
-	for key, value := range objects {
-		if filter(value) {
-			return &key
-		}
-	}
-	return nil
-}
-
 // FindFirstFromSlice finds the first element in slice which value meets specified filter func and returns its pointer
 func FindFirstFromSlice[V interface{}](objects []V, filter func(V) bool) *V {
 	for _, value := range objects {

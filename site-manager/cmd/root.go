@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"path/filepath"
+
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
 	"github.com/netcracker/drnavigator/site-manager/pkg/app"
 	"github.com/netcracker/drnavigator/site-manager/pkg/utils"
@@ -20,8 +22,11 @@ var rootCmd = &cobra.Command{
 func init() {
 	rootCmd.PersistentFlags().StringP("bind", "b", ":8443", "The socket to bind main app (default is \":8443\")")
 	rootCmd.PersistentFlags().StringP("bind-webhook", "w", "", "The socket to bind webhook controller. If it's empty, no webhook api will be added (default is \"\")")
-	rootCmd.PersistentFlags().String("certfile", "", "SSL certificate file")
-	rootCmd.PersistentFlags().String("keyfile", "", "SSL key file")
+	rootCmd.PersistentFlags().StringP("bind-metrics", "m", "", "The socket to bind metrics server. If it's empty, no metrics api will be added (default is \"\")")
+	rootCmd.PersistentFlags().String("certdir", "", "SSL certificates dir")
+	rootCmd.PersistentFlags().String("certfile", "", "SSL certificate file name")
+	rootCmd.PersistentFlags().String("keyfile", "", "SSL key file name")
+	rootCmd.PersistentFlags().Bool("dev-mode", false, "Runs in dev mode, that does not enable leader election in sm controller")
 }
 
 // ServeApp is serves the app
@@ -38,8 +43,20 @@ func ServeApp(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 
+	bindMetricsAddress, err := cmd.Flags().GetString("bind-metrics")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error getting bind address: %s", err)
+		os.Exit(1)
+	}
+
 	if err := envconfig.InitConfig(); err != nil {
 		fmt.Fprintf(os.Stderr, "error initializing env config: %s", err)
+		os.Exit(1)
+	}
+
+	certDir, err := cmd.Flags().GetString("certdir")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error getting cert dir: %s", err)
 		os.Exit(1)
 	}
 
@@ -49,7 +66,7 @@ func ServeApp(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 	if bindWebhookAddress != "" || envconfig.EnvConfig.HttpsEnaled {
-		if err := utils.CheckFile(certFile); err != nil {
+		if err := utils.CheckFile(filepath.Join(certDir, certFile)); err != nil {
 			fmt.Fprintf(os.Stderr, "error getting cert file: %s", err)
 			os.Exit(1)
 		}
@@ -61,13 +78,19 @@ func ServeApp(cmd *cobra.Command, args []string) {
 		os.Exit(1)
 	}
 	if bindWebhookAddress != "" || envconfig.EnvConfig.HttpsEnaled {
-		if err := utils.CheckFile(keyFile); err != nil {
+		if err := utils.CheckFile(filepath.Join(certDir, keyFile)); err != nil {
 			fmt.Fprintf(os.Stderr, "error getting key file: %s", err)
 			os.Exit(1)
 		}
 	}
 
-	if err := app.Serve(bindAddress, bindWebhookAddress, certFile, keyFile); err != nil {
+	devMode, err := cmd.Flags().GetBool("dev-mode")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error getting dev-mode: %s", err)
+		os.Exit(1)
+	}
+
+	if err := app.Serve(bindAddress, bindWebhookAddress, bindMetricsAddress, devMode, certDir, certFile, keyFile); err != nil {
 		fmt.Fprintf(os.Stderr, "server error: %s", err)
 		os.Exit(1)
 	}

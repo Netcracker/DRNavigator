@@ -1,30 +1,36 @@
 package app
 
 import (
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
+	"path/filepath"
 
 	"github.com/labstack/echo-contrib/echoprometheus"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
 	_ "github.com/netcracker/drnavigator/site-manager/docs"
-	"github.com/netcracker/drnavigator/site-manager/logger"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"
 	"github.com/netcracker/drnavigator/site-manager/pkg/service"
 	echoSwagger "github.com/swaggo/echo-swagger"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
+var appMainLog = ctrl.Log.WithName("app-main")
+
 // Serve main Server initialize main SM API
-func ServeMainServer(bindAddress string, bindWebhookAddress string, certFile string, keyFile string, crManager service.ICRManager, smConfig *model.SMConfig, errChannel chan error) {
+func ServeMainServer(bindAddress string, bindWebhookAddress string, certDir string, certFile string, keyFile string, crManager service.CRManager, smConfig *model.SMConfig, errChannel chan error) {
 	e := echo.New()
-	e.Use(echoprometheus.NewMiddleware("site_manager"))
+	e.Use(echoprometheus.NewMiddlewareWithConfig(echoprometheus.MiddlewareConfig{
+		Subsystem:  "site_manager",
+		Registerer: metrics.Registry,
+	}))
 	e.GET("/", rootGet())
 	e.GET("/swagger/*", echoSwagger.WrapHandler)
-	e.GET("/health", health(bindWebhookAddress))
+	e.GET("/health", health())
 
 	// Authorized group API
 	g := e.Group("/sitemanager")
@@ -51,7 +57,7 @@ func ServeMainServer(bindAddress string, bindWebhookAddress string, certFile str
 	g.POST("", processService(crManager))
 
 	if envconfig.EnvConfig.HttpsEnaled {
-		errChannel <- e.StartTLS(bindAddress, certFile, keyFile)
+		errChannel <- e.StartTLS(bindAddress, filepath.Join(certDir, certFile), filepath.Join(certDir, keyFile))
 	} else {
 		errChannel <- e.Start(bindAddress)
 	}
@@ -73,22 +79,8 @@ func rootGet() func(c echo.Context) error {
 // @Tags         site-manager
 // @Success    204    "site-manager health up"
 // @Router       /health [get]
-func health(bindWebhookAddress string) func(c echo.Context) error {
-	tr := &http.Transport{
-		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
-		DisableKeepAlives: true,
-	}
-	http_client := &http.Client{Transport: tr}
+func health() func(c echo.Context) error {
 	return func(c echo.Context) error {
-		if bindWebhookAddress != "" {
-			resp, err := http_client.Get(fmt.Sprintf("https://%s/health", bindWebhookAddress))
-			if err != nil {
-				return c.String(http.StatusInternalServerError, fmt.Sprintf("can't check webhook health: %s", err))
-			}
-			if resp.StatusCode != http.StatusNoContent && resp.StatusCode != http.StatusOK {
-				return c.String(http.StatusInternalServerError, fmt.Sprintf("recived bad status from webhook healthz: %s", resp.Status))
-			}
-		}
 		return c.String(http.StatusNoContent, "")
 	}
 }
@@ -102,9 +94,9 @@ func health(bindWebhookAddress string) func(c echo.Context) error {
 // @Failure     403    "Invalid token"
 // @Failure     500    "Server error"
 // @Router       /sitemanager [get]
-func getServices(crManager service.ICRManager) func(c echo.Context) error {
+func getServices(crManager service.CRManager) func(c echo.Context) error {
 	return func(c echo.Context) error {
-		smDict, smErr := crManager.GetAllServices()
+		smDict, smErr := crManager.GetAllServices(c.Request().Context())
 		if smErr != nil {
 			return c.JSON(smErr.GetStatusCode(), smErr)
 		}
@@ -123,21 +115,20 @@ func getServices(crManager service.ICRManager) func(c echo.Context) error {
 // @Failure			403    "Invalid token"
 // @Failure			500    "Server error"
 // @Router			/sitemanager [post]
-func processService(crManager service.ICRManager) func(c echo.Context) error {
-	log := logger.SimpleLogger()
+func processService(crManager service.CRManager) func(c echo.Context) error {
 	return func(c echo.Context) error {
 		smBytes, err := io.ReadAll(c.Request().Body)
 		if err != nil {
-			log.Errorf("Some problem occurred: %s", err)
+			appMainLog.Error(err, "Service processing error occurred: %s")
 			return &echo.HTTPError{
 				Code:    http.StatusInternalServerError,
 				Message: fmt.Sprintf("Some problem occurred: %s", err),
 			}
 		}
-		log.Infof("Data was received: %s", smBytes)
+		appMainLog.Info("Data was received", "processing-request", string(smBytes))
 		smRequest := model.SMRequest{}
 		if err := json.Unmarshal(smBytes, &smRequest); err != nil {
-			log.Errorf("Some problem occurred: %s", err)
+			appMainLog.Error(err, "Service processing error occurred")
 			return &echo.HTTPError{
 				Code:    http.StatusBadRequest,
 				Message: "No valid JSON data was received",
@@ -145,31 +136,31 @@ func processService(crManager service.ICRManager) func(c echo.Context) error {
 		}
 		switch smRequest.Procedure {
 		case model.ProcedureList:
-			listResp, smErr := crManager.GetServicesList()
+			listResp, smErr := crManager.GetServicesList(c.Request().Context())
 			if smErr != nil {
 				return c.JSON(smErr.GetStatusCode(), smErr)
 			}
 			return c.JSON(http.StatusOK, listResp)
 		case model.ProcedureStatus:
-			statusResp, smErr := crManager.GetServiceStatus(smRequest.Service, smRequest.WithDeps)
+			statusResp, smErr := crManager.GetServiceStatus(c.Request().Context(), smRequest.Service, smRequest.WithDeps)
 			if smErr != nil {
 				return c.JSON(smErr.GetStatusCode(), smErr)
 			}
 			return c.JSON(http.StatusOK, statusResp)
 		case model.ProcedureActive:
-			processResp, smErr := crManager.ProcessService(smRequest.Service, string(smRequest.Procedure), smRequest.NoWait)
+			processResp, smErr := crManager.ProcessService(c.Request().Context(), smRequest.Service, string(smRequest.Procedure), smRequest.NoWait)
 			if smErr != nil {
 				return c.JSON(smErr.GetStatusCode(), smErr)
 			}
 			return c.JSON(processResp.GetStatusCode(), processResp)
 		case model.ProcedureStandby:
-			processResp, smErr := crManager.ProcessService(smRequest.Service, string(smRequest.Procedure), smRequest.NoWait)
+			processResp, smErr := crManager.ProcessService(c.Request().Context(), smRequest.Service, string(smRequest.Procedure), smRequest.NoWait)
 			if smErr != nil {
 				return c.JSON(smErr.GetStatusCode(), smErr)
 			}
 			return c.JSON(processResp.GetStatusCode(), processResp)
 		case model.ProcedureDisable:
-			processResp, smErr := crManager.ProcessService(smRequest.Service, string(smRequest.Procedure), smRequest.NoWait)
+			processResp, smErr := crManager.ProcessService(c.Request().Context(), smRequest.Service, string(smRequest.Procedure), smRequest.NoWait)
 			if smErr != nil {
 				return c.JSON(smErr.GetStatusCode(), smErr)
 			}

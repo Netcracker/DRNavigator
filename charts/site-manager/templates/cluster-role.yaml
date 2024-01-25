@@ -10,4 +10,10 @@ rules:
   - apiGroups: ["netcracker.com"]
     resources: ["sitemanagers/status"]
     verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update"]
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
 {{ end }}
