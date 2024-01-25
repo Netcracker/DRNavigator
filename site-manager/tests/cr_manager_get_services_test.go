@@ -89,8 +89,8 @@ func TestCRManager_DisabledTestingInSMConfig(t *testing.T) {
 	// Test, that if testing is disabled in SM config, CRs will be got from kube client
 	cr1 := crv3.CR{}
 	cr2 := crv3.CR{}
-	test_objects.ServiceV1.ConvertTo(&cr1)
-	test_objects.ServiceV2.ConvertTo(&cr2)
+	_ = test_objects.ServiceV1.ConvertTo(&cr1)
+	_ = test_objects.ServiceV2.ConvertTo(&cr2)
 	crList := crv3.CRList{
 		Items: []crv3.CR{cr1, cr2},
 	}

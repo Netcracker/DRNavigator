@@ -273,10 +273,10 @@ webhooks:
   clientConfig:
     service:
       namespace: site-manager
-      name: {{ .Chart.Name }}
+      name: site-manager
       path: /validate-netcracker-com-v3-sitemanager
       port: 442
-    caBundle: "{{ .Values.tls.ca | b64enc }}"
+    caBundle: "<base-64-encoded-ca-bundle>"
   rules:
   - apiGroups:   ["netcracker.com"]
     apiVersions: ["v3"]
@@ -289,10 +289,10 @@ webhooks:
   clientConfig:
     service:
       namespace: site-manager
-      name: {{ .Chart.Name }}
+      name: site-manager
       path: /validate-netcracker-com-v2-sitemanager
       port: 442
-    caBundle: "{{ .Values.tls.ca | b64enc }}"
+    caBundle: "<base-64-encoded-ca-bundle>"
   rules:
   - apiGroups:   ["netcracker.com"]
     apiVersions: ["v2"]
@@ -305,10 +305,10 @@ webhooks:
   clientConfig:
     service:
       namespace: site-manager
-      name: {{ .Chart.Name }}
+      name: site-manager
       path: /validate-netcracker-com-v1-sitemanager
       port: 442
-    caBundle: "{{ .Values.tls.ca | b64enc }}"
+    caBundle: "<base-64-encoded-ca-bundle>"
   rules:
   - apiGroups:   ["netcracker.com"]
     apiVersions: ["v1"]

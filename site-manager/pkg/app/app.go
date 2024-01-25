@@ -76,7 +76,9 @@ func initializeServices(smConfig *model.SMConfig, bindWebhookAddress string, bin
 		if err != nil {
 			return nil, nil, fmt.Errorf("error initializing cr-client: %s", err)
 		}
-		controllers.SetupCRReconciler(crClient, mgr)
+		if err := controllers.SetupCRReconciler(crClient, mgr); err != nil {
+			return nil, nil, fmt.Errorf("error initializing reconciler for CRs: %s", err)
+		}
 		crManager, err := service.NewCRManager(smConfig, crClient)
 		if err != nil {
 			return nil, nil, fmt.Errorf("error initializing cr manager service: %s", err)

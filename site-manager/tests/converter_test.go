@@ -23,7 +23,8 @@ func TestConverter_ConvertV2ToV3_stateful(t *testing.T) {
 
 	convertedService := &crv3.CR{}
 	convertedService.TypeMeta = test_objects.ServiceV3.TypeMeta
-	testService.ConvertTo(convertedService)
+	err := testService.ConvertTo(convertedService)
+	assert.NoError(err, "conversation error")
 
 	assert.Equal(test_objects.ServiceV3.TypeMeta, convertedService.TypeMeta, "type meta is not equal")
 	assert.Equal(testService.ObjectMeta, convertedService.ObjectMeta, "object meta is not actual")
@@ -54,7 +55,8 @@ func TestConverter_ConvertV2ToV3_not_stateful(t *testing.T) {
 
 	convertedService := &crv3.CR{}
 	convertedService.TypeMeta = test_objects.ServiceV3.TypeMeta
-	testService.ConvertTo(convertedService)
+	err := testService.ConvertTo(convertedService)
+	assert.NoError(err, "conversation error")
 
 	assert.Equal(test_objects.ServiceV3.TypeMeta, convertedService.TypeMeta, "type meta is not equal")
 	assert.Equal(testService.ObjectMeta, convertedService.ObjectMeta, "object meta is not actual")
@@ -84,7 +86,8 @@ func TestConverter_ConvertV1ToV3(t *testing.T) {
 
 	convertedService := &crv3.CR{}
 	convertedService.TypeMeta = test_objects.ServiceV3.TypeMeta
-	testService.ConvertTo(convertedService)
+	err := testService.ConvertTo(convertedService)
+	assert.NoError(err, "conversation error")
 
 	assert.Equal(test_objects.ServiceV3.TypeMeta, convertedService.TypeMeta, "type meta is not equal")
 	assert.Equal(testService.ObjectMeta, convertedService.ObjectMeta, "object meta is not actual")
@@ -114,7 +117,8 @@ func TestConverter_ConvertV3ToV2(t *testing.T) {
 
 	convertedService := &crv2.CR{}
 	convertedService.TypeMeta = test_objects.ServiceV2.TypeMeta
-	convertedService.ConvertFrom(testService)
+	err := convertedService.ConvertFrom(testService)
+	assert.NoError(err, "conversation error")
 
 	assert.Equal(test_objects.ServiceV2.TypeMeta, convertedService.TypeMeta, "type meta is not equal")
 	assert.Equal(testService.ObjectMeta, convertedService.ObjectMeta, "object meta is not actual")
@@ -127,7 +131,7 @@ func TestConverter_ConvertV3ToV2(t *testing.T) {
 	assert.Equal(*testService.Spec.SiteManager.Timeout, *convertedService.Spec.SiteManager.Timeout, "timeout is not equal")
 	assert.Equal(testService.Spec.SiteManager.Parameters.ServiceEndpoint, convertedService.Spec.SiteManager.Parameters.ServiceEndpoint, "service endpoint is not equal")
 	assert.Equal(testService.Spec.SiteManager.Parameters.HealthzEndpoint, convertedService.Spec.SiteManager.Parameters.HealthzEndpoint, "health endpoint is not equal")
-	assert.Equal("", *&convertedService.Spec.SiteManager.Parameters.IngressEndpoint, "ingress endpoint is not equal")
+	assert.Equal("", convertedService.Spec.SiteManager.Parameters.IngressEndpoint, "ingress endpoint is not equal")
 
 	assert.Equal(testService.Status.Summary, convertedService.Status.Summary, "summary status is not equal")
 	assert.Equal(testService.Status.ServiceName, convertedService.Status.ServiceName, "service name in status is not equal")
@@ -143,7 +147,8 @@ func TestConverter_ConvertV3ToV1(t *testing.T) {
 
 	convertedService := &crv1.CR{}
 	convertedService.TypeMeta = test_objects.ServiceV1.TypeMeta
-	convertedService.ConvertFrom(testService)
+	err := convertedService.ConvertFrom(testService)
+	assert.NoError(err, "conversation error")
 
 	assert.Equal(test_objects.ServiceV1.TypeMeta, convertedService.TypeMeta, "type meta is not equal")
 	assert.Equal(testService.ObjectMeta, convertedService.ObjectMeta, "object meta is not actual")
@@ -155,7 +160,7 @@ func TestConverter_ConvertV3ToV1(t *testing.T) {
 	assert.Equal(*testService.Spec.SiteManager.Timeout, *convertedService.Spec.SiteManager.Timeout, "timeout is not equal")
 	assert.Equal(testService.Spec.SiteManager.Parameters.ServiceEndpoint, convertedService.Spec.SiteManager.ServiceEndpoint, "service endpoint is not equal")
 	assert.Equal(testService.Spec.SiteManager.Parameters.HealthzEndpoint, convertedService.Spec.SiteManager.HealthzEndpoint, "health endpoint is not equal")
-	assert.Equal("", *&convertedService.Spec.SiteManager.IngressEndpoint, "ingress endpoint is not equal")
+	assert.Equal("", convertedService.Spec.SiteManager.IngressEndpoint, "ingress endpoint is not equal")
 
 	assert.Equal(testService.Status.Summary, convertedService.Status.Summary, "summary status is not equal")
 	assert.Equal(testService.Status.ServiceName, convertedService.Status.ServiceName, "service name in status is not equal")
