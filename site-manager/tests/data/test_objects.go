@@ -3,9 +3,9 @@ package test_objects
 import (
 	"fmt"
 
-	crv1 "github.com/netcracker/drnavigator/site-manager/pkg/api/v1"
-	crv2 "github.com/netcracker/drnavigator/site-manager/pkg/api/v2"
-	crv3 "github.com/netcracker/drnavigator/site-manager/pkg/api/v3"
+	crv1 "github.com/netcracker/drnavigator/site-manager/api/v1"
+	crv2 "github.com/netcracker/drnavigator/site-manager/api/v2"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"

@@ -19,10 +19,10 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
-var appMainLog = ctrl.Log.WithName("app-main")
+var appLog = ctrl.Log.WithName("app-main")
 
 // Serve main Server initialize main SM API
-func ServeMainServer(bindAddress string, bindWebhookAddress string, certDir string, certFile string, keyFile string, crManager service.CRManager, smConfig *model.SMConfig, errChannel chan error) {
+func ServeMainServer(bindAddress string, certDir string, certFile string, keyFile string, crManager service.CRManager, smConfig *model.SMConfig, errChannel chan error) {
 	e := echo.New()
 	e.Use(echoprometheus.NewMiddlewareWithConfig(echoprometheus.MiddlewareConfig{
 		Subsystem:  "site_manager",
@@ -119,16 +119,16 @@ func processService(crManager service.CRManager) func(c echo.Context) error {
 	return func(c echo.Context) error {
 		smBytes, err := io.ReadAll(c.Request().Body)
 		if err != nil {
-			appMainLog.Error(err, "Service processing error occurred: %s")
+			appLog.Error(err, "Service processing error occurred: %s")
 			return &echo.HTTPError{
 				Code:    http.StatusInternalServerError,
 				Message: fmt.Sprintf("Some problem occurred: %s", err),
 			}
 		}
-		appMainLog.Info("Data was received", "processing-request", string(smBytes))
+		appLog.Info("Data was received", "processing-request", string(smBytes))
 		smRequest := model.SMRequest{}
 		if err := json.Unmarshal(smBytes, &smRequest); err != nil {
-			appMainLog.Error(err, "Service processing error occurred")
+			appLog.Error(err, "Service processing error occurred")
 			return &echo.HTTPError{
 				Code:    http.StatusBadRequest,
 				Message: "No valid JSON data was received",

@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
-	crv3 "github.com/netcracker/drnavigator/site-manager/pkg/api/v3"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
 	http_client "github.com/netcracker/drnavigator/site-manager/pkg/client/http"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"

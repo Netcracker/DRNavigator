@@ -3,7 +3,7 @@ package v2
 import (
 	"fmt"
 
-	v3 "github.com/netcracker/drnavigator/site-manager/pkg/api/v3"
+	v3 "github.com/netcracker/drnavigator/site-manager/api/v3"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
 )
 

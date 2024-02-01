@@ -1,22 +1,19 @@
-package controllers
+package controller
 
 import (
 	"context"
 	"reflect"
 
-	crv3 "github.com/netcracker/drnavigator/site-manager/pkg/api/v3"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
 // crReconciler is implementation of CRReconciler
 type crReconciler struct {
-	reconcile.Reconciler
-
 	crClient cr_client.CRClient
 }
 

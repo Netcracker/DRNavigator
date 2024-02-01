@@ -1,12 +1,13 @@
-package service
+package controller
 
 import (
 	"context"
 	"fmt"
 
-	crv1 "github.com/netcracker/drnavigator/site-manager/pkg/api/v1"
-	crv2 "github.com/netcracker/drnavigator/site-manager/pkg/api/v2"
-	crv3 "github.com/netcracker/drnavigator/site-manager/pkg/api/v3"
+	crv1 "github.com/netcracker/drnavigator/site-manager/api/v1"
+	crv2 "github.com/netcracker/drnavigator/site-manager/api/v2"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	"github.com/netcracker/drnavigator/site-manager/pkg/service"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -23,12 +24,12 @@ const (
 type Validator interface {
 	admission.CustomValidator
 	// SetupValidator regists validator in controller-runtime manager
-	SetupValidator(mgr ctrl.Manager) error
+	SetupWebhookWithManager(mgr ctrl.Manager) error
 }
 
 // validator is implementation of Validator interface
 type validator struct {
-	CRManager CRManager
+	CRManager service.CRManager
 }
 
 func getServiceNameExistsMessage(name string, isAlias bool) string {
@@ -122,7 +123,7 @@ func (v *validator) ValidateDelete(ctx context.Context, obj runtime.Object) (adm
 }
 
 // SetupValidator creates the new Validator object
-func (v *validator) SetupValidator(mgr ctrl.Manager) error {
+func (v *validator) SetupWebhookWithManager(mgr ctrl.Manager) error {
 	if err := builder.WebhookManagedBy(mgr).For(&crv3.CR{}).WithValidator(v).Complete(); err != nil {
 		return fmt.Errorf("error initializing cr validator for v3 version: %s", err)
 	}
@@ -136,6 +137,6 @@ func (v *validator) SetupValidator(mgr ctrl.Manager) error {
 }
 
 // NewValidator creates new validator instance
-func NewValidator(crManager CRManager) (Validator, error) {
-	return &validator{CRManager: crManager}, nil
+func NewValidator(crManager service.CRManager) Validator {
+	return &validator{CRManager: crManager}
 }

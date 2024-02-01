@@ -10,6 +10,9 @@ const (
 	CRVersion = "v3"
 )
 
+//go:generate controller-gen object paths=$GOFILE
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // CRList struct presents latest CR list version model
 type CRList struct {
 	metav1.TypeMeta `json:",inline"`
@@ -18,6 +21,7 @@ type CRList struct {
 	Items []CR `json:"items"`
 }
 
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 // CR struct presents latest CR version model
 type CR struct {
 	metav1.TypeMeta   `json:",inline"`
@@ -27,11 +31,13 @@ type CR struct {
 	Status CRStatus `json:"status"`
 }
 
+// +k8s:deepcopy-gen=true
 // CRSpec struct presents spec field for latest CR version model
 type CRSpec struct {
 	SiteManager CRSpecSiteManager `json:"sitemanager"`
 }
 
+// +k8s:deepcopy-gen=true
 // CRSpecSiteManager struct presents spec.sitemanager field for latest CR version model
 type CRSpecSiteManager struct {
 	Module                  string           `json:"module"`
@@ -44,12 +50,14 @@ type CRSpecSiteManager struct {
 	Parameters              CRSpecParameters `json:"parameters"`
 }
 
+// +k8s:deepcopy-gen=true
 // CRSpecParameters struct presents spec.sitemanager.parameters field for latest CR version model
 type CRSpecParameters struct {
 	ServiceEndpoint string `json:"serviceEndpoint"`
 	HealthzEndpoint string `json:"healthzEndpoint"`
 }
 
+// +k8s:deepcopy-gen=true
 // CRStatus struct presentes status for latest CR version model
 type CRStatus struct {
 	Summary     string `json:"summary"`

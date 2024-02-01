@@ -3,10 +3,10 @@ package test
 import (
 	"testing"
 
+	crv1 "github.com/netcracker/drnavigator/site-manager/api/v1"
+	crv2 "github.com/netcracker/drnavigator/site-manager/api/v2"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
 	"github.com/netcracker/drnavigator/site-manager/config"
-	crv1 "github.com/netcracker/drnavigator/site-manager/pkg/api/v1"
-	crv2 "github.com/netcracker/drnavigator/site-manager/pkg/api/v2"
-	crv3 "github.com/netcracker/drnavigator/site-manager/pkg/api/v3"
 	test_objects "github.com/netcracker/drnavigator/site-manager/tests/data"
 	"github.com/stretchr/testify/require"
 )

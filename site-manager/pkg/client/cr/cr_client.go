@@ -3,7 +3,7 @@ package cr_client
 import (
 	"context"
 
-	crv3 "github.com/netcracker/drnavigator/site-manager/pkg/api/v3"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,11 +27,11 @@ type crClient struct {
 }
 
 // NewCRClient initializes the new implementation of CRClient
-func NewNewCRClient(kubeClient client.Client) (CRClient, error) {
+func NewCRClient(kubeClient client.Client) CRClient {
 	crClientLog.V(1).Info("Try to initialize kube client for CRs...")
 	crc := &crClient{kubeClient: kubeClient}
 	crClientLog.V(1).Info("Kube client for CRs was initialized")
-	return crc, nil
+	return crc
 }
 
 // List returns the list ob ustructured CR objects from the cluster
