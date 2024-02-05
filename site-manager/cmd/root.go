@@ -193,8 +193,17 @@ func ServeApp(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 
-		// Initialize validator
-		if err := controller.NewValidator(crManager).SetupWebhookWithManager(mgr); err != nil {
+		// Initialize validators
+		validator := controller.NewValidator(crManager)
+		if err := crv1.SetupWebhookWithManager(mgr, validator); err != nil {
+			setupLog.Error(err, "unable to initialize validator")
+			os.Exit(1)
+		}
+		if err := crv2.SetupWebhookWithManager(mgr, validator); err != nil {
+			setupLog.Error(err, "unable to initialize validator")
+			os.Exit(1)
+		}
+		if err := crv3.SetupWebhookWithManager(mgr, validator); err != nil {
 			setupLog.Error(err, "unable to initialize validator")
 			os.Exit(1)
 		}

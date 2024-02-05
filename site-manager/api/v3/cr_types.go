@@ -71,6 +71,3 @@ func (cr *CR) GetServiceName() string {
 	}
 	return fmt.Sprintf("%s.%s", cr.GetName(), cr.GetNamespace())
 }
-
-// Hub method is used to mark storage object
-func (cr *CR) Hub() {}

@@ -10,8 +10,6 @@ import (
 	"github.com/netcracker/drnavigator/site-manager/pkg/service"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
-	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
@@ -23,8 +21,6 @@ const (
 // Validator provides the set of functions for CR validation
 type Validator interface {
 	admission.CustomValidator
-	// SetupValidator regists validator in controller-runtime manager
-	SetupWebhookWithManager(mgr ctrl.Manager) error
 }
 
 // validator is implementation of Validator interface
@@ -120,20 +116,6 @@ func (v *validator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.O
 func (v *validator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	// No checks for removed object
 	return nil, nil
-}
-
-// SetupValidator creates the new Validator object
-func (v *validator) SetupWebhookWithManager(mgr ctrl.Manager) error {
-	if err := builder.WebhookManagedBy(mgr).For(&crv3.CR{}).WithValidator(v).Complete(); err != nil {
-		return fmt.Errorf("error initializing cr validator for v3 version: %s", err)
-	}
-	if err := builder.WebhookManagedBy(mgr).For(&crv2.CR{}).WithValidator(v).Complete(); err != nil {
-		return fmt.Errorf("error initializing cr validator for v2 version: %s", err)
-	}
-	if err := builder.WebhookManagedBy(mgr).For(&crv1.CR{}).WithValidator(v).Complete(); err != nil {
-		return fmt.Errorf("error initializing cr validator for v1 version: %s", err)
-	}
-	return nil
 }
 
 // NewValidator creates new validator instance

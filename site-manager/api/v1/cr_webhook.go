@@ -4,7 +4,10 @@ import (
 	"fmt"
 
 	v3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/builder"
 	"sigs.k8s.io/controller-runtime/pkg/conversion"
+	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
 // ConvertTo implements conversion logic to convert to Hub type (v3)
@@ -61,4 +64,12 @@ func (crv1 *CR) ConvertFrom(src conversion.Hub) error {
 	default:
 		return fmt.Errorf("desired API version %s is not supported", t.GetObjectKind().GroupVersionKind().Version)
 	}
+}
+
+// SetupWebhookWithManager setup webhook for current CR version
+func SetupWebhookWithManager(mgr ctrl.Manager, validator admission.CustomValidator) error {
+	if err := builder.WebhookManagedBy(mgr).For(&CR{}).WithValidator(validator).Complete(); err != nil {
+		return fmt.Errorf("error initializing cr validator for %s version: %s", CRVersion, err)
+	}
+	return nil
 }
