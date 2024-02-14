@@ -12,8 +12,8 @@ env:
 
   # set CRD parameters
   SM_GROUP: "netcracker.com"
-  SM_PLURAL: "sitemanagers"
-  SM_VERSION: "v3"
+  SM_KIND: "SiteManager"
+  SM_KIND_LIST: "SiteManagerList"
   # set HTTP scheme for microservices
   HTTP_SCHEME: "http://"
 

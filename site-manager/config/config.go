@@ -19,9 +19,9 @@ type Config struct {
 	SMCaCert      string `envconfig:"SM_CACERT" default:"True"`
 
 	// cr configuration
-	CRGroup   string `envconfig:"SM_GROUP" default:"netcracker.com"`
-	CRPrural  string `envconfig:"SM_PRURAL" default:"sitemanagers"`
-	CRVersion string `envconfig:"SM_VERSION" default:"v3"`
+	CRGroup    string `envconfig:"SM_GROUP" default:"netcracker.com"`
+	CRKind     string `envconfig:"SM_KIND" default:"SiteManager"`
+	CRKindList string `envconfig:"SM_KIND_LIST" default:"SiteManagerList"`
 
 	// timeouts
 	PostRequestTimeout int64 `envconfig:"SM_POST_REQUEST_TIMEOUT" default:"30"`

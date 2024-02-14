@@ -1,15 +1,18 @@
 package mock
 
 import (
+	"context"
+
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 type CRClientMock struct {
-	cr_client.ICRClient
-	CRList unstructured.UnstructuredList
+	cr_client.CRClient
+	CRList crv3.CRList
 }
 
-func (crcm *CRClientMock) List(apiVersion string) (*unstructured.UnstructuredList, error) {
+func (crcm *CRClientMock) List(ctx context.Context, opts *client.ListOptions) (*crv3.CRList, error) {
 	return &crcm.CRList, nil
 }

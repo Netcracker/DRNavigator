@@ -7,8 +7,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/netcracker/drnavigator/site-manager/logger"
+	ctrl "sigs.k8s.io/controller-runtime"
 )
+
+var httpLog = ctrl.Log.WithName("http-client")
 
 // HttpClientInterface is an interface to do http requests
 type HttpClientInterface interface {
@@ -26,16 +28,14 @@ func DoGetRequest[V any](client HttpClientInterface, url string, token string, u
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 
-	log := logger.SimpleLogger()
-	log.Debugf("REST url: %s", url)
-	log.Debugf("REST request: GET")
+	httpLog.V(1).Info("REST request", "url", url, "type", "GET")
 
 	var response *http.Response
 
 	for retry > 0 {
 		response, err = client.Do(req)
 		if err != nil {
-			log.Errorf("Request error: %s", err)
+			httpLog.Error(err, "Request error")
 			retry -= 1
 		} else {
 			break
@@ -46,13 +46,12 @@ func DoGetRequest[V any](client HttpClientInterface, url string, token string, u
 		defer response.Body.Close()
 		textData, err := io.ReadAll(response.Body)
 		if err != nil {
-			log.Errorf("Can't retreive response body: %s", err)
+			httpLog.Error(err, "Can't retreive response body")
 			return 0, err
 		}
-		log.Debugf("Status: %s", response.Status)
-		log.Debugf("Response: \n%s", textData)
+		httpLog.V(1).Info("Request is done", "status", response.Status, "response", string(textData))
 		if err := json.Unmarshal(textData, &obj); err != nil {
-			log.Errorf("Wrong JSON data received: %s", err)
+			httpLog.Error(err, "Wrong JSON data received")
 			return 0, err
 		}
 		return response.StatusCode, nil
@@ -77,16 +76,14 @@ func DoPostRequest[V any, T any](client HttpClientInterface, url string, bodyObj
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	log := logger.SimpleLogger()
-	log.Debugf("REST url: %s", url)
-	log.Debugf("REST body: %s", byteBody)
+	httpLog.V(1).Info("REST request", "url", url, "type", "POST", "body", string(byteBody))
 
 	var response *http.Response
 
 	for retry > 0 {
 		response, err = client.Do(req)
 		if err != nil {
-			log.Errorf("Request error: %s", err)
+			httpLog.Error(err, "Request error")
 			retry -= 1
 		} else {
 			break
@@ -97,13 +94,12 @@ func DoPostRequest[V any, T any](client HttpClientInterface, url string, bodyObj
 		defer response.Body.Close()
 		textData, err := io.ReadAll(response.Body)
 		if err != nil {
-			log.Errorf("Can't retreive response body: %s", err)
+			httpLog.Error(err, "Can't retreive response body")
 			return 0, err
 		}
-		log.Debugf("Status: %s", response.Status)
-		log.Debugf("Response: \n%s", textData)
+		httpLog.V(1).Info("Request is done", "status", response.Status, "response", string(textData))
 		if err := json.Unmarshal(textData, &obj); err != nil {
-			log.Errorf("Wrong JSON data received: %s", err)
+			httpLog.Error(err, "Wrong JSON data received")
 			return 0, err
 		}
 		return response.StatusCode, nil

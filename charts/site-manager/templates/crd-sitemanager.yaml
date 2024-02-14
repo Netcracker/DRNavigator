@@ -287,18 +287,50 @@ metadata:
     {{- end }}
   {{- end }}
 webhooks:
-- name: "site-manager-crd-validating-webhook.netcracker.com"
+- name: "site-manager-crd-validating-webhook-v3.netcracker.com"
   admissionReviewVersions: ["v1"]
   clientConfig:
     service:
       namespace: site-manager
       name: {{ .Chart.Name }}
-      path: /validate
+      path: /validate-netcracker-com-v3-sitemanager
       port: 442
     caBundle: "{{ .Values.tls.ca | b64enc }}"
   rules:
   - apiGroups:   ["netcracker.com"]
-    apiVersions: ["*"]
+    apiVersions: ["v3"]
+    operations:  ["CREATE", "UPDATE"]
+    resources:   ["sitemanagers"]
+    scope:       "Namespaced"
+  sideEffects: None
+- name: "site-manager-crd-validating-webhook-v2.netcracker.com"
+  admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      namespace: site-manager
+      name: {{ .Chart.Name }}
+      path: /validate-netcracker-com-v2-sitemanager
+      port: 442
+    caBundle: "{{ .Values.tls.ca | b64enc }}"
+  rules:
+  - apiGroups:   ["netcracker.com"]
+    apiVersions: ["v2"]
+    operations:  ["CREATE", "UPDATE"]
+    resources:   ["sitemanagers"]
+    scope:       "Namespaced"
+  sideEffects: None
+- name: "site-manager-crd-validating-webhook-v1.netcracker.com"
+  admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      namespace: site-manager
+      name: {{ .Chart.Name }}
+      path: /validate-netcracker-com-v1-sitemanager
+      port: 442
+    caBundle: "{{ .Values.tls.ca | b64enc }}"
+  rules:
+  - apiGroups:   ["netcracker.com"]
+    apiVersions: ["v1"]
     operations:  ["CREATE", "UPDATE"]
     resources:   ["sitemanagers"]
     scope:       "Namespaced"

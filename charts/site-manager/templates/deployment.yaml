@@ -28,9 +28,11 @@ spec:
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
         args:
           - "--bind=0.0.0.0:8443"
-          - "--certfile=/certs/tls.crt"
-          - "--keyfile=/certs/tls.key"
+          - "--certdir=/certs"
+          - "--certfile=tls.crt"
+          - "--keyfile=tls.key"
           - "--bind-webhook=0.0.0.0:8442"
+          - "--bind-metrics=0.0.0.0:9000"
         env:
           - name: POD_NAMESPACE
             valueFrom:
@@ -46,10 +48,10 @@ spec:
             value: "{{ .Values.env.SM_DEBUG }}"
           - name: SM_GROUP
             value: "{{ .Values.env.SM_GROUP }}"
-          - name: SM_PLURAL
-            value: "{{ .Values.env.SM_PLURAL }}"
-          - name: SM_VERSION
-            value: "{{ .Values.env.SM_VERSION }}"
+          - name: SM_KIND
+            value: "{{ .Values.env.SM_KIND }}"
+          - name: SM_KIND_LIST
+            value: "{{ .Values.env.SM_KIND_LIST }}"
           - name: HTTP_SCHEME
             value: "{{ .Values.env.HTTP_SCHEME }}"
           - name: SM_CACERT

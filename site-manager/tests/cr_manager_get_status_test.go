@@ -1,6 +1,7 @@
 package test
 
 import (
+	"context"
 	"testing"
 
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
@@ -101,12 +102,12 @@ func TestCRManager_StatusWithDeps(t *testing.T) {
 		ServiceStatus: model.ServiceSiteManagerResponse{Mode: "active", Status: "done"},
 		ServiceHealth: model.ServiceHealthzResponse{Status: "up"},
 	}
-	crManager := service.CRManager{
+	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
 	}
 
-	serviceAStatus, err := crManager.GetServiceStatus(&serviceA, true)
+	serviceAStatus, err := crManager.GetServiceStatus(context.Background(), &serviceA, true)
 	assert.Nil(err, "Can't get status for %s", serviceA)
 	assert.Equal(&model.SMStatusResponse{
 		Services: map[string]model.SMStatus{
@@ -114,7 +115,7 @@ func TestCRManager_StatusWithDeps(t *testing.T) {
 		},
 	}, serviceAStatus, "status for serviceA is not desired")
 
-	serviceBStatus, err := crManager.GetServiceStatus(&serviceB, true)
+	serviceBStatus, err := crManager.GetServiceStatus(context.Background(), &serviceB, true)
 	assert.Nil(err, "Can't get status for %s", serviceB)
 	assert.Equal(&model.SMStatusResponse{
 		Services: map[string]model.SMStatus{
@@ -123,7 +124,7 @@ func TestCRManager_StatusWithDeps(t *testing.T) {
 		},
 	}, serviceBStatus, "status for serviceB is not desired")
 
-	serviceCStatus, err := crManager.GetServiceStatus(&serviceC, true)
+	serviceCStatus, err := crManager.GetServiceStatus(context.Background(), &serviceC, true)
 	assert.Nil(err, "Can't get status for %s", serviceC)
 	assert.Equal(&model.SMStatusResponse{
 		Services: map[string]model.SMStatus{
@@ -133,7 +134,7 @@ func TestCRManager_StatusWithDeps(t *testing.T) {
 		},
 	}, serviceCStatus, "status for serviceC is not desired")
 
-	serviceDStatus, err := crManager.GetServiceStatus(&serviceD, true)
+	serviceDStatus, err := crManager.GetServiceStatus(context.Background(), &serviceD, true)
 	assert.Nil(err, "Can't get status for %s", serviceD)
 	assert.Equal(&model.SMStatusResponse{
 		Services: map[string]model.SMStatus{
@@ -152,30 +153,30 @@ func TestCRManager_StatusWithoutDeps(t *testing.T) {
 		ServiceStatus: model.ServiceSiteManagerResponse{Mode: "active", Status: "done"},
 		ServiceHealth: model.ServiceHealthzResponse{Status: "up"},
 	}
-	crManager := service.CRManager{
+	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
 	}
 
-	serviceAStatus, err := crManager.GetServiceStatus(&serviceA, false)
+	serviceAStatus, err := crManager.GetServiceStatus(context.Background(), &serviceA, false)
 	assert.Nil(err, "Can't get status for %s", serviceA)
 	assert.Equal(1, len(serviceAStatus.Services), "only one service should be in status without deps")
 	assert.Contains(serviceAStatus.Services, serviceA, "serviceA should be specified in status")
 	assert.Nil(serviceAStatus.Services[serviceA].Deps, "deps should not be in status")
 
-	serviceBStatus, err := crManager.GetServiceStatus(&serviceB, false)
+	serviceBStatus, err := crManager.GetServiceStatus(context.Background(), &serviceB, false)
 	assert.Nil(err, "Can't get status for %s", serviceB)
 	assert.Equal(1, len(serviceBStatus.Services), "only one service should be in status without deps")
 	assert.Contains(serviceBStatus.Services, serviceB, "serviceB should be specified in status")
 	assert.Nil(serviceBStatus.Services[serviceB].Deps, "deps should not be in status")
 
-	serviceCStatus, err := crManager.GetServiceStatus(&serviceC, false)
+	serviceCStatus, err := crManager.GetServiceStatus(context.Background(), &serviceC, false)
 	assert.Nil(err, "Can't get status for %s", serviceC)
 	assert.Equal(1, len(serviceCStatus.Services), "only one service should be in status without deps")
 	assert.Contains(serviceCStatus.Services, serviceC, "serviceC should be specified in status")
 	assert.Nil(serviceCStatus.Services[serviceC].Deps, "deps should not be in status")
 
-	serviceDStatus, err := crManager.GetServiceStatus(&serviceD, false)
+	serviceDStatus, err := crManager.GetServiceStatus(context.Background(), &serviceD, false)
 	assert.Nil(err, "Can't get status for %s", serviceD)
 	assert.Equal(1, len(serviceDStatus.Services), "only one service should be in status without deps")
 	assert.Contains(serviceDStatus.Services, serviceD, "serviceD should be specified in status")
@@ -190,7 +191,7 @@ func TestCRManager_NotExistDeps(t *testing.T) {
 		ServiceStatus: model.ServiceSiteManagerResponse{Mode: "active", Status: "done"},
 		ServiceHealth: model.ServiceHealthzResponse{Status: "up"},
 	}
-	crManager := service.CRManager{
+	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
 	}
@@ -211,7 +212,7 @@ func TestCRManager_NotExistDeps(t *testing.T) {
 	}
 
 	// Check, that wrong deps don't affect other services
-	serviceDStatus, err := crManager.GetServiceStatus(&serviceD, true)
+	serviceDStatus, err := crManager.GetServiceStatus(context.Background(), &serviceD, true)
 	assert.Nil(err, "Can't get status for %s", serviceD)
 	assert.Equal(&model.SMStatusResponse{
 		Services: map[string]model.SMStatus{
@@ -223,20 +224,20 @@ func TestCRManager_NotExistDeps(t *testing.T) {
 	}, serviceDStatus, "status for serviceD is not desired")
 
 	// Check, that status is returned without deps
-	serviceEStatus, err := crManager.GetServiceStatus(&serviceE, false)
+	serviceEStatus, err := crManager.GetServiceStatus(context.Background(), &serviceE, false)
 	assert.Nil(err, "Can't get status for %s", serviceE)
 	assert.Equal(1, len(serviceEStatus.Services), "only one service should be in status without deps")
 	assert.Contains(serviceEStatus.Services, serviceE, "serviceE should be specified in status")
 	assert.Nil(serviceEStatus.Services[serviceE].Deps, "deps should not be in status")
 
-	serviceFStatus, err := crManager.GetServiceStatus(&serviceF, false)
+	serviceFStatus, err := crManager.GetServiceStatus(context.Background(), &serviceF, false)
 	assert.Nil(err, "Can't get status for %s", serviceF)
 	assert.Equal(1, len(serviceFStatus.Services), "only one service should be in status without deps")
 	assert.Contains(serviceFStatus.Services, serviceF, "serviceF should be specified in status")
 	assert.Nil(serviceFStatus.Services[serviceF].Deps, "deps should not be in status")
 
 	// Check, that exception throws with deps
-	_, err = crManager.GetServiceStatus(&serviceE, true)
+	_, err = crManager.GetServiceStatus(context.Background(), &serviceE, true)
 	assert.Equal(&model.SMError{
 		Message:   "Dependency defined in CR doesn't exist",
 		Service:   &NotExistDep,
@@ -252,7 +253,7 @@ func TestCRManager_CRCycles(t *testing.T) {
 		ServiceStatus: model.ServiceSiteManagerResponse{Mode: "active", Status: "done"},
 		ServiceHealth: model.ServiceHealthzResponse{Status: "up"},
 	}
-	crManager := service.CRManager{
+	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
 	}
@@ -292,7 +293,7 @@ func TestCRManager_CRCycles(t *testing.T) {
 	}
 
 	// Check that status procedure works with status
-	serviceEStatus, err := crManager.GetServiceStatus(&serviceE, true)
+	serviceEStatus, err := crManager.GetServiceStatus(context.Background(), &serviceE, true)
 	assert.Nil(err, "Can't get status for %s", serviceE)
 	assert.Equal(&model.SMStatusResponse{
 		Services: map[string]model.SMStatus{
@@ -310,7 +311,7 @@ func TestCRManager_DepsCycles(t *testing.T) {
 		ServiceStatus: model.ServiceSiteManagerResponse{Mode: "active", Status: "done"},
 		ServiceHealth: model.ServiceHealthzResponse{Status: "up"},
 	}
-	crManager := service.CRManager{
+	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
 	}
@@ -350,7 +351,7 @@ func TestCRManager_DepsCycles(t *testing.T) {
 	}
 
 	// Check that status procedure works with status
-	serviceEStatus, err := crManager.GetServiceStatus(&serviceE, true)
+	serviceEStatus, err := crManager.GetServiceStatus(context.Background(), &serviceE, true)
 	assert.Nil(err, "Can't get status for %s", serviceE)
 	assert.Equal(&model.SMStatusResponse{
 		Services: map[string]model.SMStatus{

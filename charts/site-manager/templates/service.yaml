@@ -21,5 +21,9 @@ spec:
       protocol: TCP
       port: 442
       targetPort: 8442
+    - name: metrics
+      protocol: TCP
+      port: 9000
+      targetPort: 9000
   selector:
     app: site-manager

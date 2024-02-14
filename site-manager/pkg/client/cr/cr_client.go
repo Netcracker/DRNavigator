@@ -2,197 +2,53 @@ package cr_client
 
 import (
 	"context"
-	"fmt"
-	"strings"
-	"time"
 
-	envconfig "github.com/netcracker/drnavigator/site-manager/config"
-	kube_config "github.com/netcracker/drnavigator/site-manager/config/kube_config"
-	"github.com/netcracker/drnavigator/site-manager/pkg/utils"
-	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/watch"
-	"k8s.io/client-go/dynamic"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	"k8s.io/apimachinery/pkg/types"
+	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// ICRClient is the kube client for sitemanagers CRs
-type ICRClient interface {
+var crClientLog = ctrl.Log.WithName("cr-client")
+
+// CRClient is the kube client for sitemanagers CRs
+type CRClient interface {
 	// List returns the list ob ustructured CR objects from the cluster
-	List(api_version string) (*unstructured.UnstructuredList, error)
-	// Watch returns the watcher ob ustructured CR objects from the cluster
-	Watch(apiVersion string) (watch.Interface, error)
-	// Update status updates the status for given CR
-	UpdateStatus(apiVersion string, cr *unstructured.Unstructured) (*unstructured.Unstructured, error)
+	List(ctx context.Context, opts *client.ListOptions) (*crv3.CRList, error)
+	// Get returns CR object with specified name and namespace
+	Get(ctx context.Context, namespace string, name string, opts *client.GetOptions) (*crv3.CR, error)
+	// UpdateStatus updates the status for given CR
+	UpdateStatus(ctx context.Context, obj *crv3.CR, opts *client.SubResourceUpdateOptions) error
 }
 
-// CRClient is the implementation of ICRClient
+// crClient is implementation of CRClient
 type crClient struct {
-	dynamicClient dynamic.Interface
+	kubeClient client.Client
 }
 
-// NewCRClient initializes the new implementation of ICRClient
-func NewCRClient() (ICRClient, error) {
-	config, err := kube_config.GetKubeConfig()
-	if err != nil {
-		return nil, fmt.Errorf("error creating kube client for CR: %s", err)
-	}
-
-	config.Timeout = time.Duration(envconfig.EnvConfig.PostRequestTimeout) * time.Second
-	client, err := dynamic.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("error creating kube client for CR: %s", err)
-	}
-
-	return &crClient{dynamicClient: client}, nil
+// NewCRClient initializes the new implementation of CRClient
+func NewCRClient(kubeClient client.Client) CRClient {
+	crClientLog.V(1).Info("Try to initialize kube client for CRs...")
+	crc := &crClient{kubeClient: kubeClient}
+	crClientLog.V(1).Info("Kube client for CRs was initialized")
+	return crc
 }
 
 // List returns the list ob ustructured CR objects from the cluster
-func (crc *crClient) List(apiVersion string) (*unstructured.UnstructuredList, error) {
-	gvr := schema.GroupVersionResource{
-		Group:    envconfig.EnvConfig.CRGroup,
-		Version:  apiVersion,
-		Resource: envconfig.EnvConfig.CRPrural,
-	}
-	crs, err := crc.dynamicClient.Resource(gvr).List(context.TODO(), v1.ListOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("can't get sitemanager objects group=%s, version=%s, resource=%s: %s", gvr.Group, gvr.Version, gvr.Resource, err)
-	}
-	return crs, nil
+func (crc *crClient) List(ctx context.Context, opts *client.ListOptions) (*crv3.CRList, error) {
+	obj := &crv3.CRList{}
+	err := crc.kubeClient.List(ctx, obj, opts)
+	return obj, err
 }
 
-// Watch returns the watcher ob ustructured CR objects from the cluster
-func (crc *crClient) Watch(apiVersion string) (watch.Interface, error) {
-	gvr := schema.GroupVersionResource{
-		Group:    envconfig.EnvConfig.CRGroup,
-		Version:  apiVersion,
-		Resource: envconfig.EnvConfig.CRPrural,
-	}
-	timeout := int64(30)
-	watcher, err := crc.dynamicClient.Resource(gvr).Watch(context.TODO(), v1.ListOptions{TimeoutSeconds: &timeout})
-	if err != nil {
-		return nil, fmt.Errorf("can't watch sitemanager objects group=%s, version=%s, resource=%s: %s", gvr.Group, gvr.Version, gvr.Resource, err)
-	}
-	return watcher, nil
+// Get returns CR object with specified name and namespace
+func (crc *crClient) Get(ctx context.Context, namespace string, name string, opts *client.GetOptions) (*crv3.CR, error) {
+	obj := &crv3.CR{}
+	err := crc.kubeClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, obj, opts)
+	return obj, err
 }
 
-// Update status updates the status for given CR
-func (crc *crClient) UpdateStatus(apiVersion string, cr *unstructured.Unstructured) (*unstructured.Unstructured, error) {
-	gvr := schema.GroupVersionResource{
-		Group:    envconfig.EnvConfig.CRGroup,
-		Version:  apiVersion,
-		Resource: envconfig.EnvConfig.CRPrural,
-	}
-	resultCR, err := crc.dynamicClient.Resource(gvr).Namespace(cr.GetNamespace()).UpdateStatus(context.TODO(), cr, v1.UpdateOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("can't update status for cr %s: %s", GetServiceName(cr), err)
-	}
-	return resultCR, nil
-}
-
-// GetServiceName calculates the service name of CR
-func GetServiceName(obj *unstructured.Unstructured) string {
-	if alias := GetAlias(obj); alias != nil {
-		return *alias
-	}
-	return fmt.Sprintf("%s.%s", obj.GetName(), obj.GetNamespace())
-}
-
-// GetApiVersion returns full api version (with group) for given CR version
-func GetApiVersion(version string) string {
-	return fmt.Sprintf("%s/%s", envconfig.EnvConfig.CRGroup, version)
-}
-
-// GetApiVersion checks if given api version is supported as CR api version
-func CheckIfApiVersionSupported(apiVersion string) bool {
-	supportedVersions := []string{
-		GetApiVersion("v1"),
-		GetApiVersion("v2"),
-		GetApiVersion("v3"),
-	}
-	return utils.Contains(supportedVersions, apiVersion)
-}
-
-// GetModule returns the module of CR or "stateful", if module is undefined
-func GetModule(obj *unstructured.Unstructured) string {
-	if module, found, _ := unstructured.NestedString(obj.Object, "spec", "sitemanager", "module"); found {
-		return module
-	}
-	return "stateful"
-}
-
-// GetAfter returns after dependencies of CR
-func GetAfter(obj *unstructured.Unstructured) []string {
-	if after, found, _ := unstructured.NestedStringSlice(obj.Object, "spec", "sitemanager", "after"); found {
-		return after
-	}
-	return []string{}
-}
-
-// GetBefore returns before dependencies of CR
-func GetBefore(obj *unstructured.Unstructured) []string {
-	if before, found, _ := unstructured.NestedStringSlice(obj.Object, "spec", "sitemanager", "before"); found {
-		return before
-	}
-	return []string{}
-}
-
-// GetSrquence returns the sequence of CR
-func GetSequence(obj *unstructured.Unstructured) []string {
-	if sequence, found, _ := unstructured.NestedStringSlice(obj.Object, "spec", "sitemanager", "sequence"); found {
-		return sequence
-	}
-	return []string{"standby", "active"}
-}
-
-// GetAllowedStandbyStateList returns the alowwed standby state list of CR
-func GetAllowedStandbyStateList(obj *unstructured.Unstructured) []string {
-	if allowedStandbyStateList, found, _ := unstructured.NestedStringSlice(obj.Object, "spec", "sitemanager", "allowedStandbyStateList"); found {
-		return allowedStandbyStateList
-	}
-	return []string{"up"}
-}
-
-// GetServiceEndpoint returns service endpoint of CR or empty string if it's undefined
-func GetServiceEndpoint(obj *unstructured.Unstructured) string {
-	if endpoint, found, _ := unstructured.NestedString(obj.Object, "spec", "sitemanager", "parameters", "serviceEndpoint"); found {
-		return applyHttpScheme(endpoint)
-	} else if endpoint, found, _ := unstructured.NestedString(obj.Object, "spec", "sitemanager", "serviceEndpoint"); found {
-		return applyHttpScheme(endpoint)
-	}
-	return ""
-}
-
-// GetHealthzEndpoint returns service endpoint of CR or empty string if it's undefined
-func GetHealthzEndpoint(obj *unstructured.Unstructured) string {
-	if endpoint, found, _ := unstructured.NestedString(obj.Object, "spec", "sitemanager", "parameters", "healthzEndpoint"); found {
-		return applyHttpScheme(endpoint)
-	} else if endpoint, found, _ := unstructured.NestedString(obj.Object, "spec", "sitemanager", "healthzEndpoint"); found {
-		return applyHttpScheme(endpoint)
-	}
-	return ""
-}
-
-// GetTimeout returns timeout of CR if it's presented else nil
-func GetTimeout(obj *unstructured.Unstructured) *int64 {
-	if timeout, found, _ := unstructured.NestedInt64(obj.Object, "spec", "sitemanager", "timeout"); found {
-		return &timeout
-	}
-	return nil
-}
-
-// GetAlias returns the alias of CR if it's presented else nil
-func GetAlias(obj *unstructured.Unstructured) *string {
-	if alias, found, _ := unstructured.NestedString(obj.Object, "spec", "sitemanager", "alias"); found {
-		return &alias
-	}
-	return nil
-}
-
-// applyHttpScheme apply defaunt http scheme to endpoint if it's not already presended
-func applyHttpScheme(endpoint string) string {
-	if len(endpoint) == 0 || strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https//") {
-		return endpoint
-	}
-	return fmt.Sprintf("%s%s", envconfig.EnvConfig.HttpScheme, endpoint)
+// UpdateStatus updates the status for given CR
+func (crc *crClient) UpdateStatus(ctx context.Context, obj *crv3.CR, opts *client.SubResourceUpdateOptions) error {
+	return crc.kubeClient.Status().Update(ctx, obj, opts)
 }
