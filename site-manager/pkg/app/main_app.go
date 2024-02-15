@@ -1,6 +1,8 @@
 package app
 
 import (
+	"context"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -16,6 +18,7 @@ import (
 	"github.com/netcracker/drnavigator/site-manager/pkg/service"
 	echoSwagger "github.com/swaggo/echo-swagger"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
 	"sigs.k8s.io/controller-runtime/pkg/metrics"
 )
 
@@ -57,7 +60,22 @@ func ServeMainServer(bindAddress string, certDir string, certFile string, keyFil
 	g.POST("", processService(crManager))
 
 	if envconfig.EnvConfig.HttpsEnaled {
-		errChannel <- e.StartTLS(bindAddress, filepath.Join(certDir, certFile), filepath.Join(certDir, keyFile))
+		certwatcher, err := certwatcher.New(filepath.Join(certDir, certFile), filepath.Join(certDir, keyFile))
+		if err != nil {
+			errChannel <- fmt.Errorf("error initializing cert watcher for main API: %s", err)
+			return
+		}
+		go func() {
+			errChannel <- certwatcher.Start(context.Background())
+		}()
+		srv := &http.Server{
+			Addr:    bindAddress,
+			Handler: e,
+			TLSConfig: &tls.Config{
+				GetCertificate: certwatcher.GetCertificate,
+			},
+		}
+		errChannel <- srv.ListenAndServeTLS("", "")
 	} else {
 		errChannel <- e.Start(bindAddress)
 	}
