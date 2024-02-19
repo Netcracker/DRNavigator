@@ -14,6 +14,7 @@ spec:
         app: paas-geo-monitor
     spec:
       serviceAccount: paas-geo-monitor
+      automountServiceAccountToken: false
       {{- with .Values.securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -58,6 +59,9 @@ spec:
               cpu: "300m"
               # If you change memory limit, you should add GOMEMLIMIT env with 90-95% of new value
               memory: "150Mi"
+          requests:
+              cpu: "50m"
+              memory: "50Mi"
         readinessProbe:
           httpGet:
             path: /ping

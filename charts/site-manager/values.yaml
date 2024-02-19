@@ -27,6 +27,7 @@ env:
 # Pod Security Context
 # ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
 securityContext:
+  runAsUser: 10001
   runAsNonRoot: true
   seccompProfile:
     type: RuntimeDefault
@@ -38,6 +39,7 @@ containerSecurityContext:
   capabilities:
     drop:
     - ALL
+  readOnlyRootFilesystem: true
 
 serviceAccount:
   create: true
@@ -55,6 +57,9 @@ ingress:
 limits:
   cpu: "200m"
   memory: "160Mi"
+requests:
+  cpu: "100m"
+  memory: "75Mi"
 
 tls:
   enabled: true
