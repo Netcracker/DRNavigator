@@ -16,7 +16,7 @@ spec:
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       {{- with .Values.securityContext }}
-      automountServiceAccountToken: true
+      automountServiceAccountToken: false
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
@@ -71,8 +71,9 @@ spec:
           - readOnly: true
             mountPath: /certs
             name: sm-certs
-          - name: metric-volume
-            mountPath: /metric_dir/
+          - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+            name: serviceaccount-token
+            readOnly: true
         resources:
           limits:
             cpu: "{{ .Values.limits.cpu }}"
@@ -105,5 +106,21 @@ spec:
         - name: sm-certs
           secret:
             secretName: sm-certs
-        - name: metric-volume
-          emptyDir: {}
+        - name: serviceaccount-token
+          projected:
+            defaultMode: 0444
+            sources:
+            - serviceAccountToken:
+                expirationSeconds: 3607
+                path: token
+            - configMap:
+                name: kube-root-ca.crt
+                items:
+                - key: ca.crt
+                  path: ca.crt
+            - downwardAPI:
+                items:
+                - path: namespace
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.namespace
