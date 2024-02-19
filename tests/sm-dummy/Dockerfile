@@ -10,7 +10,7 @@ COPY requirements.txt /app/requirements.txt
 
 WORKDIR /app/
 
-RUN pip3 install --upgrade pip==23.3 && \
+RUN pip3 install --upgrade pip==23.3 --no-cache-dir && \
     pip3 install -r requirements.txt --no-cache-dir && \
     useradd -r -u "${USER_UID}" "${USER_NAME}"
 
