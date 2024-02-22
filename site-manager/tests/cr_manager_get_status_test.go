@@ -102,9 +102,13 @@ func TestCRManager_StatusWithDeps(t *testing.T) {
 		ServiceStatus: model.ServiceSiteManagerResponse{Mode: "active", Status: "done"},
 		ServiceHealth: model.ServiceHealthzResponse{Status: "up"},
 	}
+	tokenWatcher, err := service.NewTokenWatcher(&smConfig, nil, "")
+	assert.Nil(err, "Can't create token watcher")
+
 	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
+		TokenWatcher: tokenWatcher,
 	}
 
 	serviceAStatus, err := crManager.GetServiceStatus(context.Background(), &serviceA, true)
@@ -153,9 +157,13 @@ func TestCRManager_StatusWithoutDeps(t *testing.T) {
 		ServiceStatus: model.ServiceSiteManagerResponse{Mode: "active", Status: "done"},
 		ServiceHealth: model.ServiceHealthzResponse{Status: "up"},
 	}
+	tokenWatcher, err := service.NewTokenWatcher(&smConfig, nil, "")
+	assert.Nil(err, "Can't create token watcher")
+
 	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
+		TokenWatcher: tokenWatcher,
 	}
 
 	serviceAStatus, err := crManager.GetServiceStatus(context.Background(), &serviceA, false)
@@ -191,9 +199,13 @@ func TestCRManager_NotExistDeps(t *testing.T) {
 		ServiceStatus: model.ServiceSiteManagerResponse{Mode: "active", Status: "done"},
 		ServiceHealth: model.ServiceHealthzResponse{Status: "up"},
 	}
+	tokenWatcher, err := service.NewTokenWatcher(&smConfig, nil, "")
+	assert.Nil(err, "Can't create token watcher")
+
 	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
+		TokenWatcher: tokenWatcher,
 	}
 
 	// Add service with wrong dependency
@@ -253,9 +265,13 @@ func TestCRManager_CRCycles(t *testing.T) {
 		ServiceStatus: model.ServiceSiteManagerResponse{Mode: "active", Status: "done"},
 		ServiceHealth: model.ServiceHealthzResponse{Status: "up"},
 	}
+	tokenWatcher, err := service.NewTokenWatcher(&smConfig, nil, "")
+	assert.Nil(err, "Can't create token watcher")
+
 	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
+		TokenWatcher: tokenWatcher,
 	}
 
 	// Add services with CR cycles
@@ -311,9 +327,13 @@ func TestCRManager_DepsCycles(t *testing.T) {
 		ServiceStatus: model.ServiceSiteManagerResponse{Mode: "active", Status: "done"},
 		ServiceHealth: model.ServiceHealthzResponse{Status: "up"},
 	}
+	tokenWatcher, err := service.NewTokenWatcher(&smConfig, nil, "")
+	assert.Nil(err, "Can't create token watcher")
+
 	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
+		TokenWatcher: tokenWatcher,
 	}
 
 	// Add services with deps cycles
