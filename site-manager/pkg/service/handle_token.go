@@ -116,7 +116,7 @@ func (tw *tokenWatcher) Start() error {
 func (tw *tokenWatcher) handleEvent(event fsnotify.Event) error {
 	twLog.V(1).Info("watch token event", "event", event)
 	if event.Op.Has(fsnotify.Remove) {
-		return fmt.Errorf("token file is removed")
+		twLog.Error(nil, "token file is removed")
 	} else if event.Op.Has(fsnotify.Create) || event.Op.Has(fsnotify.Write) {
 		return tw.readToken()
 	}
