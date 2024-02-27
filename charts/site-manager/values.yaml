@@ -1,6 +1,5 @@
-namespace: site-manager
-
 createClusterAdminEntities: true
+priorityClassName: ""
 
 env:
   # set authentication mode

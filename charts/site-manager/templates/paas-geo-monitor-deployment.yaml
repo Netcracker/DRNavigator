@@ -14,6 +14,9 @@ spec:
         app: paas-geo-monitor
     spec:
       serviceAccount: paas-geo-monitor
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . | quote }}
+      {{- end }}
       {{- with .Values.securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}

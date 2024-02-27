@@ -267,7 +267,7 @@ spec:
       conversionReviewVersions: ["v1"]
       clientConfig:
         service:
-          namespace: site-manager
+          namespace: {{ .Release.Namespace }}
           name: {{ .Chart.Name }}
           path: /convert
           port: 442
@@ -291,7 +291,7 @@ webhooks:
   admissionReviewVersions: ["v1"]
   clientConfig:
     service:
-      namespace: site-manager
+      namespace: {{ .Release.Namespace }}
       name: {{ .Chart.Name }}
       path: /validate-netcracker-com-v3-sitemanager
       port: 442
@@ -307,7 +307,7 @@ webhooks:
   admissionReviewVersions: ["v1"]
   clientConfig:
     service:
-      namespace: site-manager
+      namespace: {{ .Release.Namespace }}
       name: {{ .Chart.Name }}
       path: /validate-netcracker-com-v2-sitemanager
       port: 442
@@ -323,7 +323,7 @@ webhooks:
   admissionReviewVersions: ["v1"]
   clientConfig:
     service:
-      namespace: site-manager
+      namespace: {{ .Release.Namespace }}
       name: {{ .Chart.Name }}
       path: /validate-netcracker-com-v1-sitemanager
       port: 442
