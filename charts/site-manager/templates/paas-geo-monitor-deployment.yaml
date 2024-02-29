@@ -14,6 +14,7 @@ spec:
         app: paas-geo-monitor
     spec:
       serviceAccount: paas-geo-monitor
+      automountServiceAccountToken: false
       {{- with .Values.priorityClassName }}
       priorityClassName: {{ . | quote }}
       {{- end }}
@@ -56,11 +57,17 @@ spec:
         volumeMounts:
           - mountPath: /config
             name: config
+          - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+            name: serviceaccount-token
+            readOnly: true
         resources:
           limits:
               cpu: "300m"
               # If you change memory limit, you should add GOMEMLIMIT env with 90-95% of new value
               memory: "150Mi"
+          requests:
+              cpu: "50m"
+              memory: "50Mi"
         readinessProbe:
           httpGet:
             path: /ping
@@ -84,4 +91,22 @@ spec:
         - name: config
           configMap:
             name: paas-geo-monitor-cfg
+        - name: serviceaccount-token
+          projected:
+            defaultMode: 0444
+            sources:
+            - serviceAccountToken:
+                expirationSeconds: 3607
+                path: token
+            - configMap:
+                name: kube-root-ca.crt
+                items:
+                - key: ca.crt
+                  path: ca.crt
+            - downwardAPI:
+                items:
+                - path: namespace
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.namespace
 {{ end }}

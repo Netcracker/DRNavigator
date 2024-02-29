@@ -18,6 +18,7 @@ spec:
       {{- with .Values.priorityClassName }}
       priorityClassName: {{ . | quote }}
       {{- end }}
+      automountServiceAccountToken: false
       {{- with .Values.securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -29,11 +30,13 @@ spec:
           {{- toYaml . | nindent 12 }}
         {{- end }}
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
           - "--bind=0.0.0.0:8443"
           - "--certdir=/certs"
           - "--certfile=tls.crt"
           - "--keyfile=tls.key"
+          - "--tokenfile=/sm-auth-sa/token"
           - "--bind-webhook=0.0.0.0:8442"
           - "--bind-metrics=0.0.0.0:9000"
         env:
@@ -72,12 +75,19 @@ spec:
           - readOnly: true
             mountPath: /certs
             name: sm-certs
-          - name: metric-volume
-            mountPath: /metric_dir/
+          - readOnly: true
+            mountPath: /sm-auth-sa
+            name: sm-auth-sa-token
+          - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+            name: serviceaccount-token
+            readOnly: true
         resources:
           limits:
             cpu: "{{ .Values.limits.cpu }}"
             memory: "{{ .Values.limits.memory }}"
+          requests:
+            cpu: "{{ .Values.requests.cpu }}"
+            memory: "{{ .Values.requests.memory }}"
         readinessProbe:
           httpGet:
             path: /health
@@ -103,5 +113,24 @@ spec:
         - name: sm-certs
           secret:
             secretName: sm-certs
-        - name: metric-volume
-          emptyDir: {}
+        - name: sm-auth-sa-token
+          secret:
+            secretName: sm-auth-sa-token
+        - name: serviceaccount-token
+          projected:
+            defaultMode: 0444
+            sources:
+            - serviceAccountToken:
+                expirationSeconds: 3607
+                path: token
+            - configMap:
+                name: kube-root-ca.crt
+                items:
+                - key: ca.crt
+                  path: ca.crt
+            - downwardAPI:
+                items:
+                - path: namespace
+                  fieldRef:
+                    apiVersion: v1
+                    fieldPath: metadata.namespace

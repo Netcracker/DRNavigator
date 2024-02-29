@@ -89,6 +89,9 @@ Restrictions:
 1. CRD should be installed in the cloud;
 2. Due to the fact that the SM is outside the cloud, it's not possible to contact with services in cluster except cases,
 if ingress address is used in their CRs;
+3. Provide the token to connect with services (in real SM it's token from `sm-auth-sa` service-account). For this create the special file
+with token inside and provide the path to this token with `--tokenfile` option during SM run. As alternative, disable authorization with
+services with `BACK_HTTP_AUTH` environment;
 3. In following mode SM will use the token from `sm-auth-sa` secret in your cloud (as normal SM). Please disable 
 authorization with `FRONT_HTTP_AUTH` environment if SM is not installed here yet; 
 
@@ -101,7 +104,7 @@ election for local SM:
 ```bash
 $ SM_KUBECONFIG_FILE=<path-to-kubeconfig> SM_DEBUG=true ./site-manager \
 --bind=0.0.0.0:8443 --bind-webhook=0.0.0.0:8442 --bind-metrics=0.0.0.0:9000 \
---certdir=<path to the dir with certificates> --certfile=<.crt file> --keyfile=<.key file> \
+--certdir=<path to the dir with certificates> --certfile=<.crt file> --keyfile=<.key file> --tokenfile=<path to token> \
 --dev-mode
 ```
 
