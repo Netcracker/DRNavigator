@@ -25,7 +25,7 @@ import (
 var appLog = ctrl.Log.WithName("app-main")
 
 // Serve main Server initialize main SM API
-func ServeMainServer(bindAddress string, certDir string, certFile string, keyFile string, crManager service.CRManager, smConfig *model.SMConfig, errChannel chan error) {
+func ServeMainServer(bindAddress string, certDir string, certFile string, keyFile string, crManager service.CRManager, tokenWatcher service.TokenWatcher, errChannel chan error) {
 	e := echo.New()
 	e.Use(echoprometheus.NewMiddlewareWithConfig(echoprometheus.MiddlewareConfig{
 		Subsystem:  "site_manager",
@@ -40,13 +40,18 @@ func ServeMainServer(bindAddress string, certDir string, certFile string, keyFil
 	if envconfig.EnvConfig.FrontHttpAuth {
 		g.Use(middleware.KeyAuthWithConfig(middleware.KeyAuthConfig{
 			Validator: func(key string, c echo.Context) (bool, error) {
-				return smConfig.GetToken() == key, nil
+				return tokenWatcher.ValidateToken(c.Request().Context(), key)
 			},
 			ErrorHandler: func(err error, c echo.Context) error {
 				if _, ok := err.(*middleware.ErrKeyAuthMissing); ok {
 					return &echo.HTTPError{
 						Code:    http.StatusUnauthorized,
 						Message: "You should use Bearer for authorization",
+					}
+				}
+				if err.Error() != "invalid key" {
+					return &echo.HTTPError{
+						Code:    http.StatusInternalServerError,
 					}
 				}
 				return &echo.HTTPError{

@@ -57,6 +57,7 @@ func init() {
 	rootCmd.PersistentFlags().String("certdir", "", "SSL certificates dir")
 	rootCmd.PersistentFlags().String("certfile", "", "SSL certificate file name")
 	rootCmd.PersistentFlags().String("keyfile", "", "SSL key file name")
+	rootCmd.PersistentFlags().String("tokenfile", "", "file with token, that is used to connect with services (default is \"\")")
 	rootCmd.PersistentFlags().Bool("dev-mode", false, "Runs in dev mode, that does not enable leader election in sm controller")
 }
 
@@ -110,6 +111,18 @@ func ServeApp(cmd *cobra.Command, args []string) {
 		}
 	}
 
+	tokenPath, err := cmd.Flags().GetString("tokenfile")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error getting token file: %s", err)
+		os.Exit(1)
+	}
+	if envconfig.EnvConfig.BackHttpAuth {
+		if err := utils.CheckFile(tokenPath); err != nil {
+			fmt.Fprintf(os.Stderr, "error getting token file: %s", err)
+			os.Exit(1)
+		}
+	}
+
 	devMode, err := cmd.Flags().GetBool("dev-mode")
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error getting dev-mode: %s", err)
@@ -120,7 +133,7 @@ func ServeApp(cmd *cobra.Command, args []string) {
 	logger.SetupLogger()
 
 	// Initialize SM Config
-	smConfig := &model.SMConfig{TokenChannel: make(chan string)}
+	smConfig := &model.SMConfig{}
 	if smConfigFile := envconfig.EnvConfig.SMConfigFile; smConfigFile != "" {
 		setupLog.V(1).Info("SMConfig file detected", "config-file", smConfigFile)
 		if err := utils.ParseYamlFile(smConfigFile, smConfig); err != nil {
@@ -131,6 +144,8 @@ func ServeApp(cmd *cobra.Command, args []string) {
 
 	var crManager service.CRManager
 	var mgr ctrl.Manager
+	var tokenWatcher service.TokenWatcher
+
 	if !smConfig.Testing.Enabled {
 		// Initialize kubeconfig \
 		kubeConfig, err := kube_config.GetKubeConfig()
@@ -187,8 +202,14 @@ func ServeApp(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 
+		// Initialize token watcher
+		if tokenWatcher, err = service.NewTokenWatcher(smConfig, mgr.GetClient(), tokenPath); err != nil {
+			setupLog.Error(err, "unable to initialize token watcher")
+			os.Exit(1)
+		}
+
 		// Initialize CRManager
-		if crManager, err = service.NewCRManager(smConfig, crClient); err != nil {
+		if crManager, err = service.NewCRManager(smConfig, crClient, tokenWatcher); err != nil {
 			setupLog.Error(err, "unable to initialize cr manager service")
 			os.Exit(1)
 		}
@@ -208,7 +229,14 @@ func ServeApp(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 	} else {
-		if crManager, err = service.NewCRManager(smConfig, nil); err != nil {
+		// Initialize token watcher
+		if tokenWatcher, err = service.NewTokenWatcher(smConfig, nil, tokenPath); err != nil {
+			setupLog.Error(err, "unable to initialize token watcher")
+			os.Exit(1)
+		}
+
+		// Initialize CRManager
+		if crManager, err = service.NewCRManager(smConfig, nil, tokenWatcher); err != nil {
 			setupLog.Error(err, "unable to initialize cr manager service")
 			os.Exit(1)
 		}
@@ -218,12 +246,14 @@ func ServeApp(cmd *cobra.Command, args []string) {
 	errorChannel := make(chan error)
 
 	// handle token if authorization is enabled in separate gorutine
-	if !smConfig.Testing.Enabled && (envconfig.EnvConfig.BackHttpAuth || envconfig.EnvConfig.FrontHttpAuth) {
-		go app.HandleToken(smConfig.TokenChannel, errorChannel)
+	if !smConfig.Testing.Enabled && envconfig.EnvConfig.BackHttpAuth {
+		go func () {
+			errorChannel <- tokenWatcher.Start()
+		}()
 	}
 
 	// initialize api for main site-manager in separate gorutine
-	go app.ServeMainServer(bindAddress, certDir, certFile, keyFile, crManager, smConfig, errorChannel)
+	go app.ServeMainServer(bindAddress, certDir, certFile, keyFile, crManager, tokenWatcher, errorChannel)
 
 	// Start controller-runtime manager
 	if mgr != nil {

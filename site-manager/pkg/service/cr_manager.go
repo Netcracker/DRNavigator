@@ -40,13 +40,14 @@ type CRManager interface {
 type CRManagerImpl struct {
 	SMConfig       *model.SMConfig
 	CRClient       cr_client.CRClient
+	TokenWatcher   TokenWatcher
 	GetHttpClient  http_client.HttpClientInterface
 	PostHttpClient http_client.HttpClientInterface
 }
 
 // NewCRManager creates new CR manager
-func NewCRManager(smConfig *model.SMConfig, crClient cr_client.CRClient) (CRManager, error) {
-	crManager := &CRManagerImpl{SMConfig: smConfig}
+func NewCRManager(smConfig *model.SMConfig, crClient cr_client.CRClient, tokenWatcker TokenWatcher) (CRManager, error) {
+	crManager := &CRManagerImpl{SMConfig: smConfig, TokenWatcher: tokenWatcker}
 
 	crManagerLog.V(1).Info("Try to initialize http clients for services...")
 	tlsConfig := &tls.Config{}
@@ -149,7 +150,7 @@ func (crm *CRManagerImpl) ProcessService(ctx context.Context, serviceName *strin
 		NoWait: noWait,
 	}
 	processResponse := &model.ServiceProcessResponse{}
-	code, err := http_client.DoPostRequest(crm.PostHttpClient, smObj.Parameters.ServiceEndpoint, processRequest, crm.SMConfig.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, processResponse)
+	code, err := http_client.DoPostRequest(crm.PostHttpClient, smObj.Parameters.ServiceEndpoint, processRequest, crm.TokenWatcher.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, processResponse)
 	if err != nil {
 		return nil, &model.SMError{Message: fmt.Sprintf("Processing service error: %s", err), Service: serviceName}
 	}
@@ -205,12 +206,12 @@ func (crm *CRManagerImpl) getServiceStatus(smObj *model.SMObject) model.SMStatus
 		Status:  "--",
 	}
 
-	_, _ = http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.ServiceEndpoint, crm.SMConfig.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, serviceSMResponse)
+	_, _ = http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.ServiceEndpoint, crm.TokenWatcher.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, serviceSMResponse)
 
 	serviceHealthResponse := &model.ServiceHealthzResponse{
 		Status: "--",
 	}
-	_, _ = http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.HealthzEndpoint, crm.SMConfig.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, serviceHealthResponse)
+	_, _ = http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.HealthzEndpoint, crm.TokenWatcher.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, serviceHealthResponse)
 
 	return model.SMStatus{
 		Mode:    serviceSMResponse.Mode,
