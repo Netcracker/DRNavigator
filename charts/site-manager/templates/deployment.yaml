@@ -15,6 +15,9 @@ spec:
         app: site-manager
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
+      {{- with .Values.priorityClassName }}
+      priorityClassName: {{ . | quote }}
+      {{- end }}
       automountServiceAccountToken: false
       {{- with .Values.securityContext }}
       securityContext:
