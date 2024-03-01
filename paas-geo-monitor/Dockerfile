@@ -1,4 +1,4 @@
-FROM golang:1.20.11-alpine3.18 as builder
+FROM golang:1.20.12-alpine3.19 as builder
 
 WORKDIR /workspace
 
@@ -19,7 +19,7 @@ COPY main.go ./
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o paas-geo-monitor ./main.go
 
 
-FROM alpine:3.18.5
+FROM alpine:3.19.1
 
 ENV USER_UID=1001 USER_NAME=paas-geo-monitor GROUP_NAME=paas-geo-monitor
 
