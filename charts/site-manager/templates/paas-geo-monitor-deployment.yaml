@@ -18,10 +18,7 @@ spec:
       {{- with .Values.priorityClassName }}
       priorityClassName: {{ . | quote }}
       {{- end }}
-      {{- with .Values.securityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{ include  "securityContext" . }}
       containers:
       - name: paas-geo-monitor
         {{- with .Values.containerSecurityContext }}

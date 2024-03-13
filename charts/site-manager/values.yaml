@@ -26,7 +26,6 @@ env:
 # Pod Security Context
 # ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
 securityContext:
-  runAsUser: 10001
   runAsNonRoot: true
   seccompProfile:
     type: RuntimeDefault
