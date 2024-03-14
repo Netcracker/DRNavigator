@@ -19,10 +19,7 @@ spec:
       priorityClassName: {{ . | quote }}
       {{- end }}
       automountServiceAccountToken: false
-      {{- with .Values.securityContext }}
-      securityContext:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      {{ include  "securityContext" . }}
       containers:
       - name: {{ .Chart.Name }}
         {{- with .Values.containerSecurityContext }}

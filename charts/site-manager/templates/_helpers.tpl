@@ -30,6 +30,14 @@ IP addresses used to generate SSL certificate with "Subject Alternative Name" fi
   {{- $ipAddresses | toYaml -}}
 {{- end -}}
 
+{{- define "securityContext" -}}
+    securityContext:
+        {{- .Values.securityContext | toYaml | nindent 8  }}
+        {{- if and (not .Values.securityContext.runAsUser) (not (.Capabilities.APIVersions.Has "apps.openshift.io/v1")) }}
+        runAsUser: 10001
+        {{- end -}}
+{{- end -}}
+
 {{- define "paas-geo-monitor.port" -}}
   {{- print ( default 8080 .Values.paasGeoMonitor.config.port ) -}}
 {{- end -}}
