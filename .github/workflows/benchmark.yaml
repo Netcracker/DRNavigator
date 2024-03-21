@@ -35,7 +35,7 @@ jobs:
           git fetch --tags
           git checkout tags/${{ matrix.sm-version }}
       - name: test sm-client version
-        run: ./sm-client version
+        run: cat version
       - name: Run docker compose
         run: docker-compose -f ./ci/benchmark/docker-compose.yaml up --detach
       - name: Test containers
