@@ -30,20 +30,18 @@ jobs:
           docker pull ghcr.io/netcracker/site-manager:${{ matrix.sm-version }}
           docker tag ghcr.io/netcracker/sm-dummy:${{ matrix.sm-version }} sm-dummy
           docker tag ghcr.io/netcracker/site-manager:${{ matrix.sm-version }} site-manager
-      - name: Test get images
-        run: docker images
       - name: Copy benchmark files to not git directory
         run: cp -r ./ci/benchmark ${{ env.benchmark_dir }}
       - name: Checkout tags
         run: |
           git fetch --tags
           git checkout tags/${{ matrix.sm-version }}
-      - name: test sm-client version
-        run: cat version
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-sc.txt
       - name: Run docker compose
         run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml up --detach
-      - name: Test containers
-        run: docker container ls
       - name: Measure the time
         run: ${{ env.benchmark_dir }}/measure_time.sh ${{ matrix.procedure }}
       - name: Down docker compose
