@@ -45,6 +45,6 @@ jobs:
       - name: Test containers
         run: docker container ls
       - name: Measure the time
-        run: ${{ env.benchmark_dir }}/measure_tune.sh $procedure
+        run: ${{ env.benchmark_dir }}/measure_time.sh $procedure
       - name: Down docker compose
         run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml down
