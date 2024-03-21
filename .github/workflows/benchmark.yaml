@@ -30,10 +30,14 @@ jobs:
           docker tag ghcr.io/netcracker/site-manager:${{ matrix.sm-version }} site-manager
       - name: Test get images
         run: docker images
+      - name: Checkout tags
+        run: git checkout tags/${{ matrix.sm-version }}
+      - name: test sm-client version
+        run: ./sm-client version
       - name: Run docker compose
         run: docker-compose -f ./ci/benchmark/docker-compose.yaml up --detach
       - name: Test containers
-        run: docker containers ls -a
+        run: docker containers ls
         # TODO: Place for script
       - name: Down docker compose
         run: docker-compose -f ./ci/benchmark/docker-compose.yaml down
