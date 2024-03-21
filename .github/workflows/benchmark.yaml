@@ -30,6 +30,8 @@ jobs:
           docker tag ghcr.io/netcracker/site-manager:${{ matrix.sm-version }} site-manager
       - name: Test get images
         run: docker images
+      - name: Copy benchmark files to not git directory
+        run: cp -r ./ci/benchmark ./benchmark
       - name: Checkout tags
         run: |
           git fetch --tags
@@ -37,9 +39,9 @@ jobs:
       - name: test sm-client version
         run: cat version
       - name: Run docker compose
-        run: docker-compose -f ./ci/benchmark/docker-compose.yaml up --detach
+        run: docker-compose -f ./benchmark/docker-compose.yaml up --detach
       - name: Test containers
         run: docker containers ls
         # TODO: Place for script
       - name: Down docker compose
-        run: docker-compose -f ./ci/benchmark/docker-compose.yaml down
+        run: docker-compose -f ./benchmark/docker-compose.yaml down
