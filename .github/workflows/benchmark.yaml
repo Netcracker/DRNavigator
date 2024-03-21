@@ -1,0 +1,39 @@
+name: Benchmark check
+
+on:
+  push:
+    branches:
+      - '**'
+
+jobs:
+  measure-time:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        procedure: ["move", "stop"]
+        sm-version: ["0.19.0", "0.20.0"]
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Docker login
+        run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
+      - name: Pull and tag SM images
+        run: |
+          docker pull ghcr.io/netcracker/sm-dummy:${{ matrix.sm-version }}
+          docker pull ghcr.io/netcracker/site-manager:${{ matrix.sm-version }}
+          docker tag ghcr.io/netcracker/sm-dummy:${{ matrix.sm-version }} sm-dummy
+          docker tag ghcr.io/netcracker/site-manager:${{ matrix.sm-version }} site-manager
+      - name: Test get images
+        run: docker images
+      - name: Run docker compose
+        run: docker-compose -f ./ci/benchmark/docker-compose.yaml up --detach
+      - name: Test containers
+        run: docker containers ls -a
+        # TODO: Place for script
+      - name: Down docker compose
+        run: docker-compose -f ./ci/benchmark/docker-compose.yaml down

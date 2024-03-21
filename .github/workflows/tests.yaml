@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.9" ]
+        python-version: [ "3.10" ]
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
@@ -139,17 +139,17 @@ jobs:
         run: |
           sudo openssl req -days 730 -nodes -new -x509 -keyout ./ca.key -out  ./ca.crt -subj "/CN=SM service"
           sudo openssl genrsa -out ./site-manager-tls.key 2048
-          sudo openssl req -new -key  ./site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config  ./ci/server.conf | \
-          sudo openssl x509 -req -days 730 -CA  ./ca.crt -CAkey ./ca.key -CAcreateserial -out ./site-manager-tls.crt -extensions v3_req -extfile  ./ci/server.conf
+          sudo openssl req -new -key  ./site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config  ./ci/cloud-tests/server.conf | \
+          sudo openssl x509 -req -days 730 -CA  ./ca.crt -CAkey ./ca.key -CAcreateserial -out ./site-manager-tls.crt -extensions v3_req -extfile  ./ci/cloud-tests/server.conf
           sudo chmod 644 site-manager-tls.key
       - name: Add runtime values to cluster.yaml
         run: |
-          sed -i "s/<REGISTRY_USER>/${GITHUB_ACTOR}/; s/<REGISTRY_PASSWORD>/${{secrets.GITHUB_TOKEN}}/; s/<SM_TAG>/${{ env.SM_TAG_NAME }}/" ci/cluster.yaml
-          python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.ca |= "'"$(< ca.crt)"'"' ci/cluster.yaml
-          python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.crt |= "'"$(< site-manager-tls.crt)"'"' ci/cluster.yaml
-          python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.key |= "'"$(< site-manager-tls.key)"'"' ci/cluster.yaml
+          sed -i "s/<REGISTRY_USER>/${GITHUB_ACTOR}/; s/<REGISTRY_PASSWORD>/${{secrets.GITHUB_TOKEN}}/; s/<SM_TAG>/${{ env.SM_TAG_NAME }}/" ci/cloud-tests/cluster.yaml
+          python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.ca |= "'"$(< ca.crt)"'"' ci/cloud-tests/cluster.yaml
+          python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.crt |= "'"$(< site-manager-tls.crt)"'"' ci/cloud-tests/cluster.yaml
+          python3 -m yq -i -y ' .plugins."site-manager".installation.procedures[1].helm.values.tls.key |= "'"$(< site-manager-tls.key)"'"' ci/cloud-tests/cluster.yaml
       - name: Run kubemarine install with site-manager and sm-dummy
-        run: kubemarine install -c ./ci/cluster.yaml --disable-cumulative-points --dump-location ./results/kubemarine/
+        run: kubemarine install -c ./ci/cloud-tests/cluster.yaml --disable-cumulative-points --dump-location ./results/kubemarine/
       - name: Install dependencies
         run: |
           pip3 install -r requirements-sc-test.txt -r requirements-sc.txt

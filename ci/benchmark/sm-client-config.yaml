@@ -1,0 +1,15 @@
+---
+sites:
+  - name: site-1
+    site-manager: http://localhost:9010/sitemanager
+    token: "12345"
+  - name: site-2
+    site-manager: http://localhost:9011/sitemanager
+    token: "12345"
+sm-client:
+  http_auth: True
+
+flow:
+  - custom_module: [standby, disable]
+  - stateful: 
+  - custom_module: [active]
