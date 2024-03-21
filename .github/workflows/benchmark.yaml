@@ -36,12 +36,12 @@ jobs:
         run: |
           git fetch --tags
           git checkout tags/${{ matrix.sm-version }}
+      - name: Run docker compose
+        run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml up --detach
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements-sc.txt
-      - name: Run docker compose
-        run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml up --detach
       - name: Measure the time
         run: ${{ env.benchmark_dir }}/measure_time.sh ${{ matrix.procedure }}
       - name: Collect logs from docker-compose
@@ -54,6 +54,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v3
         with:
-          name: docker-compose-logs
+          name: docker-compose-logs-${{ matrix.procedure }}-${{ matrix.sm-version }}
           path: docker-compose.log
           retention-days: 7
