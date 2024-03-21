@@ -31,7 +31,9 @@ jobs:
       - name: Test get images
         run: docker images
       - name: Checkout tags
-        run: git checkout tags/${{ matrix.sm-version }}
+        run: |
+          git fetch --tags
+          git checkout tags/${{ matrix.sm-version }}
       - name: test sm-client version
         run: ./sm-client version
       - name: Run docker compose
