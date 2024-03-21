@@ -44,5 +44,16 @@ jobs:
         run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml up --detach
       - name: Measure the time
         run: ${{ env.benchmark_dir }}/measure_time.sh ${{ matrix.procedure }}
+      - name: Collect logs from docker-compose
+        if: ${{ !cancelled() }}
+        run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml logs > docker-compose.log
       - name: Down docker compose
+        if: ${{ !cancelled() }}
         run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml down
+      - name: Collect artifacts
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-compose-logs
+          path: docker-compose.log
+          retention-days: 7
