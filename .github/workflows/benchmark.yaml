@@ -13,6 +13,8 @@ jobs:
       matrix:
         procedure: ["move", "stop"]
         sm-version: ["0.19.0", "0.20.0"]
+    env:
+      benchmark_dir: ./benchmark
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
@@ -31,7 +33,7 @@ jobs:
       - name: Test get images
         run: docker images
       - name: Copy benchmark files to not git directory
-        run: cp -r ./ci/benchmark ./benchmark
+        run: cp -r ./ci/benchmark ${{ env.benchmark_dir }}
       - name: Checkout tags
         run: |
           git fetch --tags
@@ -39,9 +41,10 @@ jobs:
       - name: test sm-client version
         run: cat version
       - name: Run docker compose
-        run: docker-compose -f ./benchmark/docker-compose.yaml up --detach
+        run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml up --detach
       - name: Test containers
-        run: docker containers ls
-        # TODO: Place for script
+        run: docker container ls
+      - name: Measure the time
+        run: ${{ env.benchmark_dir }}/measure_tune.sh $procedure
       - name: Down docker compose
-        run: docker-compose -f ./benchmark/docker-compose.yaml down
+        run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml down
