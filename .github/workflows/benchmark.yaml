@@ -45,7 +45,7 @@ jobs:
       - name: Measure the time
         run: ${{ env.benchmark_dir }}/measure_time.sh ${{ matrix.procedure }} ${{ matrix.sm-version }}
       - name: Collect artifacts reports
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: benchmark-${{ matrix.procedure }}-${{ matrix.sm-version }}
           path: report.json
