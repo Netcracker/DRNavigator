@@ -29,4 +29,4 @@ end_time=$(date +%s%N)
 elapsed=$(($((end_time - start_time)) / 10))
 echo "Elapsed time is $elapsed nanoseconds"
 
-jq --null-input --arg version "$version" --arg procedure "$procedure" --arg nanoseconds "$elapsed" '$ARGS.named' > report.json
+jq --null-input --arg version "$version" --arg procedure "$procedure" --argjson nanoseconds $elapsed '$ARGS.named' > report-$procedure-$version.json

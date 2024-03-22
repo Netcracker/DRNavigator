@@ -67,11 +67,28 @@ jobs:
   analyze-results:
     runs-on: ubuntu-22.04
     needs: [ measure-time ]
+    strategy:
+      fail-fast: false
+      matrix:
+        procedure: ["move", "stop"]
     steps:
     - name: Download benchmark reports
       uses: actions/download-artifact@v4
       with:
         path: benchmark
-        pattern: benchmark-*
+        pattern: benchmark-${{ matrix.procedure }}-*
     - name: Check downloaded reports
       run: ls -R benchmark
+    - name: Compare performance
+      run: |
+        first_run_seconds=$(cat $dir/report-${{ matrix.procedure }}-0.19.0.json | jq '.nanoseconds')
+        second_run_seconds=$(cat $dir/report-${{ matrix.procedure }}-0.20.0.json | jq '.nanoseconds')
+        echo "Average time for procedure ${{ matrix.procedure }} for version 0.19.0: $first_run_seconds nanoseconds"
+        echo "Average time for procedure move for version 0.20.0: $second_run_seconds nanoseconds"
+        score=$(bc <<< "scale=2; $second_run_seconds * 100 /$first_run_seconds")
+        echo "Average score: $score%"
+        delta=$(printf "%.0f" "$(bc <<< "$score - 105")")
+        if (( delta > 5 )); then
+          echo "Delta is too big: $delta%"
+          exit 1
+        fi
