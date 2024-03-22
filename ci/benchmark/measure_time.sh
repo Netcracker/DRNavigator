@@ -1,6 +1,7 @@
 #!/usr/bin/bash
 
 procedure=$1
+version=$2
 dirname=$(dirname "$0")
 
 if [ "$procedure" == "move" ]; then
@@ -16,7 +17,7 @@ start_time=$(date +%s%N)
 for _ in {1..5}; do
   for site in "${sites_order[@]}"; do
     echo "Start procedure $procedure for site $site..."
-    python3 smclient.py -c $dirname/sm-client-config.yaml -v $procedure $site
+    echo python3 smclient.py -c $dirname/sm-client-config.yaml -v $procedure $site
     if [ $? -ne 0 ]; then
       echo "Procedure fails, exit"
       exit 1
@@ -26,4 +27,6 @@ done
 end_time=$(date +%s%N)
 
 elapsed=$(($((end_time - start_time)) / 10))
-echo "Elapsed time is: $elapsed nanoseconds"
+echo "Elapsed time is $elapsed nanoseconds"
+
+jq --null-input --arg version "$version" --arg procedure "$procedure" --arg nanoseconds "$elapsed" '$ARGS.named' > report.json

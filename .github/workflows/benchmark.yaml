@@ -43,17 +43,35 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements-sc.txt
       - name: Measure the time
-        run: ${{ env.benchmark_dir }}/measure_time.sh ${{ matrix.procedure }}
+        run: ${{ env.benchmark_dir }}/measure_time.sh ${{ matrix.procedure }} ${{ matrix.sm-version }}
+      - name: Collect artifacts reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: benchmark-${{ matrix.procedure }}-${{ matrix.sm-version }}
+          path: report.json
+          retention-days: 1
       - name: Collect logs from docker-compose
         if: ${{ !cancelled() }}
         run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml logs > docker-compose.log
       - name: Down docker compose
         if: ${{ !cancelled() }}
         run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml down
-      - name: Collect artifacts
+      - name: Collect artifacts logs
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: docker-compose-logs-${{ matrix.procedure }}-${{ matrix.sm-version }}
           path: docker-compose.log
           retention-days: 7
+
+  analyze-results:
+    runs-on: ubuntu-22.04
+    needs: [ measure-time ]
+    steps:
+    - name: Download benchmark reports
+      uses: actions/download-artifact@v4
+      with:
+        path: benchmark
+        pattern: benchmark-*
+    - name: Check downloaded reports
+      run: ls -R benchmark
