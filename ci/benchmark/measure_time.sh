@@ -17,7 +17,7 @@ start_time=$(date +%s%N)
 for _ in {1..5}; do
   for site in "${sites_order[@]}"; do
     echo "Start procedure $procedure for site $site..."
-    echo python3 smclient.py -c $dirname/sm-client-config.yaml -v $procedure $site
+    python3 smclient.py -c $dirname/sm-client-config.yaml -v $procedure $site
     if [ $? -ne 0 ]; then
       echo "Procedure fails, exit"
       exit 1
