@@ -98,8 +98,8 @@ jobs:
         echo "Average time for procedure move for version 0.20.0: $second_run_seconds nanoseconds"
         score=$(bc <<< "scale=2; $second_run_seconds * 100 /$first_run_seconds")
         echo "Average score: $score%"
-        delta=$(printf "%.0f" "$(bc <<< "$score - 105")")
-        if (( delta > 5 )); then
+        delta=$(bc <<< "$score - 100")
+        if (( $(echo "$delta > 5" |bc -l) )); then
           echo "Delta is too big: $delta%"
           exit 1
         fi
