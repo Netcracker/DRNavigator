@@ -1,9 +1,16 @@
 name: Benchmark check
 
 on:
-  push:
-    branches:
-      - '**'
+  workflow_dispatch:
+    inputs:
+      current_sm_version:
+        description: 'SM version, that should be benchmarked'
+        required: true
+        default: '0.20.0'
+      previous_sm_version:
+        description: 'SM version, that should be used to benchmark with current one'
+        required: true
+        default: '0.19.0'
 
 jobs:
   measure-time:
@@ -12,7 +19,7 @@ jobs:
       fail-fast: false
       matrix:
         procedure: ["move", "stop"]
-        sm-version: ["0.19.0", "0.20.0"]
+        sm-version: [${{ github.event.inputs.current_sm_version }}, ${{ github.event.inputs.previous_sm_version }}]
     env:
       benchmark_dir: ./benchmark
     steps:
@@ -83,20 +90,20 @@ jobs:
     - name: Compare performance
       run: |
         dir='./benchmark'
-        first_run_seconds=$(cat $dir/report-${{ matrix.procedure }}-0.19.0.json | jq '.nanoseconds')
+        previous_run_seconds=$(cat $dir/report-${{ matrix.procedure }}-${{ github.event.inputs.previous_sm_version }}.json | jq '.nanoseconds')
         if [ $? -ne 0 ]; then
-          echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version 0.19.0"
+          echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version ${{ github.event.inputs.previous_sm_version }}"
           exit 1
         fi
-        second_run_seconds=$(cat $dir/report-${{ matrix.procedure }}-0.20.0.json | jq '.nanoseconds')
+        current_run_seconds=$(cat $dir/report-${{ matrix.procedure }}-${{ github.event.inputs.current_sm_version }}.json | jq '.nanoseconds')
         if [ $? -ne 0 ]; then
-          echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version 0.20.0"
+          echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version ${{ github.event.inputs.current_sm_version }}"
           exit 1
         fi
         
-        echo "Average time for procedure ${{ matrix.procedure }} for version 0.19.0: $first_run_seconds nanoseconds"
-        echo "Average time for procedure move for version 0.20.0: $second_run_seconds nanoseconds"
-        score=$(bc <<< "scale=2; $second_run_seconds * 100 /$first_run_seconds")
+        echo "Average time for procedure ${{ matrix.procedure }} for version ${{ github.event.inputs.previous_sm_version }}: $previous_run_seconds nanoseconds"
+        echo "Average time for procedure ${{ matrix.procedure }} for version ${{ github.event.inputs.current_sm_version }}: $current_run_seconds nanoseconds"
+        score=$(bc <<< "scale=2; $current_run_seconds * 100 /$previous_run_seconds")
         echo "Average score: $score%"
         delta=$(bc <<< "$score - 100")
         if (( $(echo "$delta > 5" |bc -l) )); then
