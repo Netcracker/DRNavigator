@@ -48,7 +48,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-${{ matrix.procedure }}-${{ matrix.sm-version }}
-          path: report.json
+          path: report-${{ matrix.procedure }}-${{ matrix.sm-version }}.json
           retention-days: 1
       - name: Collect logs from docker-compose
         if: ${{ !cancelled() }}
