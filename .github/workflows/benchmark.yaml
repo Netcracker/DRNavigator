@@ -81,8 +81,18 @@ jobs:
       run: ls -R benchmark
     - name: Compare performance
       run: |
+        dir='./benchmark'
         first_run_seconds=$(cat $dir/report-${{ matrix.procedure }}-0.19.0.json | jq '.nanoseconds')
+        if [ $? -ne 0 ]; then
+          echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version 0.19.0"
+          exit 1
+        fi
         second_run_seconds=$(cat $dir/report-${{ matrix.procedure }}-0.20.0.json | jq '.nanoseconds')
+        if [ $? -ne 0 ]; then
+          echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version 0.20.0"
+          exit 1
+        fi
+        
         echo "Average time for procedure ${{ matrix.procedure }} for version 0.19.0: $first_run_seconds nanoseconds"
         echo "Average time for procedure move for version 0.20.0: $second_run_seconds nanoseconds"
         score=$(bc <<< "scale=2; $second_run_seconds * 100 /$first_run_seconds")
