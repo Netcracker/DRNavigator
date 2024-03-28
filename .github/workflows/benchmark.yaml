@@ -11,6 +11,9 @@ on:
         description: 'SM version, that should be used to benchmark with current one'
         required: true
         default: '0.19.0'
+  push:
+    branches:
+      - '**'
 
 jobs:
   measure-time:
