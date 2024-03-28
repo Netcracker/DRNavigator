@@ -22,7 +22,7 @@ jobs:
       fail-fast: false
       matrix:
         procedure: ["move", "stop"]
-        sm-version: [${{ github.event.inputs.current_sm_version }}, ${{ github.event.inputs.previous_sm_version }}]
+        sm-version: ['0.19.0', '0.20.0']
     env:
       benchmark_dir: ./benchmark
     steps:
@@ -93,19 +93,19 @@ jobs:
     - name: Compare performance
       run: |
         dir='./benchmark'
-        previous_run_seconds=$(jq '.nanoseconds' $dir/report-${{ matrix.procedure }}-${{ github.event.inputs.previous_sm_version }}.json)
+        previous_run_seconds=$(jq '.nanoseconds' $dir/report-${{ matrix.procedure }}-0.19.0.json)
         if [ $? -ne 0 ]; then
-          echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version ${{ github.event.inputs.previous_sm_version }}"
+          echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version 0.19.0"
           exit 1
         fi
-        current_run_seconds=$(jq '.nanoseconds' $dir/report-${{ matrix.procedure }}-${{ github.event.inputs.current_sm_version }}.json)
+        current_run_seconds=$(jq '.nanoseconds' $dir/report-${{ matrix.procedure }}-0.20.0.json)
         if [ $? -ne 0 ]; then
-          echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version ${{ github.event.inputs.current_sm_version }}"
+          echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version 0.20.0"
           exit 1
         fi
         
-        echo "Average time for procedure ${{ matrix.procedure }} for version ${{ github.event.inputs.previous_sm_version }}: $previous_run_seconds nanoseconds"
-        echo "Average time for procedure ${{ matrix.procedure }} for version ${{ github.event.inputs.current_sm_version }}: $current_run_seconds nanoseconds"
+        echo "Average time for procedure ${{ matrix.procedure }} for version 0.19.0: $previous_run_seconds nanoseconds"
+        echo "Average time for procedure ${{ matrix.procedure }} for version 0.20.0: $current_run_seconds nanoseconds"
         score=$(bc <<< "scale=2; $current_run_seconds * 100 /$previous_run_seconds")
         echo "Average score: $score%"
         delta=$(bc <<< "$score - 100")
