@@ -25,8 +25,6 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
-        with:
-          ref: ${{ matrix.sm-version }}
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
@@ -41,10 +39,10 @@ jobs:
           docker tag ghcr.io/netcracker/site-manager:${{ matrix.sm-version }} site-manager
       - name: Copy benchmark files to not git directory
         run: cp -r ./ci/benchmark ${{ env.benchmark_dir }}
-      - name: Checkout tags
-        run: |
-          git fetch --tags
-          git checkout tags/${{ matrix.sm-version }}
+      - name: Checkout Repo
+        uses: actions/checkout@v3
+        with:
+          ref: ${{ matrix.sm-version }}
       - name: Run docker compose
         run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml up --detach
       - name: Install dependencies
