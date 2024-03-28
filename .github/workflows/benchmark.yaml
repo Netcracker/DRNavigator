@@ -25,6 +25,8 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v3
+        with:
+          ref: ${{ matrix.sm-version }}
       - name: Set up Python 3.10
         uses: actions/setup-python@v4
         with:
@@ -90,12 +92,12 @@ jobs:
     - name: Compare performance
       run: |
         dir='./benchmark'
-        previous_run_seconds=$(cat $dir/report-${{ matrix.procedure }}-${{ github.event.inputs.previous_sm_version }}.json | jq '.nanoseconds')
+        previous_run_seconds=$(jq '.nanoseconds' $dir/report-${{ matrix.procedure }}-${{ github.event.inputs.previous_sm_version }}.json)
         if [ $? -ne 0 ]; then
           echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version ${{ github.event.inputs.previous_sm_version }}"
           exit 1
         fi
-        current_run_seconds=$(cat $dir/report-${{ matrix.procedure }}-${{ github.event.inputs.current_sm_version }}.json | jq '.nanoseconds')
+        current_run_seconds=$(jq '.nanoseconds' $dir/report-${{ matrix.procedure }}-${{ github.event.inputs.current_sm_version }}.json)
         if [ $? -ne 0 ]; then
           echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version ${{ github.event.inputs.current_sm_version }}"
           exit 1

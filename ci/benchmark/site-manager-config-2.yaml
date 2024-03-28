@@ -38,7 +38,7 @@ testing:
         allowedStandbyStateList:
         - up
         before: []
-        name: serviceB
+        name: serviceC
         namespace: ns2
         module: stateful
         parameters:
