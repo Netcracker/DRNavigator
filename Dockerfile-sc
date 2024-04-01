@@ -13,8 +13,11 @@ COPY requirements-sc.txt /app/requirements.txt
 
 WORKDIR /app/
 
-RUN adduser -D -u "${SM_UID}" "${SM_USER}" && \
-   pip install --upgrade pip==23.3 --no-cache-dir && \
+RUN apk update && \
+    apk upgrade && \
+    apk add bash && \
+    adduser -D -u "${SM_UID}" "${SM_USER}" && \
+    pip install --upgrade pip==24.* --no-cache-dir && \
     pip install -r requirements.txt --no-cache-dir && \
     chmod 755 /app/sm-client
 
