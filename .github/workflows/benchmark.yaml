@@ -1,0 +1,113 @@
+name: Benchmark check
+
+on:
+  workflow_dispatch:
+    inputs:
+      current_sm_version:
+        description: 'SM version, that should be benchmarked'
+        required: true
+        default: '0.20.0'
+      previous_sm_version:
+        description: 'SM version, that should be used to benchmark with current one'
+        required: true
+        default: '0.19.0'
+
+jobs:
+  measure-time:
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        procedure: ["move", "stop"]
+        sm-version: [${{ github.event.inputs.current_sm_version }}, ${{ github.event.inputs.previous_sm_version }}]
+    env:
+      benchmark_dir: ./benchmark
+    steps:
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.10"
+      - name: Docker login
+        run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
+      - name: Pull and tag SM images
+        run: |
+          docker pull ghcr.io/netcracker/sm-dummy:${{ matrix.sm-version }}
+          docker pull ghcr.io/netcracker/site-manager:${{ matrix.sm-version }}
+          docker tag ghcr.io/netcracker/sm-dummy:${{ matrix.sm-version }} sm-dummy
+          docker tag ghcr.io/netcracker/site-manager:${{ matrix.sm-version }} site-manager
+      - name: Copy benchmark files to not git directory
+        run: cp -r ./ci/benchmark ${{ env.benchmark_dir }}
+      - name: Checkout Repo
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.sm-version }}
+          clean: false
+      - name: Run docker compose
+        run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml up --detach
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-sc.txt
+      - name: Measure the time
+        run: ${{ env.benchmark_dir }}/measure_time.sh ${{ matrix.procedure }} ${{ matrix.sm-version }}
+      - name: Collect artifacts reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ matrix.procedure }}-${{ matrix.sm-version }}
+          path: report-${{ matrix.procedure }}-${{ matrix.sm-version }}.json
+          retention-days: 1
+      - name: Collect logs from docker-compose
+        if: ${{ !cancelled() }}
+        run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml logs > docker-compose.log
+      - name: Down docker compose
+        if: ${{ !cancelled() }}
+        run: docker-compose -f ${{ env.benchmark_dir }}/docker-compose.yaml down
+      - name: Collect artifacts logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docker-compose-logs-${{ matrix.procedure }}-${{ matrix.sm-version }}
+          path: docker-compose.log
+          retention-days: 7
+
+  analyze-results:
+    runs-on: ubuntu-22.04
+    needs: [ measure-time ]
+    strategy:
+      fail-fast: false
+      matrix:
+        procedure: ["move", "stop"]
+    steps:
+    - name: Download benchmark reports
+      uses: actions/download-artifact@v4
+      with:
+        path: benchmark
+        pattern: benchmark-${{ matrix.procedure }}-*
+        merge-multiple: true
+    - name: Check downloaded reports
+      run: ls -R benchmark
+    - name: Compare performance
+      run: |
+        dir='./benchmark'
+        previous_run_seconds=$(jq '.nanoseconds' $dir/report-${{ matrix.procedure }}-${{ github.event.inputs.previous_sm_version }}.json)
+        if [ $? -ne 0 ]; then
+          echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version ${{ github.event.inputs.previous_sm_version }}"
+          exit 1
+        fi
+        current_run_seconds=$(jq '.nanoseconds' $dir/report-${{ matrix.procedure }}-${{ github.event.inputs.current_sm_version }}.json)
+        if [ $? -ne 0 ]; then
+          echo "Something went wrong during parsing report for procedure ${{ matrix.procedure }} version ${{ github.event.inputs.current_sm_version }}"
+          exit 1
+        fi
+        
+        echo "Average time for procedure ${{ matrix.procedure }} for version ${{ github.event.inputs.previous_sm_version }}: $previous_run_seconds nanoseconds"
+        echo "Average time for procedure ${{ matrix.procedure }} for version ${{ github.event.inputs.current_sm_version }}: $current_run_seconds nanoseconds"
+        score=$(bc <<< "scale=2; $current_run_seconds * 100 /$previous_run_seconds")
+        echo "Average score: $score%"
+        delta=$(bc <<< "$score - 100")
+        if (( $(echo "$delta > 5" |bc -l) )); then
+          echo "Delta is too big: $delta%"
+          exit 1
+        fi
