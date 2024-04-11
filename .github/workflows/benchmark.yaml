@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         procedure: ["move", "stop"]
-        sm-version: [${{ inputs.current_sm_version }}, ${{ inputs.previous_sm_version }}]
+        sm-version: ["${{ inputs.current_sm_version }}", "${{ inputs.previous_sm_version }}"]
     env:
       benchmark_dir: ./benchmark
     steps:
