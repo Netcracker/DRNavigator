@@ -17,3 +17,5 @@ jobs:
         run: docker build -t paas-geo-monitor --no-cache paas-geo-monitor
       - name: Build Docker Image for sm-dummy
         run: docker build -t sm-dummy --no-cache tests/sm-dummy
+      - name: Build Docker Image for sm-check
+        run: docker build -t sm-check --no-cache sm-check
