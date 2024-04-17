@@ -37,6 +37,7 @@
     - [peers status](#peers-status)
     - [Ping](#ping)
     - [Metrics](#metrics)
+- [Sm-check](#sm-check)
 <!-- /TOC -->
 
 ## Overview
@@ -1281,3 +1282,7 @@ Ping endpoint:
 - Method: `GET`
 
 The output has Prometheus specific format and is intended for an external monitoring system.
+
+## Sm-check
+
+`sm-check` is a set of tools to check network connectivity between geographically distributed clusters on IaaS level. It could be used for IPIP protocol conneectivity check and TCP ports connectivity check.
