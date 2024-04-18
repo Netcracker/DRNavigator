@@ -1,7 +1,6 @@
 FROM debian:bookworm-slim
 
-RUN apt update && \
-    apt install -y netcat-openbsd iproute2 curl unzip && \
+RUN apt update && apt install -y netcat-openbsd iproute2 curl unzip && \
     curl -OL https://github.com/Netcracker/KubeMarine/releases/latest/download/package.zip && \
     unzip package.zip "dist/kubemarine-*.tar.gz" && \
     tar --wildcards -xv -f dist/kubemarine-*.tar.gz -C dist '*/ipip_check.gz'  && \

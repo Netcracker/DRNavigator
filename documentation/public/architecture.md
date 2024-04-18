@@ -1285,4 +1285,4 @@ The output has Prometheus specific format and is intended for an external monito
 
 ## Sm-check
 
-`sm-check` is a set of tools to check network connectivity between geographically distributed clusters on IaaS level. It could be used for IPIP protocol conneectivity check and TCP ports connectivity check.
+`sm-check` is a [container image](https://github.com/Netcracker/DRNavigator/pkgs/container/sm-check) with a set of tools to check network connectivity between geographically distributed clusters (DR) on IaaS level. It could be used for [IPIP protocol connectivity check](https://github.com/Netcracker/KubeMarine/blob/main/documentation/Kubecheck.md#017-ip-in-ip-encapsulation) and TCP ports connectivity check. Installation is manual and required on each DR site.
