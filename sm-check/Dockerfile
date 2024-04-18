@@ -1,13 +1,10 @@
 FROM debian:bookworm-slim
 
-ENV VER 0.28.1
-
 RUN apt update && \
     apt install -y netcat-openbsd iproute2 curl unzip && \
-    curl -OL https://github.com/Netcracker/KubeMarine/releases/download/v${VER}/package.zip && \
-    unzip package.zip && \
-    tar -zxvf dist/kubemarine-${VER}.tar.gz && \  
-    gunzip kubemarine-${VER}/kubemarine/resources/scripts/ipip_check.gz && \
-    cp kubemarine-${VER}/kubemarine/resources/scripts/ipip_check /bin/ && \
-    rm package.zip && rm -R kubemarine-${VER} && rm -R dist && \
+    curl -OL https://github.com/Netcracker/KubeMarine/releases/latest/download/package.zip && \
+    unzip package.zip "dist/kubemarine-*.tar.gz" && \
+    tar --wildcards -xO -f dist/kubemarine-*.tar.gz '*/ipip_check.gz'| gzip -d >bin/ipip_check && \
+    chmod +x /bin/ipip_check && \
+    rm  package.zip && rm -R dist && \
     apt clean autoclean
