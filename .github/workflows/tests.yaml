@@ -18,9 +18,9 @@ jobs:
         python-version: [ "3.10" ]
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Get python version
@@ -34,7 +34,7 @@ jobs:
         run: python -m pytest tests/selftest
       - name: Collect artifacts
         if: failure() && steps.unittests.outcome == 'failure'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: unittest-logs
           path: pytest.log
@@ -47,9 +47,9 @@ jobs:
         python-version: [ "3.10" ]
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Get python version
@@ -65,7 +65,7 @@ jobs:
         run: python -m pytest tests/integration
       - name: Collect artifacts
         if: failure() && steps.integrationtests.outcome == 'failure'
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: integration-tests-logs
           path: test-dump/
@@ -74,9 +74,9 @@ jobs:
   site-manager-unittest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: '1.22'
       - name: Run tests
@@ -87,9 +87,9 @@ jobs:
   paas-geo-monitor-unittest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v5
         with:
           go-version: '1.22'
       - name: Run tests
@@ -101,7 +101,7 @@ jobs:
   publish-test-sm-dummy-image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: docker build -t ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }} tests/sm-dummy
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }}
@@ -109,7 +109,7 @@ jobs:
   publish-test-site-manager-image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - run: docker build -t ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }} site-manager
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }}
@@ -119,9 +119,9 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Python 3.10
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.10'
       - name: Ssh preparation
@@ -166,14 +166,14 @@ jobs:
         run: sudo kubectl logs -n test-services -l app=service-b > ./results/logs/service-b.log
       - name: Collect kubemarine artifacts
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: kubemarine dumps
           path: ./results/kubemarine/
           retention-days: 7
       - name: Collect SM artifacts
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: site-manager logs
           path: ./results/logs
