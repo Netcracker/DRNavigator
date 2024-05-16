@@ -1,4 +1,4 @@
-FROM golang:1.20.12-alpine3.19 as builder
+FROM golang:1.22.3-alpine3.19 as builder
 
 WORKDIR /workspace
 
@@ -10,8 +10,8 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Add code generators
-RUN go install github.com/swaggo/swag/cmd/swag@v1.16.2
-RUN go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.13.0
+RUN go install github.com/swaggo/swag/cmd/swag@v1.16.3
+RUN go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
 
 # Copy the go source
 COPY api/ api/
@@ -35,7 +35,11 @@ ENV USER_UID=1001 USER_NAME=site-manager GROUP_NAME=site-manager
 
 WORKDIR /
 COPY --from=builder --chown=${USER_UID} workspace/site-manager .
-RUN addgroup ${GROUP_NAME} && adduser -D -G ${GROUP_NAME} -u ${USER_UID} ${USER_NAME}
+
+RUN apk update && \
+    apk upgrade && \
+    apk add bash && \
+    addgroup ${GROUP_NAME} && adduser -D -G ${GROUP_NAME} -u ${USER_UID} ${USER_NAME}
 USER ${USER_UID}
 
 ENTRYPOINT  ["./site-manager"]

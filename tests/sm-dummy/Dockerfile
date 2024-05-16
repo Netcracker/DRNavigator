@@ -1,4 +1,4 @@
-FROM python:3.8-slim
+FROM python:3.10.13-alpine3.19
 
 USER root
 
@@ -10,9 +10,12 @@ COPY requirements.txt /app/requirements.txt
 
 WORKDIR /app/
 
-RUN pip3 install --upgrade pip==23.3 --no-cache-dir && \
-    pip3 install -r requirements.txt --no-cache-dir && \
-    useradd -r -u "${USER_UID}" "${USER_NAME}"
+RUN apk update && \
+    apk upgrade && \
+    apk add bash && \
+    pip install --upgrade pip==24.* --no-cache-dir && \
+    pip install -r requirements.txt --no-cache-dir && \
+    adduser -D -u "${USER_UID}" "${USER_NAME}"
 
 USER ${USER_UID}
 
