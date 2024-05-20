@@ -11,6 +11,8 @@ from sm_client.data import settings
 from sm_client.data.structures import SMClusterState, SMConf
 from sm_client.processing import sm_process_service
 
+# Predefined list of valid procedures
+VALID_PROCEDURES = {'standby', 'disable', 'active', 'status', 'move', 'stop', 'return'}
 
 def init_and_check_config(args) -> bool:
     """ Main entry point. Provides validations, config parsing and initialization
@@ -93,6 +95,19 @@ def init_and_check_config(args) -> bool:
     settings.state_restrictions = conf_parsed.get("restrictions", {}) if not args.ignore_restrictions else {}
 
     settings.module_flow = conf_parsed.get("flow", [{'stateful': None}])
+    for module in settings.module_flow:
+        for module_name, procedures in module.items():
+            if procedures is not None:
+                if not isinstance(procedures, list):
+                    logging.fatal(f"Configuration error: Procedures for module '{module_name}' should be a list. "
+                                  f"Please update the configuration file to specify the procedures as a list of valid procedure names.")
+                    return False
+                for procedure in procedures:
+                    if procedure not in VALID_PROCEDURES:
+                        logging.fatal(f"Unknown procedure '{procedure}' for module '{module_name}'. "
+                                      f"Please update the configuration file to use valid procedures: {', '.join(VALID_PROCEDURES)}")
+                        return False
+                    
     site_names = [i["name"] for i in conf_parsed["sites"]]
     
     if args.site and args.site not in site_names:
