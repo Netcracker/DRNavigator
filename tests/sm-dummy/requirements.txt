@@ -1,4 +1,2 @@
-PyYAML==6.*
 Flask==2.3.*
 kubernetes==24.*
-prettytable==2.1.*
