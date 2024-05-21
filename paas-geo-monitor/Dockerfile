@@ -1,4 +1,4 @@
-FROM golang:1.20.12-alpine3.19 as builder
+FROM golang:1.22.3-alpine3.19 as builder
 
 WORKDIR /workspace
 
@@ -18,7 +18,6 @@ COPY main.go ./
 # GOMEMLINIT is 90% of kuber limits for garbage-collector
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o paas-geo-monitor ./main.go
 
-
 FROM alpine:3.19.1
 
 ENV USER_UID=1001 USER_NAME=paas-geo-monitor GROUP_NAME=paas-geo-monitor
@@ -27,7 +26,10 @@ RUN apk --no-cache add curl=8.5.0-r0
 
 WORKDIR /
 COPY --from=builder --chown=${USER_UID} workspace/paas-geo-monitor .
-RUN addgroup ${GROUP_NAME} && adduser -D -G ${GROUP_NAME} -u ${USER_UID} ${USER_NAME}
+RUN apk update && \
+    apk upgrade && \
+    apk add bash && \
+    addgroup ${GROUP_NAME} && adduser -D -G ${GROUP_NAME} -u ${USER_UID} ${USER_NAME}
 USER ${USER_UID}
 
 ENTRYPOINT  ["./paas-geo-monitor"]

@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Build Docker Image for site-manager
         run: docker build -t site-manager --no-cache site-manager
       - name: Build Docker Image for sm-client

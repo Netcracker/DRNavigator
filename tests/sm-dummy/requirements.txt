@@ -1,5 +1,2 @@
-PyYAML==5.4.1
-Flask==2.2.*
-kubernetes==12.0.1
-prettytable==2.1.0
-kubernetes==12.0.1
+Flask==2.3.*
+kubernetes==24.*
