@@ -1,0 +1,14 @@
+sites:
+  - name: k8s-1
+    token: XXX
+    site-manager: https://site-manager.k8s-1.netcracker.com/sitemanager
+  - name: k8s-2
+    token: XXX
+    site-manager: https://site-manager.k8s-2.netcracker.com/sitemanager
+sm-client:
+  http_auth: True
+  
+flow:
+  - custom_module: standby,disable  # Invalid format: states without square brackets
+  - stateful:
+  - custom_module: active

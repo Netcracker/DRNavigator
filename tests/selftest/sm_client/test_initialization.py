@@ -94,3 +94,25 @@ def test_token_env_configuration(monkeypatch, caplog):
     args = args_init(config=test_config_env_token_path)
     assert init_and_check_config(args)
     assert settings.sm_conf['k8s-2']['token'] == '12345'
+
+
+def test_invalid_module_states_in_config(caplog):
+    """ Test invalid module states in config """
+    args = args_init(config=config_path_wrong_states)
+    with caplog.at_level(logging.FATAL):
+        assert not init_and_check_config(args)
+        assert "Invalid states '['return', 'disable']' for module 'custom_module'. Valid states are [['standby', 'disable'], ['active']]." in caplog.text
+
+
+def test_correct_module_states_in_config():
+    """ Test correct module states in config """
+    args = args_init(config=config_path_correct_states)
+    assert init_and_check_config(args)
+
+
+def test_states_without_brackets_in_config(caplog):
+    """ Test states without brackets in config """
+    args = args_init(config=config_path_states_without_brackets)
+    with caplog.at_level(logging.FATAL):
+        assert not init_and_check_config(args)
+        assert "Invalid states format for module 'custom_module'. Should be a list of states." in caplog.text
