@@ -44,7 +44,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     2.1. Create a configuration file for generating the SSL certificate:
 
     ```bash
-    $ cat <<EOF > server.conf 
+    cat <<EOF > server.conf 
     [req]
     req_extensions = v3_req
     distinguished_name = req_distinguished_name
@@ -87,8 +87,8 @@ To support the ability of services to be managed by `site-manager`, implement th
     2.4. Create CRT file for `site-manager`:
 
     ```bash
-    $ openssl req -new -key site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config server.conf | \
-      openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
+    openssl req -new -key site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config server.conf | \
+    openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
     ```
 
 3. Create CustomResourceDefinition `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` from [file](./manifests/crd-sitemanager.yaml) as it will be described below.
