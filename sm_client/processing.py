@@ -177,6 +177,9 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict, is_failover=Fal
                 if not service_response.is_ok():
                     logging.info(f"Service {service} failed on {site_to_process}, skipping it on another site...")
                     break
+    else:
+        logging.error(f"Invalid command '{cmd}' for service '{service}'. No processing performed.")
+
     thread_result_queue.put(service_response)
 
     logging.info(f"Processing {service} in thread finished")
