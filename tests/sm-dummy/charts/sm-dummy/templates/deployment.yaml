@@ -43,8 +43,8 @@ spec:
             value: '{{ .Values.env.SMA_HTTP_AUTH }}'
           - name: SMA_SM_NAMESPACE
             value: '{{ .Values.env.SMA_SM_NAMESPACE }}'
-          - name: SMA_SM_AUTH_SA
-            value: '{{ .Values.env.SMA_SM_AUTH_SA }}'       
+          - name: SMA_SM_SA
+            value: '{{ .Values.env.SMA_SM_SA }}'
         ports:
         - containerPort: 8080
           protocol: TCP

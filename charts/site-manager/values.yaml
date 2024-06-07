@@ -43,6 +43,8 @@ serviceAccount:
   create: true
   name: site-manager-sa
 
+endlessSecretEnabled: false
+
 image:
   repository: ghcr.io/netcracker/site-manager
   pullPolicy: Always

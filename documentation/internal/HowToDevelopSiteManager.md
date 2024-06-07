@@ -89,10 +89,10 @@ Restrictions:
 1. CRD should be installed in the cloud;
 2. Due to the fact that the SM is outside the cloud, it's not possible to contact with services in cluster except cases,
 if ingress address is used in their CRs;
-3. Provide the token to connect with services (in real SM it's token from `sm-auth-sa` service-account). For this create the special file
+3. Provide the token to connect with services (in real SM it's token from `site-manager-sa` service-account). For this create the special file
 with token inside and provide the path to this token with `--tokenfile` option during SM run. As alternative, disable authorization with
 services with `BACK_HTTP_AUTH` environment;
-3. In following mode SM will use the token from `sm-auth-sa` secret in your cloud (as normal SM). Please disable 
+4. In following mode SM will use the token from `sm-auth-sa` secret in your cloud (as normal SM). Please disable 
 authorization with `FRONT_HTTP_AUTH` environment if SM is not installed here yet; 
 
 To run SM in following mode, please firstly generate test tls certificates for SM, because they are required for webhooks. 

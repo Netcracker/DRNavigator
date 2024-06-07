@@ -15,7 +15,7 @@ Dummy service to test site-manager
     | env.SMA_SEND_MESSAGE                | send messages with /sitemanager request                                        | True                                            |
     | env.SMA_HTTP_AUTH                   | check token for /sitemanager requests                                          | True                                            |
     | env.SMA_SM_NAMESPACE                | site-manager namespace (for authorization checking)                            | "site-manager"                                  |
-    | env.SMA_SM_AUTH_SA                  | site-manager service account name (for authorization checking)                 | "sm-auth-sa"                                    |
+    | env.SMA_SM_SA                       | site-manager service account name (for authorization checking)                 | "site-manager-sa"                               |
     | image                               | sm-dummy image                                                                 |                                                 |
     | ingressName                         | define URL for ingress                                                         |                                                 |
     | serviceAccount.create               | enable/disable Service Account creation                                        | true                                            |

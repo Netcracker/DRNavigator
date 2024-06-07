@@ -72,7 +72,7 @@ class SitemanagerTestCase:
     def test_sm_check_incorrect_services(self, sm_env, config_dir):
         logging.info("TEST SITE-MANAGER WITH WRONG SERVICES")
         url = 'https://' + sm_env['host_name'] + "/sitemanager"
-        token = sm_env['token-sm']
+        token = sm_env['sm-auth-sa-token']
         headers = {
             "Authorization": f"Bearer {token}"
         }
@@ -86,7 +86,7 @@ class SitemanagerTestCase:
     def test_sm_check_incorrect_procedure(self, sm_env, config_dir):
         logging.info("TEST SITE-MANAGER WITH WRONG PROCEDURE")
         url = 'https://' + sm_env['host_name'] + "/sitemanager"
-        token = sm_env['token-sm']
+        token = sm_env['sm-auth-sa-token']
         headers = {
             "Authorization": f"Bearer {token}"
         }
@@ -103,8 +103,13 @@ class SitemanagerTestCase:
         logging.info("TEST CHECK SERVICES STATUS")
 
         url = 'https://' + sm_env['host_name'] + "/sitemanager"
-        token = sm_env['token-sm']
-        headers = {
+        token = sm_env['site-manager-sa-token']
+        services_headers = {
+            "Authorization": f"Bearer {token}"
+        }
+
+        token = sm_env['sm-auth-sa-token']
+        sm_headers = {
             "Authorization": f"Bearer {token}"
         }
         # Disable warnings about unsecure tls connection
@@ -114,11 +119,11 @@ class SitemanagerTestCase:
 
         for service_name, ingress_services in config_ingress_service.items():
             http_body = {"procedure": "status", "run-service": service_name}
-            resp_status = requests.get(f"http://{ingress_services}/sitemanager", headers=headers,
+            resp_status = requests.get(f"http://{ingress_services}/sitemanager", headers=services_headers,
                                        verify=config_dir['template_env']['sites']['site_1']['ca_cert'])
-            resp_healthz = requests.get(f"http://{ingress_services}/healthz", headers=headers,
+            resp_healthz = requests.get(f"http://{ingress_services}/healthz", headers=services_headers,
                                         verify=config_dir['template_env']['sites']['site_1']['ca_cert'])
-            resp_sm = requests.post(url, json=http_body, headers=headers,
+            resp_sm = requests.post(url, json=http_body, headers=sm_headers,
                              verify=config_dir['template_env']['sites']['site_1']['ca_cert'])
 
             resp_status_json = resp_status.json()
@@ -135,7 +140,7 @@ class SitemanagerTestCase:
     def test_check_services_in_sm(self, sm_env, config_dir, config_ingress_service):
         logging.info("TEST CHECK SERVICES ON SITE-MANAGER")
         url = 'https://' + sm_env['host_name'] + "/sitemanager"
-        token = sm_env['token-sm']
+        token = sm_env['sm-auth-sa-token']
         headers = {
             "Authorization": f"Bearer {token}"
         }

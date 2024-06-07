@@ -10,7 +10,7 @@ env:
   SMA_SEND_MESSAGE: True
   SMA_HTTP_AUTH: True
   SMA_SM_NAMESPACE: site-manager
-  SMA_SM_AUTH_SA: sm-auth-sa
+  SMA_SM_SA: site-manager-sa
 
 # Pod Security Context
 # ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/

@@ -18,7 +18,7 @@ var twLog = ctrl.Log.WithName("token-watcher")
 
 const smServiceAccountName = "sm-auth-sa"
 
-// TokenWatcher is interface to watch sm-auth-sa token
+// TokenWatcher is interface to validate sm-auth-sa token and watch the token from specified path
 type TokenWatcher interface {
 	GetToken() string
 	ValidateToken(ctx context.Context, token string) (bool, error)

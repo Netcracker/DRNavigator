@@ -124,13 +124,14 @@ def check_statuses_for_cloud_test(capfd, config_dir, sm_env, config_ingress_serv
     sm_client_statuses_dict = parse_status_table(capfd)
     for service, ingress in config_ingress_service.items():
         expected_status = expected_status_func("site_1", service)
-        check_status_from_service("site_1", service, f"http://{ingress}", expected_status, sm_env['token-sm'])
+        check_status_from_service("site_1", service, f"http://{ingress}", expected_status,
+                                  sm_env['site-manager-sa-token'])
         expected_answer_from_sm = {"services": {service: expected_status}} \
             if expected_status.get("message") != "Service doesn't exist" else \
             {"message": "Service doesn't exist", "wrong-service": service}
         check_status_from_site_manager("site_1", service,
                                        sm_url=f"https://{sm_env['host_name']}",
-                                       token=sm_env['token-sm'],
+                                       token=sm_env['sm-auth-sa-token'],
                                        verify=False,
                                        expected_answer=expected_answer_from_sm)
         check_status_from_sm_client(sm_client_statuses_dict, "site_1", service, expected_status)

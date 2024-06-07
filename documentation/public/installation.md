@@ -217,6 +217,7 @@ To support the ability of services to be managed by `site-manager`, implement th
 | PAAS_PLATFORM                                                  | Define PAAS type. It can be "KUBERNETES" or "OPENSHIFT".                                                                                                                 | "KUBERNETES"                    |
 | paasGeoMonitor                                                 | Refer to [paas-geo-monitor documentation](#paas-geo-monitor).                                                                                                            |                                 |
 | priorityClassName                                              | The Priority Class Name for site-manager and paas-geo-monitor deployments                                                                                                | ""                              |
+| endlessSecretEnabled                                           | Install endless token secret for `sm-auth-sa` service account                                                                                                            | false                           |
 | tls.enabled                                                    | Enable https in ingress/route                                                                                                                                            | true                            |
 | tls.defaultIngressTls                                          | Use default tls certificate instead of generated one for ingress/route                                                                                                   | false                           |
 | tls.ca                                                         | CA tls certificate (content of `ca.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled                       | ""                              |
@@ -356,16 +357,14 @@ peers.
 
 Where,
 
-- `<BEARER TOKEN>` should be taken from the `sm-auth-sa-token-*` secret. Its name is specified in the `sm-auth-sa` Service Account and can be obtained as:
-
+- `<BEARER TOKEN>` should be taken from the `sm-auth-sa` service-account. If you install site-manager with `enabledEndlessToken=true`, 
+the endless `sm-auth-sa` token will be available in `sm-auth-sa-token` secret, and you can obtain it with following command:
 ```shell
-kubectl get sa sm-auth-sa -n site-manager -o yaml | grep sm-auth-sa-token | cut -d ' ' -f3
+kubectl get secret sm-auth-sa-token -n site-manager -o yaml | grep token: | cut -d ' ' -f4 | base64 --decode
 ```
-
-After that, decode this token using base64 decoding, for example:
-
+Or you can always generate temporary token with specified duration using command:
 ```shell
-kubectl get secret sm-auth-sa-token-pqkxj -n site-manager -o yaml | grep token: | cut -d ' ' -f4 | base64 --decode
+kubectl create token -n site-manager sm-auth-sa --duration=1h
 ```
 
 - cacert is a content of `ca.crt` which has been generated during the SiteManager installation.

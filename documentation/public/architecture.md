@@ -302,17 +302,17 @@ following format:
         -system:serviceaccounts:site-manager
         -system:authenticated
         uid: c1a61275-608e-462e-89df-cf2a8ecc6d13
-        username: system:serviceaccount:site-manager:sm-auth-sa
+        username: system:serviceaccount:site-manager:site-manager-sa
     ```
 
 3. In this response, the following fields are relevant:
 
 ```yaml
   - status.authenticated = true
-  - status.user.username = system:serviceaccount:site-manager:sm-auth-sa
+  - status.user.username = system:serviceaccount:site-manager:site-manager-sa
 ```
 
-Where, `site-manager` is the SiteManager's Namespace name and `sm-auth-sa` is the SA name.
+Where, `site-manager` is the SiteManager's Namespace name and `site-manager-sa` is the SA name.
 
 ![](images/site-manager-http-auth.png)
 
@@ -466,19 +466,21 @@ To restrict access to `site-manager` from `sm-client`, there is a scheme for usi
 1. In the Kubernetes cluster, the `sm-auth-sa` service-account is available without any grants in the same namespace as
 `site-manager`;
 2. `site-manager` is started with the `FRONT_HTTP_AUTH` env parameter  with value "True";
-3. `site-manager` reads the secret created by Kubernetes for the `sm-auth-sa` service-account and stores the token in
-memory. Also, `site-manager` uses the watch mode and waits for any updates of the secret. If the secret is updated, the
-`site-manager` also updates the token in the memory;
-4. The user fills config.yml for `sm-client` with the same token and sets the `FRONT_HTTP_AUTH` env parameter with value
+3. The user fills config.yml for `sm-client` with the same token and sets the `FRONT_HTTP_AUTH` env parameter with value
 "True";
-5. All REST operations between `sm-client` and `site-manager` contain the "Authorization: Bearer <TOKEN>" header, where,
+4. All REST operations between `sm-client` and `site-manager` contain the "Authorization: Bearer <TOKEN>" header, where,
 `TOKEN` is the token from service-account `sm-auth-sa`;
+5. When `site-manager` receives the request, it firstly checks the token from authorization header. For that it uses
+`Token review` mechanism like dr-managed services, but compares it with `sm-auth-sa` service account instead of 
+`site-manager-sa`. See [API Security Model](#api-security-model) for more details. 
 
 To secure access to manageable services from `site-manager`, the same scheme is also added for using authorization by
 Bearer Token:
 
-1. The value of the `BACK_HTTP_AUTH` env variable specifies whether the token from the `sm-auth-sa` service-account is
-sent to manageable services in the header;
+1. The value of the `BACK_HTTP_AUTH` env variable specifies whether the token from the `site-manager-sa` service-account 
+is sent to manageable services in the header;
+2. The token from `site-manager-sa` is delivered to `site-manager` using 
+[token-projection mechanism](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#serviceaccount-token-volume-projection);
 2. For more information about this scheme, see [API Security Model](#api-security-model);
 
 **Note**: `site-manager` is installed by default with `FRONT_HTTP_AUTH` "True" and `BACK_HTTP_AUTH` "True", which means
