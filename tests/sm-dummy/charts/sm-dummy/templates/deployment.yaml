@@ -45,6 +45,8 @@ spec:
             value: '{{ .Values.env.SMA_SM_NAMESPACE }}'
           - name: SMA_SM_SA
             value: '{{ .Values.env.SMA_SM_SA }}'
+          - name: SMA_CUSTOM_AUDIENCE
+            value: '{{ .Values.env.SMA_CUSTOM_AUDIENCE }}'
         ports:
         - containerPort: 8080
           protocol: TCP

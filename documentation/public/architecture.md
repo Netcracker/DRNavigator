@@ -280,10 +280,13 @@ following format:
     kind: TokenReview
     spec:
       token: <TOKEN>
+      audiences: [<CUSTOM-AUDIENCE>]
     ```
 
-    Where: `<TOKEN>` is a Bearer received from SiteManager `Authorization` request header.
+    Where:
+    * `<TOKEN>` is a Bearer received from SiteManager `Authorization` request header.
     [Kubernetes-client TokenReview Api for Go](https://github.com/kubernetes-client/go/blob/master/kubernetes/docs/AuthenticationV1Api.md)
+    * `<CUSTOM_AUDIENCE>` is a special parameter, used in site-manager (`customAudience` in helm chart). Omit it, if it's not specified;
 
 2. Kube-api for this request returns a response in the format:
 
