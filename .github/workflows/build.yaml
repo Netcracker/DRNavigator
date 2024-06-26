@@ -24,6 +24,24 @@ jobs:
         run: docker images -a --digests
 
   multiplatform_build:
+    strategy:
+      matrix:
+        component:
+          - name: site-manager
+            dir: site-manager
+            file: Dockerfile
+          - name: sm-client
+            dir: .
+            file: Dockerfile-sc
+          - name: paas-geo-monitor
+            dir: paas-geo-monitor
+            file: Dockerfile
+          - name: sm-dummy
+            dir: tests/sm-dummy
+            file: Dockerfile
+          - name: sm-check
+            dir: sm-check
+            file: Dockerfile
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,10 +54,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           no-cache: true
-          context: .
-          file: Dockerfile-sc
+          context: ${{ matrix.component.dir }}
+          file: ${{ matrix.component.file }}
           platforms: linux/amd64,linux/arm64
           push: false
-          tags: sm-client
-      - name: Check images
-        run: docker images -a --digests
+          tags: ${{ matrix.component.name }}

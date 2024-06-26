@@ -1,4 +1,4 @@
-FROM python:3.10.13-alpine3.19
+FROM --platform=$BUILDPLATFORM  python:3.10.13-alpine3.19
 
 USER root
 
