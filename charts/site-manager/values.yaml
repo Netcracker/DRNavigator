@@ -43,8 +43,9 @@ serviceAccount:
   create: true
   name: site-manager-sa
 
-endlessSecretEnabled: false
-customAudience: ~
+smSecureAuth: false
+endlessSecretEnabled: true
+customAudience: sm-services
 
 image:
   repository: ghcr.io/netcracker/site-manager

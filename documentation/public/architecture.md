@@ -269,6 +269,16 @@ and GET requests coming from SiteManager:
 "Authorization": "Bearer <TOKEN>"
 ```
 
+SM has two modes for token generation, that can be switched using `smSecureAuth` installation parameter:
+
+| `smSecureAuth` value | Used SA           | Token lifecycle | Custom audience                                                |
+|----------------------|-------------------|-----------------|----------------------------------------------------------------|
+| false                |  `sm-auth-sa`     | endless         | -                                                              |
+| true                 | `site-manager-sa` | 1 hour          | sm-services (can be overridden with `customAudience` parameter | 
+
+* **Note**: `smSecureAuth=true` is recommended, because `smSecureAuth=false` mode is deprecated and will be
+removed in future.
+
 For the dr-managed service to make sure that the request is secure, on the dr-managed service side, it is necessary to
 organize the verification of the token for authenticity and belonging to SiteManager. This is done as follows:
 
@@ -286,7 +296,7 @@ following format:
     Where:
     * `<TOKEN>` is a Bearer received from SiteManager `Authorization` request header.
     [Kubernetes-client TokenReview Api for Go](https://github.com/kubernetes-client/go/blob/master/kubernetes/docs/AuthenticationV1Api.md)
-    * `<CUSTOM_AUDIENCE>` is a special parameter, used in site-manager (`customAudience` in helm chart). Omit it, if it's not specified;
+    * `<CUSTOM_AUDIENCE>` is a special parameter, used in site-manager (`customAudience` in helm chart). Omit it, if `smSecureAuth=false`;
 
 2. Kube-api for this request returns a response in the format:
 
@@ -302,20 +312,22 @@ following format:
       user:
         groups:
         -system:serviceaccounts
-        -system:serviceaccounts:site-manager
+        -system:serviceaccounts:<SM_NAMESPACE>
         -system:authenticated
         uid: c1a61275-608e-462e-89df-cf2a8ecc6d13
-        username: system:serviceaccount:site-manager:site-manager-sa
+        username: system:serviceaccount:<SM_NAMESPACE>:<USED_SA>
     ```
 
 3. In this response, the following fields are relevant:
 
 ```yaml
   - status.authenticated = true
-  - status.user.username = system:serviceaccount:site-manager:site-manager-sa
+  - status.user.username = system:serviceaccount:<SM_NAMESPACE>:<SM_SA>
 ```
 
-Where, `site-manager` is the SiteManager's Namespace name and `site-manager-sa` is the SA name.
+Where:
+ * `SM_NAMESPACE` is the SiteManager's Namespace name; 
+ * `SM_SA` is the SA name, depended on `smSecureAuth`;
 
 ![](images/site-manager-http-auth.png)
 

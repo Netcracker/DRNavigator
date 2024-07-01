@@ -111,6 +111,7 @@ spec:
           secret:
             secretName: sm-certs
         - name: rest-api-token
+          {{- if .Values.smSecureAuth }}
           projected:
             defaultMode: 0444
             sources:
@@ -120,6 +121,10 @@ spec:
                 {{- if .Values.customAudience }}
                 audience: {{ .Values.customAudience }}
                 {{- end }}
+          {{- else }}
+          secret:
+            secretName: sm-auth-sa-token
+          {{- end }}
         - name: serviceaccount-token
           projected:
             defaultMode: 0444

@@ -2,6 +2,8 @@
 name: sm-dummy
 PAAS_PLATFORM: KUBERNETES
 
+smSecureAuth: false
+
 env:
   SMA_TIMEOUT: 15
   SMA_INIT_MODE: active
@@ -10,8 +12,8 @@ env:
   SMA_SEND_MESSAGE: True
   SMA_HTTP_AUTH: True
   SMA_SM_NAMESPACE: site-manager
-  SMA_SM_SA: site-manager-sa
-  SMA_CUSTOM_AUDIENCE: ~
+  SMA_SM_SA: ~
+  SMA_CUSTOM_AUDIENCE: sm-services
 
 # Pod Security Context
 # ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/

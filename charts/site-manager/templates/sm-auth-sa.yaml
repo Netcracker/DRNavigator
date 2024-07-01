@@ -3,7 +3,7 @@ kind: ServiceAccount
 metadata:
   name: sm-auth-sa
   namespace: {{ .Release.Namespace }}
-{{- if .Values.endlessSecretEnabled }}
+{{- if or ( not .Values.smSecureAuth ) .Values.endlessSecretEnabled }}
 secrets:
 - name: sm-auth-sa-token
 ---

@@ -8,6 +8,7 @@ Dummy service to test site-manager
     |-------------------------------------|--------------------------------------------------------------------------------|-------------------------------------------------|
     | name                                | sm-dummy entities name                                                         | "sm-dummy"                                      |
     | PAAS_PLATFORM                       | define PAAS type. It can be "KUBERNETES" or "OPENSHIFT"                        | "KUBERNETES"                                    |
+    | smSecureAuth                        | Secure authiruzation mode in SM                                                | false                                           |
     | env.SMA_TIMEOUT                     | sleep timeout for DR procedure                                                 | 15                                              |
     | env.SMA_INIT_MODE                   | initial mode for service                                                       | "active"                                        |
     | env.SMA_DEBUG                       | debug mode for Flask                                                           | True                                            |
@@ -15,8 +16,8 @@ Dummy service to test site-manager
     | env.SMA_SEND_MESSAGE                | send messages with /sitemanager request                                        | True                                            |
     | env.SMA_HTTP_AUTH                   | check token for /sitemanager requests                                          | True                                            |
     | env.SMA_SM_NAMESPACE                | site-manager namespace (for authorization checking)                            | "site-manager"                                  |
-    | env.SMA_SM_SA                       | site-manager service account name (for authorization checking)                 | "site-manager-sa"                               |
-    | env.SMA_CUSTOM_AUDIENCE             | site-manager custom audience for rest API token                                | ""                                              |
+    | env.SMA_SM_SA                       | site-manager service account name (for authorization checking)                          | "site-manager-sa" if `smSecureAuth` is enabled. Overvise `sm-auth-sa` |                               |
+    | env.SMA_CUSTOM_AUDIENCE             | site-manager custom audience for rest API token. Used only is `smSecureAuth` is enabled | ""                                                                    |
     | image                               | sm-dummy image                                                                 |                                                 |
     | ingressName                         | define URL for ingress                                                         |                                                 |
     | serviceAccount.create               | enable/disable Service Account creation                                        | true                                            |

@@ -44,9 +44,15 @@ spec:
           - name: SMA_SM_NAMESPACE
             value: '{{ .Values.env.SMA_SM_NAMESPACE }}'
           - name: SMA_SM_SA
+            {{- if .Values.env.SMA_SM_SA }}
             value: '{{ .Values.env.SMA_SM_SA }}'
+            {{- else }}
+            value: '{{ ternary "site-manager-sa" "sm-auth-sa" .Values.smSecureAuth }}'
+            {{- end }}
+            {{- if .Values.smSecureAuth }}
           - name: SMA_CUSTOM_AUDIENCE
             value: '{{ .Values.env.SMA_CUSTOM_AUDIENCE }}'
+            {{- end }}
         ports:
         - containerPort: 8080
           protocol: TCP
