@@ -41,6 +41,8 @@ plugins:
             # Install site-manager
             chart_path: ./charts/site-manager
             values:
+              smSecureAuth: true
+              endlessSecretEnabled: false
               createClusterAdminEntities: true
               metricCollector:
                 install: false
@@ -82,6 +84,7 @@ plugins:
             # Install service-a
             chart_path: ./tests/sm-dummy/charts/sm-dummy
             values:
+              smSecureAuth: true
               ingressName: service-a.test-local-k8s.com
               image: ghcr.io/netcracker/sm-dummy:<SM_TAG>
               serviceAccount:
@@ -106,6 +109,7 @@ plugins:
             sudo: true
         - helm:
             # Install service-b
+            smSecureAuth: true
             chart_path: ./tests/sm-dummy/charts/sm-dummy
             values:
               ingressName: service-b.test-local-k8s.com
