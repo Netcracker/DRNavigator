@@ -48,7 +48,10 @@ def prepare_sm_env(kubeconfig):
         os._exit(1)
 
     try:
-        token_request = kubernetes.client.AuthenticationV1TokenRequest(spec={"expiration_seconds": 3600})
+        #token_request = kubernetes.client.AuthenticationV1TokenRequest(spec={"expiration_seconds": 3600})
+        token_request = kubernetes.client.AuthenticationV1TokenRequest(
+            spec={"expiration_seconds": 3600, "audiences": ["sm-services"]})
+
         token_sm = client.CoreV1Api().create_namespaced_service_account_token("site-manager-sa",
                                                                               kubeconfig['namespace_sm'], token_request)
         sm_env['site-manager-sa-token'] = token_sm.status.token
