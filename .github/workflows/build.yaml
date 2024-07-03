@@ -5,24 +5,6 @@ on:
       - '**'
 
 jobs:
-  build-image:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Repo
-        uses: actions/checkout@v4
-      - name: Build Docker Image for site-manager
-        run: docker build -t site-manager --no-cache site-manager
-      - name: Build Docker Image for sm-client
-        run: docker build -t sm-client -f Dockerfile-sc --no-cache .
-      - name: Build Docker Image for paas-geo-monitor
-        run: docker build -t paas-geo-monitor --no-cache paas-geo-monitor
-      - name: Build Docker Image for sm-dummy
-        run: docker build -t sm-dummy --no-cache tests/sm-dummy
-      - name: Build Docker Image for sm-check
-        run: docker build -t sm-check --no-cache sm-check
-      - name: Check images
-        run: docker images -a --digests
-
   multiplatform_build:
     strategy:
       fail-fast: false
