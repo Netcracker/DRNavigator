@@ -30,19 +30,19 @@ jobs:
         component:
           - name: site-manager
             dir: site-manager
-            file: Dockerfile
+            file: site-manager/Dockerfile
           - name: sm-client
             dir: .
             file: Dockerfile-sc
           - name: paas-geo-monitor
             dir: paas-geo-monitor
-            file: Dockerfile
+            file: paas-geo-monitor/Dockerfile
           - name: sm-dummy
             dir: tests/sm-dummy
-            file: Dockerfile
+            file: tests/sm-dummy/Dockerfile
           - name: sm-check
             dir: sm-check
-            file: Dockerfile
+            file: sm-check/Dockerfile
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
