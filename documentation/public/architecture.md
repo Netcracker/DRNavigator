@@ -271,10 +271,10 @@ and GET requests coming from SiteManager:
 
 SM has two modes for token generation, that can be switched using `smSecureAuth` installation parameter:
 
-| `smSecureAuth` value | Used SA           | Token lifecycle | Custom audience                                                |
-|----------------------|-------------------|-----------------|----------------------------------------------------------------|
-| false                |  `sm-auth-sa`     | endless         | -                                                              |
-| true                 | `site-manager-sa` | 1 hour          | sm-services (can be overridden with `customAudience` parameter | 
+| `smSecureAuth` value | Used SA           | Token lifecycle | Custom audience                                                 |
+|----------------------|-------------------|-----------------|-----------------------------------------------------------------|
+| false                | `sm-auth-sa`      | endless         | -                                                               |
+| true                 | `site-manager-sa` | 1 hour          | sm-services (can be overridden with `customAudience` parameter) | 
 
 * **Note**: `smSecureAuth=true` is recommended, because `smSecureAuth=false` mode is deprecated and will be
 removed in future.

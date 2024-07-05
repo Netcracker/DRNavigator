@@ -218,7 +218,6 @@ To support the ability of services to be managed by `site-manager`, implement th
 | paasGeoMonitor                                                 | Refer to [paas-geo-monitor documentation](#paas-geo-monitor).                                                                                                            |                                 |
 | priorityClassName                                              | The Priority Class Name for site-manager and paas-geo-monitor deployments                                                                                                | ""                              |
 | smSecureAuth                                                   | The mode for SM authorization with dr-services. See [API Security Model](architecture.md#api-security-model) for details                                                 | false                           |
-| endlessSecretEnabled                                           | Install endless token secret for `sm-auth-sa` service account. Worked only if `smSecureAuth=true`                                                                        | true                            |
 | customAudience                                                 | Custom audience for rest api token, that is used to connect with services. Worked only if `smSecureAuth=true`                                                            | "sm-services"                   |
 | tls.enabled                                                    | Enable https in ingress/route                                                                                                                                            | true                            |
 | tls.defaultIngressTls                                          | Use default tls certificate instead of generated one for ingress/route                                                                                                   | false                           |
@@ -359,14 +358,9 @@ peers.
 
 Where,
 
-- `<BEARER TOKEN>` should be taken from the `sm-auth-sa` service-account. If you install site-manager with `enabledEndlessToken=true`, 
-the endless `sm-auth-sa` token will be available in `sm-auth-sa-token` secret, and you can obtain it with following command:
+- `<BEARER TOKEN>` should be taken from the `sm-auth-sa-token` secret. Its name is specified in the `sm-auth-sa` Service Account and can be obtained as:
 ```shell
 kubectl get secret sm-auth-sa-token -n site-manager -o yaml | grep token: | cut -d ' ' -f4 | base64 --decode
-```
-Or you can always generate temporary token with specified duration using command:
-```shell
-kubectl create token -n site-manager sm-auth-sa --duration=1h
 ```
 
 - cacert is a content of `ca.crt` which has been generated during the SiteManager installation.

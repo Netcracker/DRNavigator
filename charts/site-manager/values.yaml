@@ -44,7 +44,6 @@ serviceAccount:
   name: site-manager-sa
 
 smSecureAuth: false
-endlessSecretEnabled: true
 customAudience: sm-services
 
 image:

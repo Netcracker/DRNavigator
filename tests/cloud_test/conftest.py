@@ -39,10 +39,8 @@ def prepare_sm_env(kubeconfig):
     sm_env = {}
 
     try:
-        token_request = kubernetes.client.AuthenticationV1TokenRequest(spec={"expiration_seconds": 3600})
-        token_sm = client.CoreV1Api().create_namespaced_service_account_token("sm-auth-sa",
-                                                                              kubeconfig['namespace_sm'], token_request)
-        sm_env['sm-auth-sa-token'] = token_sm.status.token
+        token_sm = client.CoreV1Api().read_namespaced_secret('sm-auth-sa-token', kubeconfig['namespace_sm'])
+        sm_env['sm-auth-sa-token'] = base64.b64decode(token_sm.data['token']).decode()
     except Exception as e:
         logging.error("Can not get sm-auth-sa token: \n %s" % str(e))
         os._exit(1)
