@@ -142,7 +142,7 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict, is_failover=Fal
     if cmd in settings.site_cmds:
         if service in sm_dict[site]['services']:
             mode = settings.sm_conf.convert_sitecmd_to_dr_mode(cmd)
-            sm_process_service(site, service, mode)
+            data, ok, status_code = sm_process_service(site, service, mode)
             if is_failover and mode == "standby":
                 force = True
                 allow_failure = True
@@ -150,9 +150,13 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict, is_failover=Fal
             else:
                 allow_failure = False
                 force = settings.force
-            service_response = sm_poll_service_required_status(site, service, mode, sm_dict, force, allow_failure)
-            if service_response.service not in settings.skipped_due_deps_services:
-                service_response.sortout_service_results()
+            if not ok:
+                logging.error(f"Failed changing status for service {service}, returned status code {status_code}")
+                service_response = ServiceDRStatus(data, sm_dict, site, mode, force, allow_failure)
+            else:
+                service_response = sm_poll_service_required_status(site, service, mode, sm_dict, force, allow_failure)
+                if service_response.service not in settings.skipped_due_deps_services:
+                    service_response.sortout_service_results()
         else:
             logging.warning(f"Skip procedure {cmd} for service {service} on site {site}")
             service_response = ServiceDRStatus({'services': {service: {"message": "Service doesn't exist"}}})
@@ -170,10 +174,14 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict, is_failover=Fal
                 logging.warning(f"Skip procedure {cmd} for service {service} on site {site_to_process}")
                 service_response = ServiceDRStatus({'services': {service: {"message": "Service doesn't exist"}}})
             elif sm_dict[site_to_process]['status']:  # to process only available sites
-                sm_process_service(site_to_process, service, mode, 'move' not in cmd)
-                service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force, allow_failure)
-                if service_response.service not in settings.skipped_due_deps_services:
-                    service_response.sortout_service_results()
+                data, ok, status_code = sm_process_service(site_to_process, service, mode, 'move' not in cmd)
+                if not ok:
+                    logging.error(f"Failed changing status for service {service}, returned status code {status_code}")
+                    service_response = ServiceDRStatus(data, sm_dict, site, mode, force, allow_failure)
+                else:
+                    service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force, allow_failure)
+                    if service_response.service not in settings.skipped_due_deps_services:
+                        service_response.sortout_service_results()
                 if not service_response.is_ok():
                     logging.info(f"Service {service} failed on {site_to_process}, skipping it on another site...")
                     break

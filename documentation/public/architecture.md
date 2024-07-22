@@ -858,6 +858,26 @@ Output:
 
     HTTP Code: 400
 
+5. Unexpected answer from service:
+
+    ```bash
+    curl -XPOST --header "Content-Type: application/json" \
+          -d '{"procedure":"status", "run-service": "some-service"}' \
+          http://site-manager.example.com/sitemanager
+    ```
+
+    Output:
+
+    ```json
+    {
+        "message": "Service request failed, error: unexpected status code 401, response: {\n  \"message\": \"Unauthorized access\"\n}\n",
+        "wrong-service": "serviceA"
+    }
+
+    ```
+
+    HTTP Code: 400
+
 5. Try to start status procedure with `with_deps=true` when needed service contains non-existent dependency:
 
 ```bash

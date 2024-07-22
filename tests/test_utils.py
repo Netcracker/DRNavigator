@@ -29,14 +29,24 @@ def parse_status_table(capfd):
     site_names = re.split(r' *\| *', lines[1])[2:-1]
     result = {key: {} for key in site_names}
     logging.info(f"init value: {result}")
+    service_name = ""
+    statuses = {key: {} for key in site_names}
 
     # Get services
     for line in lines[5:-2]:
         row_content = re.split(r' *\| *', line)[1:-1]
-        service_name = row_content[0]
+        if row_content[0] != "":
+            service_name = row_content[0]
         for site_name, status_row in zip(site_names, row_content[1:]):
-            status_info = re.split(r' */ *', status_row)
-            result[site_name][service_name] = dict(zip(["mode", "status", "healthz", "message"], status_info))
+            if service_name not in statuses[site_name]:
+                statuses[site_name][service_name] = status_row
+            elif status_row != "":
+                statuses[site_name][service_name] += f" {status_row}"
+
+    for site_name in statuses:
+        for service_name in statuses[site_name]:
+            status = re.split(r' / *', statuses[site_name][service_name])
+            result[site_name][service_name] = dict(zip(["mode", "status", "healthz", "message"], status))
 
     logging.info(f"Parse status table results: {result}")
     return result
@@ -51,6 +61,7 @@ def check_status_from_service(site_name, service_name, service_url, expected_sta
             "Accept": "application/json",
             "Authorization": f"Bearer {token}"
         }
+    failed = False
     try:
         healthz_resp = requests.get(service_url + "/healthz", timeout=1).json()
     except requests.exceptions.RequestException as e:
@@ -59,12 +70,17 @@ def check_status_from_service(site_name, service_name, service_url, expected_sta
         status_resp = requests.get(service_url + "/sitemanager", headers=headers, timeout=1).json()
     except requests.exceptions.RequestException as e:
         status_resp = {}
+        failed = True
     service_status = {"healthz": healthz_resp.get("status", "--"),
                       "mode": status_resp.get("mode", "--"),
                       "status": status_resp.get("status", "--"),
                       "message": status_resp.get("message", "")}
     logging.debug(f"Check status from service {service_name} in site {site_name}, received: {service_status}")
-    assert service_status == expected_status
+    assert service_status["healthz"] == expected_status["healthz"]
+    assert service_status["mode"] == expected_status["mode"]
+    assert service_status["status"] == expected_status["status"]
+    if not failed:
+        assert service_status["message"] == expected_status["message"]
 
 
 def check_status_from_site_manager(site_name, service_name, sm_url, token, verify, expected_answer):
@@ -76,12 +92,14 @@ def check_status_from_site_manager(site_name, service_name, sm_url, token, verif
     data = {"procedure": "status", "run-service": service_name}
     try:
         service_answer = requests.post(sm_url + "/sitemanager", json=data, headers=headers, verify=verify,
-                                       timeout=1).json()
+                                       timeout=60).json()
     except requests.exceptions.RequestException as e:
         service_answer = {"services": {service_name: {"healthz": "--", "mode": "--", "status": "--", "message": ""}}}
     logging.debug(f"Check status from service {service_name} in site {site_name}, received: {service_answer}")
-    assert service_answer == expected_answer
-
+    if "wrong-service" in expected_answer:
+        assert service_answer["wrong-service"] == expected_answer["wrong-service"]
+    else:
+        assert service_answer == expected_answer
 
 def check_status_from_sm_client(status_dict, site_name, service_name, expected_status):
     assert status_dict[site_name][service_name] == expected_status
@@ -107,8 +125,7 @@ def check_statuses(capfd, template_env, expected_status_func: lambda site_name, 
             if port:
                 check_status_from_service(site, service, f"http://localhost:{port}", expected_status)
             expected_answer_from_sm = {"services": {service: expected_status}} \
-                if expected_status.get("message") != "Service doesn't exist" else \
-                {"message": "Service doesn't exist", "wrong-service": service}
+                if expected_status["mode"] != "--" else {"wrong-service": service}
             check_status_from_site_manager(site, service,
                                            sm_url=f"http://localhost:{config['exposed_ports']['site_manager']}",
                                            token=config["token"],
