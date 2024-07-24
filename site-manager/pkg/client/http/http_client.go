@@ -55,7 +55,7 @@ func DoGetRequest[V any](client HttpClientInterface, url string, token string, u
 			return response.StatusCode, fmt.Errorf("unexpected status code %d, response: %s", response.StatusCode, textData)
 		} 
 		decoder := json.NewDecoder(bytes.NewReader(textData))
-		decoder.DisallowUnknownFields()
+		//decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&obj); err != nil {
 			httpLog.Error(err, "Wrong JSON data received", "url", url, "type", "GET")
 			return response.StatusCode, fmt.Errorf("wrong json data received: %s", textData)
@@ -109,7 +109,7 @@ func DoPostRequest[V any, T any](client HttpClientInterface, url string, bodyObj
 			return response.StatusCode, fmt.Errorf("unexpected status code %d, response: %s", response.StatusCode, textData)
 		} 
 		decoder := json.NewDecoder(bytes.NewReader(textData))
-		decoder.DisallowUnknownFields()
+		//decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&obj); err != nil {
 			httpLog.Error(err, "Wrong JSON data received", "url", url, "type", "POST")
 			return response.StatusCode, fmt.Errorf("wrong json data received: %s", textData)
