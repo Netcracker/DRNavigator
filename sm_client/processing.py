@@ -235,6 +235,9 @@ def sm_poll_service_required_status(site, service, mode, sm_dict, force: bool = 
             time.sleep(delay)
 
         logging.info(f"Service: {service}. Site: {site}. Timeout expired.")
+        # healthz = "--" is needed to understand, that status is not ok
+        if 'services' in data and service in data['services']:
+            data['services'][service]['healthz'] = "--"
         return data
 
     if mode == "standby":
