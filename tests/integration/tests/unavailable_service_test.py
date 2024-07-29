@@ -55,7 +55,10 @@ class UnavailableServiceTestCase:
             "healthz": "up" if "site_1" == site or "serviceA" == service else "--",
             "status": "done" if "site_1" == site or "serviceA" == service else "--",
             "mode": "active" if "site_1" == site else "standby" if service == "serviceA" else "--",
-            "message": ""})
+            "message": "" if "site_1" == site or "serviceA" == service else
+                       "Service request failed, "
+                       "error: Get \"http://serviceB-site-2:8080/sitemanager\": "
+                       "context deadline exceeded (Client.Timeout exceeded while awaiting headers)"})
 
     def test_passivate_working_site(self):
         logging.info("TEST PASSIVATE WORKING SITE")

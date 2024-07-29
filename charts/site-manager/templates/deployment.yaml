@@ -33,7 +33,7 @@ spec:
           - "--certdir=/certs"
           - "--certfile=tls.crt"
           - "--keyfile=tls.key"
-          - "--tokenfile=/sm-auth-sa/token"
+          - "--tokenfile=/rest-api/token"
           - "--bind-webhook=0.0.0.0:8442"
           - "--bind-metrics=0.0.0.0:9000"
         env:
@@ -72,11 +72,11 @@ spec:
           - readOnly: true
             mountPath: /certs
             name: sm-certs
-          - readOnly: true
-            mountPath: /sm-auth-sa
-            name: sm-auth-sa-token
           - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
             name: serviceaccount-token
+            readOnly: true
+          - mountPath: /rest-api
+            name: rest-api-token
             readOnly: true
         resources:
           limits:
@@ -110,9 +110,21 @@ spec:
         - name: sm-certs
           secret:
             secretName: sm-certs
-        - name: sm-auth-sa-token
+        - name: rest-api-token
+          {{- if .Values.smSecureAuth }}
+          projected:
+            defaultMode: 0444
+            sources:
+            - serviceAccountToken:
+                expirationSeconds: 3607
+                path: token
+                {{- if .Values.customAudience }}
+                audience: {{ .Values.customAudience }}
+                {{- end }}
+          {{- else }}
           secret:
             secretName: sm-auth-sa-token
+          {{- end }}
         - name: serviceaccount-token
           projected:
             defaultMode: 0444

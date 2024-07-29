@@ -178,7 +178,10 @@ func (crm *CRManagerImpl) collectServicesStatuses(services []string, smDict *mod
 			return &model.SMError{Message: "Dependency defined in CR doesn't exist", Service: err.Service, ProblemCR: parentService}
 		}
 		if _, found := resultStatus.Services[service]; !found {
-			resultStatus.Services[service] = crm.getServiceStatus(serviceObj)
+			resultStatus.Services[service], err = crm.getServiceStatus(serviceObj)
+			if err != nil {
+				return err
+			}
 			if withDeps {
 				status := resultStatus.Services[service]
 				status.Deps = &model.SMStatusDeps{
@@ -199,26 +202,34 @@ func (crm *CRManagerImpl) collectServicesStatuses(services []string, smDict *mod
 }
 
 // getServiceStatus returns the status only for specific object (without dependencies)
-func (crm *CRManagerImpl) getServiceStatus(smObj *model.SMObject) model.SMStatus {
+func (crm *CRManagerImpl) getServiceStatus(smObj *model.SMObject) (model.SMStatus, *model.SMError) {
 	serviceSMResponse := &model.ServiceSiteManagerResponse{
 		Message: "",
 		Mode:    "--",
 		Status:  "--",
 	}
 
-	_, _ = http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.ServiceEndpoint, crm.TokenWatcher.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, serviceSMResponse)
+	_, err := http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.ServiceEndpoint, crm.TokenWatcher.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, serviceSMResponse)
+	if err != nil {
+		return model.SMStatus{Message: "", Mode:    "--", Status:  "--", Health:  "--"}, 
+		&model.SMError{Message: fmt.Sprintf("Service request failed, error: %s", err), Service: &smObj.Name}
+	}
 
 	serviceHealthResponse := &model.ServiceHealthzResponse{
 		Status: "--",
 	}
-	_, _ = http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.HealthzEndpoint, crm.TokenWatcher.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, serviceHealthResponse)
+	_, err = http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.HealthzEndpoint, crm.TokenWatcher.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, serviceHealthResponse)
+	if err != nil {
+		return model.SMStatus{Message: "", Mode:    "--", Status:  "--", Health:  "--"}, 
+		&model.SMError{Message: fmt.Sprintf("Service request failed, error: %s", err), Service: &smObj.Name}
+	}
 
 	return model.SMStatus{
 		Mode:    serviceSMResponse.Mode,
 		Status:  serviceSMResponse.Status,
 		Message: serviceSMResponse.Message,
 		Health:  serviceHealthResponse.Status,
-	}
+	}, nil
 }
 
 // getServiceObject returns the sm object for given service name from sm dictionary

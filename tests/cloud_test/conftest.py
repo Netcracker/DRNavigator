@@ -3,6 +3,7 @@ import logging
 import os
 import shutil
 
+import kubernetes
 import pytest
 from jinja2 import Template
 from kubernetes import client, config
@@ -39,9 +40,20 @@ def prepare_sm_env(kubeconfig):
 
     try:
         token_sm = client.CoreV1Api().read_namespaced_secret('sm-auth-sa-token', kubeconfig['namespace_sm'])
-        sm_env['token-sm'] = base64.b64decode(token_sm.data['token']).decode()
+        sm_env['sm-auth-sa-token'] = base64.b64decode(token_sm.data['token']).decode()
     except Exception as e:
         logging.error("Can not get sm-auth-sa token: \n %s" % str(e))
+        os._exit(1)
+
+    try:
+        token_request = kubernetes.client.AuthenticationV1TokenRequest(
+            spec={"expiration_seconds": 3600, "audiences": ["sm-services"]})
+
+        token_sm = client.CoreV1Api().create_namespaced_service_account_token("site-manager-sa",
+                                                                              kubeconfig['namespace_sm'], token_request)
+        sm_env['site-manager-sa-token'] = token_sm.status.token
+    except Exception as e:
+        logging.error("Can not get site-manager-sa token: \n %s" % str(e))
         os._exit(1)
 
     try:
@@ -108,7 +120,7 @@ def prepare_configs(request, sm_env):
             "sites": {
                 "site_1": {
                     "link": sm_env['host_name'],
-                    "token": sm_env['token-sm'],
+                    "token": sm_env['sm-auth-sa-token'],
                     "ca_cert": os.path.abspath(config_test["tmp_dir"] + '/ca.crt')
                 },
             }

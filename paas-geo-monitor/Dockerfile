@@ -22,7 +22,7 @@ FROM alpine:3.19.1
 
 ENV USER_UID=1001 USER_NAME=paas-geo-monitor GROUP_NAME=paas-geo-monitor
 
-RUN apk --no-cache add curl=8.5.0-r0
+RUN apk --no-cache add curl=8.9.0-r0
 
 WORKDIR /
 COPY --from=builder --chown=${USER_UID} workspace/paas-geo-monitor .

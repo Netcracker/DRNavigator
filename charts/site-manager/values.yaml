@@ -43,6 +43,9 @@ serviceAccount:
   create: true
   name: site-manager-sa
 
+smSecureAuth: false
+customAudience: sm-services
+
 image:
   repository: ghcr.io/netcracker/site-manager
   pullPolicy: Always

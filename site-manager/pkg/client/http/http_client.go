@@ -35,7 +35,7 @@ func DoGetRequest[V any](client HttpClientInterface, url string, token string, u
 	for retry > 0 {
 		response, err = client.Do(req)
 		if err != nil {
-			httpLog.Error(err, "Request error")
+			httpLog.Error(err, "Request error", "url", url, "type", "GET")
 			retry -= 1
 		} else {
 			break
@@ -46,13 +46,19 @@ func DoGetRequest[V any](client HttpClientInterface, url string, token string, u
 		defer response.Body.Close()
 		textData, err := io.ReadAll(response.Body)
 		if err != nil {
-			httpLog.Error(err, "Can't retreive response body")
-			return 0, err
+			httpLog.Error(err, "Can't retreive response body", "url", url, "type", "GET")
+			return response.StatusCode, err
 		}
-		httpLog.V(1).Info("Request is done", "status", response.Status, "response", string(textData))
-		if err := json.Unmarshal(textData, &obj); err != nil {
-			httpLog.Error(err, "Wrong JSON data received")
-			return 0, err
+		httpLog.V(1).Info("Request is done", "url", url, "type", "GET", "status", response.Status, "response", string(textData))
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			httpLog.Error(err, "Unexpected status code", "url", url, "type", "GET", "status_code", response.StatusCode)
+			return response.StatusCode, fmt.Errorf("unexpected status code %d, response: %s", response.StatusCode, textData)
+		} 
+		decoder := json.NewDecoder(bytes.NewReader(textData))
+		//decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&obj); err != nil {
+			httpLog.Error(err, "Wrong JSON data received", "url", url, "type", "GET")
+			return response.StatusCode, fmt.Errorf("wrong json data received: %s", textData)
 		}
 		return response.StatusCode, nil
 	}
@@ -83,7 +89,7 @@ func DoPostRequest[V any, T any](client HttpClientInterface, url string, bodyObj
 	for retry > 0 {
 		response, err = client.Do(req)
 		if err != nil {
-			httpLog.Error(err, "Request error")
+			httpLog.Error(err, "Request error", "url", url, "type", "POST")
 			retry -= 1
 		} else {
 			break
@@ -94,13 +100,19 @@ func DoPostRequest[V any, T any](client HttpClientInterface, url string, bodyObj
 		defer response.Body.Close()
 		textData, err := io.ReadAll(response.Body)
 		if err != nil {
-			httpLog.Error(err, "Can't retreive response body")
-			return 0, err
+			httpLog.Error(err, "Can't retreive response body", "url", url, "type", "POST")
+			return response.StatusCode, err
 		}
-		httpLog.V(1).Info("Request is done", "status", response.Status, "response", string(textData))
-		if err := json.Unmarshal(textData, &obj); err != nil {
-			httpLog.Error(err, "Wrong JSON data received")
-			return 0, err
+		httpLog.V(1).Info("Request is done", "status", "url", url, "type", "POST", response.Status, "response", string(textData))
+		if response.StatusCode < 200 || response.StatusCode >= 300 {
+			httpLog.Error(err, "Unexpected status code", "url", url, "type", "GET", "status_code", response.StatusCode)
+			return response.StatusCode, fmt.Errorf("unexpected status code %d, response: %s", response.StatusCode, textData)
+		} 
+		decoder := json.NewDecoder(bytes.NewReader(textData))
+		//decoder.DisallowUnknownFields()
+		if err := decoder.Decode(&obj); err != nil {
+			httpLog.Error(err, "Wrong JSON data received", "url", url, "type", "POST")
+			return response.StatusCode, fmt.Errorf("wrong json data received: %s", textData)
 		}
 		return response.StatusCode, nil
 	}
