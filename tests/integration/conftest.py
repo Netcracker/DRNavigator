@@ -62,18 +62,18 @@ def prepare_configs(request, tmpdir_factory, build_images):
 def prepare_docker_compose(config_dir):
     # Docker-compose up
     logging.info("Docker compose up")
-    os.system(f"docker-compose -f {os.path.join(config_dir, 'docker-compose.yaml')} up --detach")
+    os.system(f"docker compose -f {os.path.join(config_dir, 'docker-compose.yaml')} up --detach")
 
     # Run tests
     yield
 
     # Collect logs from docker-compose
-    os.system(f"docker-compose -f {os.path.join(config_dir, 'docker-compose.yaml')} logs > "
+    os.system(f"docker compose -f {os.path.join(config_dir, 'docker-compose.yaml')} logs > "
               f"{os.path.join(config_dir, 'docker_logs.log')}")
 
     # Docker-compose down
     logging.info("Docker compose down")
-    os.system(f"docker-compose -f {os.path.join(config_dir, 'docker-compose.yaml')} down")
+    os.system(f"docker compose -f {os.path.join(config_dir, 'docker-compose.yaml')} down")
 
 
 @pytest.fixture(scope='class', name='wait_services_until_healthy')

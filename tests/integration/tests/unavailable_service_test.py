@@ -48,7 +48,7 @@ class UnavailableServiceTestCase:
 
     def test_init_statuses(self, config_dir, capfd):
         logging.info("Pause service to emulate not working")
-        os.system(f"docker-compose -f {os.path.join(config_dir, 'docker-compose.yaml')} pause serviceB-site-2")
+        os.system(f"docker compose -f {os.path.join(config_dir, 'docker-compose.yaml')} pause serviceB-site-2")
 
         logging.info("TEST INIT STATUSES")
         check_statuses(capfd, template_env, lambda site, service: {
