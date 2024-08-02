@@ -6,6 +6,9 @@ test_wrong_config_path = os.path.abspath("tests/selftest/sm_client/resources/con
 test_restrictions_config_path = os.path.abspath("tests/selftest/sm_client/resources/config_test_with_restrictions.yaml")
 test_config_env_token_path = os.path.abspath("tests/selftest/sm_client/resources/config_test_with_env_token.yaml")
 test_config_wrong_env_token_path = os.path.abspath("tests/selftest/sm_client/resources/config_test_wrong_with_env_token.yaml")
+config_path_wrong_states = os.path.abspath("tests/selftest/sm_client/resources/config_test_wrong_states.yaml")
+config_path_correct_states = os.path.abspath("tests/selftest/sm_client/resources/config_test_correct_states.yaml")
+config_path_states_without_brackets = os.path.abspath("tests/selftest/sm_client/resources/config_test_states_without_brackets.yaml")
 
 
 def pytest_namespace():

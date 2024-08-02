@@ -93,6 +93,20 @@ def init_and_check_config(args) -> bool:
     settings.state_restrictions = conf_parsed.get("restrictions", {}) if not args.ignore_restrictions else {}
 
     settings.module_flow = conf_parsed.get("flow", [{'stateful': None}])
+    # Define valid states for validation
+    valid_states = [['standby', 'disable'], ['active']]
+
+    # Validate procedures in the flow
+    for module in settings.module_flow:
+        for mod_name, mod_states in module.items():
+            if mod_states is not None:
+                if not isinstance(mod_states, list):
+                    logging.fatal(f"Invalid states format for module '{mod_name}'. Should be a list of states.")
+                    return False
+                if mod_states not in valid_states:
+                    logging.fatal(f"Invalid states '{mod_states}' for module '{mod_name}'. Valid states are {valid_states}.")
+                    return False
+                    
     site_names = [i["name"] for i in conf_parsed["sites"]]
     
     if args.site and args.site not in site_names:

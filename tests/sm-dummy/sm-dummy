@@ -10,7 +10,8 @@ Supported env parameters:
  - SMA_HEALTHZ    - healthz output in dummy mode, by default up
  - SMA_HTTP_AUTH       - check authorization for /sitemanager request, by default False
  - SMA_SM_NAMESPACE    - site-manager namespace (for authorization checking), by default site-manager
- - SMA_SM_AUTH_SA      - site-manager service account name (for authorization checking), by default sm-auth-sa
+ - SMA_SITE_MANAGER_SA   - site-manager service account name (for authorization checking), by default site-manager-sa
+ - SMA_CUSTOM_AUDIENCE  - site-manager custom audience (for authorization checking), by default empty
  - SMA_KUBECONFIG_FILE - kubeconfig for local integration with kubernetes cloud, by default empty
 """
 
@@ -37,8 +38,9 @@ app.config['DEBUG'] = os.environ.get("SMA_DEBUG", False)
 SMA_HTTP_AUTH = os.environ.get("SMA_HTTP_AUTH", False) in (1, True, "Yes", "yes", "True", "true")
 SMA_KUBECONFIG_FILE = os.environ.get("SMA_KUBECONFIG_FILE", "")
 SMA_SM_NAMESPACE = os.environ.get("SMA_SM_NAMESPACE", "site-manager")
-SMA_SM_AUTH_SA = os.environ.get("SMA_SM_AUTH_SA", "sm-auth-sa")
+SMA_SM_SA = os.environ.get("SMA_SM_SA", "site-manager-sa")
 SMA_SEND_MESSAGE = os.environ.get("SMA_SEND_MESSAGE", False) in (1, True, "Yes", "yes", "True", "true")
+SMA_CUSTOM_AUDIENCE = os.environ.get("SMA_CUSTOM_AUDIENCE", "")
 
 if os.environ.get("SMA_DEBUG", False):
     logging_level = logging.DEBUG
@@ -98,13 +100,16 @@ def check_authorization(request):
 
         if len(request.headers["Authorization"].split(" ")) != 2:
             return json_response(403, {"message": "Bearer is empty or wrong"})
-        token = request.headers["Authorization"].split(" ")[1]   
+        token = request.headers["Authorization"].split(" ")[1]
 
         k8s_auth_api = client.AuthenticationV1Api(k8s_api_client)
-        token_review = client.V1TokenReview(spec = client.V1TokenReviewSpec(token = token))
+        token_review_spec = client.V1TokenReviewSpec(token=token)
+        if SMA_CUSTOM_AUDIENCE != "":
+            token_review_spec.audiences = [SMA_CUSTOM_AUDIENCE]
+        token_review = client.V1TokenReview(spec=token_review_spec)
 
         api_response = k8s_auth_api.create_token_review(body = token_review)
-        if not api_response.status.authenticated or api_response.status.user.username != f"system:serviceaccount:{SMA_SM_NAMESPACE}:{SMA_SM_AUTH_SA}":
+        if not api_response.status.authenticated or api_response.status.user.username != f"system:serviceaccount:{SMA_SM_NAMESPACE}:{SMA_SM_SA}":
             logging.debug("Authorization failed, token review status: %s", api_response.status)
             return json_response(403, {"message": "Bearer is empty or wrong"})
 
