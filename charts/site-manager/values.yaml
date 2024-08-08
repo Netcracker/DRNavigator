@@ -56,11 +56,11 @@ ingress:
   name: ""
 
 limits:
-  cpu: "200m"
-  memory: "160Mi"
+  cpu: "20m"
+  memory: "100Mi"
 requests:
-  cpu: "100m"
-  memory: "75Mi"
+  cpu: "20m"
+  memory: "100Mi"
 
 tls:
   enabled: true
