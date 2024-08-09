@@ -19,7 +19,7 @@
 ### Requirements
 
 Before the installation, ensure that you have enough resources for DRNavigator.
-For one pod by default DRNavigator uses 300m CPU and 150Mi memory.
+For one pod by default DRNavigator uses 20m CPU and 100Mi memory.
 You can override cpu/memory limits using helm environments.
 
 Needed quotas depends on the number of services, for this reason, if you have problems with services processing (typically, with timeouts),

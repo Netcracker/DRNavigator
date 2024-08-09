@@ -47,7 +47,7 @@ spec:
           - name: PAAS_BGP_CHECK_TIMEOUT
             value: "{{ .Values.paasGeoMonitor.env.PAAS_BGP_CHECK_TIMEOUT }}"
           - name: GOMEMLIMIT
-            value: 135MiB
+            value: 95MiB
         ports:
           - containerPort: {{ include "paas-geo-monitor.port" . }}
             protocol: TCP
@@ -59,12 +59,12 @@ spec:
             readOnly: true
         resources:
           limits:
-              cpu: "300m"
+              cpu: "20m"
               # If you change memory limit, you should add GOMEMLIMIT env with 90-95% of new value
-              memory: "150Mi"
+              memory: "100Mi"
           requests:
-              cpu: "50m"
-              memory: "50Mi"
+              cpu: "20m"
+              memory: "100Mi"
         readinessProbe:
           httpGet:
             path: /ping
