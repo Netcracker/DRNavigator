@@ -52,7 +52,7 @@ docker build -t sm-dummy --no-cache tests/sm-dummy
 2. Run docker-compose:
 
 ```bash
-docker-compose -f ./tests/docker-compose/docker-compose.yaml up --detach
+docker compose -f ./tests/docker-compose/docker-compose.yaml up --detach
 ```
 
 3. Run `sm-client` with `./tests/docker-compose/sm-client-config.yaml` as sm-client config. For-example, `status`:
@@ -69,12 +69,12 @@ curl -H "Authorization: Bearer 12345" localhost:9010/sitemanager
 
 5. Open docker-compose logs to see site-manager or sm-dummy logs:
 ```bash
-docker-compose -f ./tests/docker-compose/docker-compose.yaml logs
+docker compose -f ./tests/docker-compose/docker-compose.yaml logs
 ```
 
 6. Stop docker-compose, if you want to rebuild site-manager or sm-dummy, or return it to initial state:
 ```bash
-docker-compose -f ./tests/docker-compose/docker-compose.yaml down
+docker compose -f ./tests/docker-compose/docker-compose.yaml down
 ```
 
 # Site-manager selftests
