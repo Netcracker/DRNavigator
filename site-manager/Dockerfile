@@ -1,4 +1,4 @@
-FROM golang:1.22.3-alpine3.19 as builder
+FROM --platform=$BUILDPLATFORM golang:1.22.3-alpine3.19 as builder
 
 WORKDIR /workspace
 
@@ -26,10 +26,12 @@ COPY main.go ./
 RUN go generate ./...
 
 # Build
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -a -o site-manager ./main.go
+ARG TARGETOS
+ARG TARGETARCH
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GO111MODULE=on go build -a -o site-manager ./main.go
 
 
-FROM alpine:3.19.1
+FROM --platform=$BUILDPLATFORM alpine:3.19.1
 
 ENV USER_UID=1001 USER_NAME=site-manager GROUP_NAME=site-manager
 

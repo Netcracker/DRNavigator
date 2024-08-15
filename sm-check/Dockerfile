@@ -1,4 +1,4 @@
-FROM debian:bookworm-slim
+FROM --platform=$BUILDPLATFORM debian:bookworm-slim
 
 RUN apt update && apt install -y netcat-openbsd iproute2 curl unzip && \
     curl -OL https://github.com/Netcracker/KubeMarine/releases/latest/download/package.zip && \

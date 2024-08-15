@@ -3,19 +3,43 @@ on:
   push:
     branches:
       - '**'
+
 jobs:
-  build-image:
+  multiplatform_build:
+    strategy:
+      fail-fast: false
+      matrix:
+        component:
+          - name: site-manager
+            dir: site-manager
+            file: site-manager/Dockerfile
+          - name: sm-client
+            dir: .
+            file: Dockerfile-sc
+          - name: paas-geo-monitor
+            dir: paas-geo-monitor
+            file: paas-geo-monitor/Dockerfile
+          - name: sm-dummy
+            dir: tests/sm-dummy
+            file: tests/sm-dummy/Dockerfile
+          - name: sm-check
+            dir: sm-check
+            file: sm-check/Dockerfile
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Repo
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: Build Docker Image for site-manager
-        run: docker build -t site-manager --no-cache site-manager
-      - name: Build Docker Image for sm-client
-        run: docker build -t sm-client -f Dockerfile-sc --no-cache .
-      - name: Build Docker Image for paas-geo-monitor
-        run: docker build -t paas-geo-monitor --no-cache paas-geo-monitor
-      - name: Build Docker Image for sm-dummy
-        run: docker build -t sm-dummy --no-cache tests/sm-dummy
-      - name: Build Docker Image for sm-check
-        run: docker build -t sm-check --no-cache sm-check
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          no-cache: true
+          context: ${{ matrix.component.dir }}
+          file: ${{ matrix.component.file }}
+          platforms: linux/amd64,linux/arm64
+          push: false
+          tags: ${{ matrix.component.name }}
+          provenance: false
