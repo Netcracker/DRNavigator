@@ -1,8 +1,6 @@
 module github.com/netcracker/drnavigator/paas-geo-monitor
 
-go 1.22.0
-
-toolchain go1.23.0
+go 1.22
 
 require (
 	github.com/labstack/echo-contrib v0.17.1
