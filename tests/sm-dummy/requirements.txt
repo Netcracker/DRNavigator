@@ -1,2 +1,2 @@
-Flask==2.3.*
-kubernetes==24.*
+Flask==3.0.*
+kubernetes==29.*
