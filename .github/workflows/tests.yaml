@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.*" ]
+        python-version: [ "3.12" ]
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
@@ -44,7 +44,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ "3.*" ]
+        python-version: [ "3.12" ]
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
@@ -120,10 +120,10 @@ jobs:
     steps:
       - name: Checkout Repo
         uses: actions/checkout@v4
-      - name: Set up Python 3.*
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: '3.*'
+          python-version: '3.12'
       - name: Ssh preparation
         run: |
           ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa -q
