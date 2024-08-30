@@ -11,7 +11,7 @@ We have to check and updated thirdparties for below services -
 
 ## Thirdparties For site-manage
 
-To address vulnerabilites with site-manager image, we need to make chnages in https://github.com/Netcracker/DRNavigator/tree/main/site-manager
+To upate thirdparties for site-manager image, we need to make chnages in https://github.com/Netcracker/DRNavigator/tree/main/site-manager
 
 * Update go version and golng image if applicable :
   1. To update go version, modify [go.mod](https://github.com/Netcracker/DRNavigator/blob/main/site-manager/go.mod) file and provide aplicable go version.
@@ -20,7 +20,7 @@ To address vulnerabilites with site-manager image, we need to make chnages in ht
 
 ## Thirdparties For paas-geo-monitor
 
-To address vulnerabilites with paas-geo-monitor image, we need to make chnages in https://github.com/Netcracker/DRNavigator/tree/main/paas-geo-monitor
+To upate thirdparties for paas-geo-monitor image, we need to make chnages in https://github.com/Netcracker/DRNavigator/tree/main/paas-geo-monitor
 * Update go version and golng image if applicable :
   1. To update go version, modify [go.mod](https://github.com/Netcracker/DRNavigator/blob/main/paas-geo-monitor/go.mod) file and provide aplicable go version.
   2. To update latest version of modules being used, run command `go get -u` and then run `go mod tidy`
@@ -28,20 +28,20 @@ To address vulnerabilites with paas-geo-monitor image, we need to make chnages i
 
 ## Thirdparties For sm-check
 
-To address vulnerabilites with sm-check image, we need to make chnages in https://github.com/Netcracker/DRNavigator/tree/main/sm-check  
+To upate thirdparties for sm-check image, we need to make chnages in https://github.com/Netcracker/DRNavigator/tree/main/sm-check  
 
 * Update debian image as required and as applicable in [Dockerfile](https://github.com/Netcracker/DRNavigator/blob/main/paas-geo-monitor/Dockerfile).
 
 ## Thirdparties For sm-client
 
-To address vulnerabilites with sm-client image, we need to make changes in [Dockerfile-sc](https://github.com/Netcracker/DRNavigator/blob/main/Dockerfile-sc)
+To upate thirdparties for sm-client image, we need to make changes in [Dockerfile-sc](https://github.com/Netcracker/DRNavigator/blob/main/Dockerfile-sc)
 
 1. Update python image as required and as applicable.
 2. Update dependancies by modifying [requirements](https://github.com/Netcracker/DRNavigator/blob/main/requirements-sc.txt) file as applicable.
 
 ## Thirdparties For sm-dummy
 
-To address vulnerabilites with sm-dummy image, we need to make changes in https://github.com/Netcracker/DRNavigator/tree/main/tests/sm-dummy
+To upate thirdparties for sm-dummy image, we need to make changes in https://github.com/Netcracker/DRNavigator/tree/main/tests/sm-dummy
 1. Update Python image as required and as applicable by modifying [Dockerfile](https://github.com/Netcracker/DRNavigator/blob/main/tests/sm-dummy/Dockerfile)
 2. Update dependancies by modifying [requirements](https://github.com/Netcracker/DRNavigator/blob/main/tests/sm-dummy/requirements.txt) file as applicable.
 
