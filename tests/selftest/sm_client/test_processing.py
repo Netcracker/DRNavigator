@@ -70,7 +70,9 @@ def test_io_http_json_request():
     os.system("openssl req -new -x509 -keyout self-signed-fake.pem -out self-signed-fake.pem "
               "-days 365 -nodes -subj \"/C=US/ST=Denial/L=Springfield/O=Dis/CN=www.example.com\"")
     httpd = http.server.HTTPServer(('localhost', 4443), http.server.SimpleHTTPRequestHandler)
-    httpd.socket = ssl.wrap_socket(httpd.socket, certfile='self-signed-fake.pem', server_side=True)
+    context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
+    context.load_cert_chain(certfile='self-signed-fake.pem')
+    httpd.socket = context.wrap_socket(httpd.socket, server_side=True)
     thread = threading.Thread(target=httpd.handle_request)
     thread.start()
     ret, body, code = io_make_http_json_request("https://localhost:4443", verify=True,
@@ -78,7 +80,7 @@ def test_io_http_json_request():
     thread.join()
     os.remove("self-signed-fake.pem")
     assert ret is False and \
-           code is ssl.SSLErrorNumber.SSL_ERROR_SSL.__int__() and \
+           code == ssl.SSLErrorNumber.SSL_ERROR_SSL.__int__() and \
            not bool(body), "empty body with specific SSL error"
 
     ret, json_body, http_code = io_make_http_json_request("https://absent-site", verify=True)
