@@ -1,17 +1,21 @@
-# Thirdparties And External Packages Update
+This section provides information on the updates related to the third parties and external packages.
 
-- [Thirdparties And External Packages Update](#thirdparties-and-external-packages-update)
-  - [Component list](#component-list)
+# Third Parties and External Packages Update
+
+- [Thirdparties and External Packages Update](#thirdparties-and-external-packages-update)
+  - [Component List](#component-list)
     - [site-manager](#site-manager)
     - [paas-geo-monitor](#paas-geo-monitor)
     - [sm-check](#sm-check)
     - [sm-client](#sm-client)
     - [sm-dummy](#sm-dummy)
-  - [Finding latest available versions for dependencies](#finding-latest-available-versions-for-dependencies)
+  - [Finding Latest Available Versions for Dependencies](#finding-latest-available-versions-for-dependencies)
 
-We have to update the thirdparties and external packages being used in our application frequently in order to keep our application up to date and get all the latest fetures and bug fixes in the thirdparties.
+We have to update the third parties and external packages being used in our application frequently in order to keep our application up to date and to get all the latest features and bug fixes in the third parties.
 
-## Component list
+## Component List
+
+The below sub-sections provide details on updates in the different components.
 
 ### [site-manager](../../site-manager/)
 
@@ -45,12 +49,12 @@ Update golang deps:
 - Python image [Dockerfile](../../tests/sm-dummy/Dockerfile)
 - Python deps [requirements](../../tests/sm-dummy/requirements.txt)
 
-## Finding latest available versions for dependencies
+## Finding Latest Available Versions for Dependencies
 
-To find the latest avaialbe versions for python dependancies check the official repositories as follows and apply most suitable version in above mentioned modifications.
+To find the latest avaialbe versions for python dependancies, check the official repositories as follows and apply the most suitable version in the above mentioned modifications.
 
-1. Flask - <https://pypi.org/project/Flask/#history>
-2. Kubernetes - <https://pypi.org/project/kubernetes/#history>
-3. Requests - <https://pypi.org/project/requests/#history>
-4. PyYaml -  <https://pypi.org/project/PyYAML/#history>
-5. Prettytable -  <https://pypi.org/project/prettytable/#history>
+* Flask - <https://pypi.org/project/Flask/#history>
+* Kubernetes - <https://pypi.org/project/kubernetes/#history>
+* Requests - <https://pypi.org/project/requests/#history>
+* PyYaml -  <https://pypi.org/project/PyYAML/#history>
+* Prettytable -  <https://pypi.org/project/prettytable/#history>
