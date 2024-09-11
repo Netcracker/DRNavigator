@@ -1,55 +1,56 @@
 # Thirdparties And External Packages Update
 
+- [Thirdparties And External Packages Update](#thirdparties-and-external-packages-update)
+  - [Component list](#component-list)
+    - [site-manager](#site-manager)
+    - [paas-geo-monitor](#paas-geo-monitor)
+    - [sm-check](#sm-check)
+    - [sm-client](#sm-client)
+    - [sm-dummy](#sm-dummy)
+  - [Finding latest available versions for dependencies](#finding-latest-available-versions-for-dependencies)
+
 We have to update the thirdparties and external packages being used in our application frequently in order to keep our application up to date and get all the latest fetures and bug fixes in the thirdparties.
 
-We have to check and updated thirdparties for below services -
-1. site-manager
-2. paas-geo-monitor
-3. sm-check
-4. sm-client
-5. sm-ummy
+## Component list
 
-## Thirdparties For site-manage
+### [site-manager](../../site-manager/)
 
-To upate thirdparties for site-manager image, we need to make chnages in https://github.com/Netcracker/DRNavigator/tree/main/site-manager
+Update golang deps:
 
-* Update go version and golng image if applicable :
-  1. To update go version, modify [go.mod](https://github.com/Netcracker/DRNavigator/blob/main/site-manager/go.mod) file and provide aplicable go version.
-  2. To update latest version of modules being used, run command `go get -u` and then run `go mod tidy`
-  3. To update source docker image for golang, we need to change image in [Dockerfile](https://github.com/Netcracker/DRNavigator/blob/main/site-manager/Dockerfile).
+- [go.mod](../../site-manager/go.mod)
+  - aplicable golang version
+  - version of modules being used,  `go get -u` , `go mod tidy`
+- source docker image for golang [Dockerfile](../../site-manager/Dockerfile)
 
-## Thirdparties For paas-geo-monitor
+### [paas-geo-monitor](../../paas-geo-monitor)
 
-To upate thirdparties for paas-geo-monitor image, we need to make chnages in https://github.com/Netcracker/DRNavigator/tree/main/paas-geo-monitor
-* Update go version and golng image if applicable :
-  1. To update go version, modify [go.mod](https://github.com/Netcracker/DRNavigator/blob/main/paas-geo-monitor/go.mod) file and provide aplicable go version.
-  2. To update latest version of modules being used, run command `go get -u` and then run `go mod tidy`
-  3. To update source docker image for golang, we need to change image in [Dockerfile](https://github.com/Netcracker/DRNavigator/blob/main/paas-geo-monitor/Dockerfile).
+Update golang deps:
 
-## Thirdparties For sm-check
+- [go.mod](../../paas-geo-monitor/go.mod)
+  - aplicable golang version
+  - version of modules being used,  `go get -u` , `go mod tidy`
+- source docker image for golang [Dockerfile](../..//paas-geo-monitor/Dockerfile)
 
-To upate thirdparties for sm-check image, we need to make chnages in https://github.com/Netcracker/DRNavigator/tree/main/sm-check  
+### [sm-check](../../sm-check/)
 
-* Update debian image as required and as applicable in [Dockerfile](https://github.com/Netcracker/DRNavigator/blob/main/paas-geo-monitor/Dockerfile).
+- Debian image [Dockerfile](../../paas-geo-monitor/Dockerfile#L1).
 
-## Thirdparties For sm-client
+### [sm-client](../../sm-client)
 
-To upate thirdparties for sm-client image, we need to make changes in [Dockerfile-sc](https://github.com/Netcracker/DRNavigator/blob/main/Dockerfile-sc)
+- Python image [Dockerfile-sc](../..//Dockerfile-sc#L1)
+- Python deps [requirements](../../requirements-sc.txt)
 
-1. Update python image as required and as applicable.
-2. Update dependancies by modifying [requirements](https://github.com/Netcracker/DRNavigator/blob/main/requirements-sc.txt) file as applicable.
+### [sm-dummy](../../tests/sm-dummy/)
 
-## Thirdparties For sm-dummy
+- Python image [Dockerfile](../../tests/sm-dummy/Dockerfile)
+- Python deps [requirements](../../tests/sm-dummy/requirements.txt)
 
-To upate thirdparties for sm-dummy image, we need to make changes in https://github.com/Netcracker/DRNavigator/tree/main/tests/sm-dummy
-1. Update Python image as required and as applicable by modifying [Dockerfile](https://github.com/Netcracker/DRNavigator/blob/main/tests/sm-dummy/Dockerfile)
-2. Update dependancies by modifying [requirements](https://github.com/Netcracker/DRNavigator/blob/main/tests/sm-dummy/requirements.txt) file as applicable.
-
-## Finding laetst avialbe versions for dependacies
+## Finding latest available versions for dependencies
 
 To find the latest avaialbe versions for python dependancies check the official repositories as follows and apply most suitable version in above mentioned modifications.
-1. Flask - https://pypi.org/project/Flask/#history
-2. Kubernetes - https://pypi.org/project/kubernetes/#history
-3. Requests - https://pypi.org/project/requests/#history
-4. PyYaml -  https://pypi.org/project/PyYAML/#history
-5. Prettytable -  https://pypi.org/project/prettytable/#history
+
+1. Flask - <https://pypi.org/project/Flask/#history>
+2. Kubernetes - <https://pypi.org/project/kubernetes/#history>
+3. Requests - <https://pypi.org/project/requests/#history>
+4. PyYaml -  <https://pypi.org/project/PyYAML/#history>
+5. Prettytable -  <https://pypi.org/project/prettytable/#history>
