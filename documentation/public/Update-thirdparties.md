@@ -1,8 +1,6 @@
-This section provides information on the updates related to the third parties and external packages.
+# Third-parties and External Packages Update
 
-# Third Parties and External Packages Update
-
-- [Thirdparties and External Packages Update](#thirdparties-and-external-packages-update)
+- [Third-parties and External Packages Update](#third-parties-and-external-packages-update)
   - [Component List](#component-list)
     - [site-manager](#site-manager)
     - [paas-geo-monitor](#paas-geo-monitor)
@@ -19,7 +17,18 @@ The below sub-sections provide details on updates in the different components.
 
 ### [site-manager](../../site-manager/)
 
-Update golang deps:
+Update golang deps:<!-- TOC -->
+
+- [Third-parties and External Packages Update](#third-parties-and-external-packages-update)
+  - [Component List](#component-list)
+    - [site-manager](#site-manager)
+    - [paas-geo-monitor](#paas-geo-monitor)
+    - [sm-check](#sm-check)
+    - [sm-client](#sm-client)
+    - [sm-dummy](#sm-dummy)
+  - [Finding Latest Available Versions for Dependencies](#finding-latest-available-versions-for-dependencies)
+
+<!-- /TOC -->
 
 - [go.mod](../../site-manager/go.mod)
   - aplicable golang version
@@ -53,8 +62,8 @@ Update golang deps:
 
 To find the latest avaialbe versions for python dependancies, check the official repositories as follows and apply the most suitable version in the above mentioned modifications.
 
-* Flask - <https://pypi.org/project/Flask/#history>
-* Kubernetes - <https://pypi.org/project/kubernetes/#history>
-* Requests - <https://pypi.org/project/requests/#history>
-* PyYaml -  <https://pypi.org/project/PyYAML/#history>
-* Prettytable -  <https://pypi.org/project/prettytable/#history>
+- Flask - <https://pypi.org/project/Flask/#history>
+- Kubernetes - <https://pypi.org/project/kubernetes/#history>
+- Requests - <https://pypi.org/project/requests/#history>
+- PyYaml -  <https://pypi.org/project/PyYAML/#history>
+- Prettytable -  <https://pypi.org/project/prettytable/#history>
