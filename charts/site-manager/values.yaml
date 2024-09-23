@@ -54,6 +54,7 @@ image:
 ingress:
   create: true
   name: ""
+  className: ""
 
 limits:
   cpu: "20m"
