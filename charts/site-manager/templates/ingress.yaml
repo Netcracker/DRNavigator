@@ -1,19 +1,33 @@
-{{ if and (eq .Values.ingress.create true) (eq .Values.PAAS_PLATFORM  "KUBERNETES") }}
 apiVersion: {{ include "site-manager.ingress.apiVersion" . }}
 kind: Ingress
 metadata:
   name: {{ .Chart.Name }}
   namespace: {{ .Release.Namespace }}
   annotations:
-    nginx.ingress.kubernetes.io/backend-protocol: {{ ternary "HTTPS" "HTTP" .Values.tls.enabled }}
+    {{- if .Values.tls.enabled }}
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    {{- if .Values.tls.defaultIngressTls }}
+    route.openshift.io/termination: "reencrypt"
+    route.openshift.io/destination-ca-certificate-secret: sm-certs
+    {{- else }}
+    route.openshift.io/termination: "passthrough"
+    {{- end }}
+    {{- end }}
   labels:
     app: {{ .Chart.Name }}
 spec:
-  {{- if and (and .Values.tls.enabled .Values.ingress.name) (not .Values.tls.defaultIngressTls ) }}
+  {{- if .Values.ingress.className }}
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- end }}
+  {{- if .Values.tls.enabled }}
   tls:
+     {{- if and (.Values.ingress.name) (not .Values.tls.defaultIngressTls ) }}
     - hosts:
         - {{ .Values.ingress.name }}
       secretName: sm-certs
+    {{- else }}
+    - {}
+    {{- end }}
   {{- end }}
   rules:
   {{- if .Values.ingress.name }}
@@ -23,8 +37,7 @@ spec:
   - http:
   {{- end }}
       paths:
-      - path: /
-        pathType: ImplementationSpecific
+      - pathType: ImplementationSpecific
         backend:
   {{- if eq ( include "site-manager.ingress.apiVersion" . ) "networking.k8s.io/v1beta1" }}
           serviceName: {{ .Chart.Name }}
@@ -35,4 +48,3 @@ spec:
             port:
               number: 443
   {{- end }}
-{{ end }}
