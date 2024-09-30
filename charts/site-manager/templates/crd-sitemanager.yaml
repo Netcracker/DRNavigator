@@ -268,7 +268,9 @@ spec:
           name: {{ .Chart.Name }}
           path: /convert
           port: 442
+        {{- if .Values.tls.ca }}
         caBundle: "{{ .Values.tls.ca | b64enc }}"
+        {{- end }}
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
