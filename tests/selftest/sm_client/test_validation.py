@@ -153,7 +153,8 @@ def test_validate_restrictions(mocker, caplog):
                                     "ts": TopologicalSorter2}}
 
     # Test standby-standby restriction for all services
-    test_resp = {'services': {'serv1': {'healthz': 'up', 'mode': 'standby', 'status': 'done'}}}
+    test_resp = {'services': {'serv1': {'healthz': 'up', 'mode': 'standby', 'status': 'done'},
+                              'serv2': {'healthz': 'up', 'mode': 'standby', 'status': 'done'}}}
     fake_resp = mocker.Mock()
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
@@ -162,7 +163,8 @@ def test_validate_restrictions(mocker, caplog):
         assert validate_operation(sm_dict, "standby", "k8s-1")
 
     # Test active-active restriction for specific service
-    test_resp = {'services': {'serv2': {'healthz': 'up', 'mode': 'active', 'status': 'done'}}}
+    test_resp = {'services': {'serv1': {'healthz': 'up', 'mode': 'active', 'status': 'done'},
+                              'serv2': {'healthz': 'up', 'mode': 'active', 'status': 'done'}}}
     fake_resp = mocker.Mock()
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
