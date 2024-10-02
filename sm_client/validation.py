@@ -86,7 +86,7 @@ def check_state_restrictions(services: list, site: str, cmd: str):
             logging.error(f"Can't get service {service} on site {opposite_site}")
             state_is_valid = False
             continue
-        serviceDRstatus = ServiceDRStatus(response)
+        serviceDRstatus = ServiceDRStatus(service, response)
         if serviceDRstatus.mode == '---':
             logging.error(f"Can't recognize current mode for service {service} on site {opposite_site}")
             state_is_valid = False

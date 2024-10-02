@@ -45,25 +45,25 @@ def test_make_ignored_services():
 
 
 def test_ServiceDRStatus_init():
-    stat = ServiceDRStatus({'services': {'test': {'healthz': 'up', 'mode': 'disable', 'status': 'done'}}})
+    stat = ServiceDRStatus('test', {'services': {'test': {'healthz': 'up', 'mode': 'disable', 'status': 'done'}}})
     assert stat.status in "done" and stat.healthz in 'up' and stat.mode in 'disable'
 
-    assert not ServiceDRStatus({'services': {'test': {'healthz': 'up'}}}).healthz in "degraded"
+    assert not ServiceDRStatus('test', {'services': {'test': {'healthz': 'up'}}}).healthz in "degraded"
 
-    assert ServiceDRStatus({'services': {'test': {'mode': 'disable'}}})['mode'] in "disable"
+    assert ServiceDRStatus('test', {'services': {'test': {'mode': 'disable'}}})['mode'] in "disable"
 
-    assert ServiceDRStatus({'services': {'test': {}}})['mode'] in "--"
+    assert ServiceDRStatus('test', {'services': {'test': {}}})['mode'] in "--"
 
-    assert ServiceDRStatus({'services': {'test': {}}}).service in "test"
+    assert ServiceDRStatus('test', {'services': {'test': {}}}).service in "test"
 
-    assert not ServiceDRStatus({'services': {'test': {}}}).is_ok() and \
-           ServiceDRStatus({'services': {'test': {'healthz': 'up'}}}).is_ok()
+    assert not ServiceDRStatus('test', {'services': {'test': {}}}).is_ok() and \
+           ServiceDRStatus('test', {'services': {'test': {'healthz': 'up'}}}).is_ok()
 
     with pytest.raises(Exception):
-        assert ServiceDRStatus()
-        assert ServiceDRStatus({'services': {}})
+        assert ServiceDRStatus('test')
+        assert ServiceDRStatus('test', {'services': {}})
 
-    stat = ServiceDRStatus({'message': 'You defined service that does not exist in cluster',
+    stat = ServiceDRStatus('absent-service', {'message': 'You defined service that does not exist in cluster',
                             'wrong-service': 'absent-service'})
     assert stat.service in 'absent-service' and stat.message and not stat.is_ok()
 

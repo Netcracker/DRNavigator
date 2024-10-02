@@ -156,13 +156,10 @@ class ServiceDRStatus:
     def __getitem__(self, key):
         return self.__getattribute__(key)
 
-    def __init__(self, data: dict = None, smdict = None, site: str = None,
+    def __init__(self, service: str, data: dict = None, smdict = None, site: str = None,
                  mode: str = None, force = False, allow_failure = False):  # {'services':{service_name:{}}}
-        if data and data.get("services") and isinstance(data['services'], dict):
-            self.service = list(data['services'].keys())[0]
-        elif data and data.get("wrong-service") and isinstance(data['wrong-service'], str):
-            self.service = data['wrong-service']
-        else:
+        self.service = service
+        if data and data.get("services") and isinstance(data['services'], dict) and service not in data['services']:
             raise ValueError("Missing service name")
         serv = data['services'][self.service] if data.get('services') else data
         self.mode = serv['mode'] if serv.get("mode") in ["active", "standby", "disable"] else "--"
