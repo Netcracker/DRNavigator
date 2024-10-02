@@ -161,7 +161,10 @@ class ServiceDRStatus:
         self.service = service
         if data and data.get("services") and isinstance(data['services'], dict) and service not in data['services']:
             raise ValueError("Missing service name")
-        serv = data['services'].get(service, {}) if data.get('services') and isinstance(data['services'], dict) else data
+        serv = data['services'].get(service, {}) \
+            if (data and data.get('services') and isinstance(data['services'], dict)
+                and isinstance(data['services'].get(service, {}), dict)) \
+            else data
         self.mode = serv['mode'] if serv.get("mode") in ["active", "standby", "disable"] else "--"
         self.nowait = serv["nowait"] if serv.get("nowait") else False
         self.healthz = serv["healthz"] if serv.get("healthz") in ["up", "down", "degraded"] else "--"
