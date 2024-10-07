@@ -268,7 +268,9 @@ spec:
           name: {{ .Chart.Name }}
           path: /convert
           port: 442
+        {{- if .Values.tls.ca }}
         caBundle: "{{ .Values.tls.ca | b64enc }}"
+        {{- end }}
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
@@ -292,7 +294,9 @@ webhooks:
       name: {{ .Chart.Name }}
       path: /validate-netcracker-com-v3-sitemanager
       port: 442
+    {{- if .Values.tls.ca }}
     caBundle: "{{ .Values.tls.ca | b64enc }}"
+    {{- end }}
   rules:
   - apiGroups:   ["netcracker.com"]
     apiVersions: ["v3"]
@@ -308,7 +312,9 @@ webhooks:
       name: {{ .Chart.Name }}
       path: /validate-netcracker-com-v2-sitemanager
       port: 442
+    {{- if .Values.tls.ca }}
     caBundle: "{{ .Values.tls.ca | b64enc }}"
+    {{- end }}
   rules:
   - apiGroups:   ["netcracker.com"]
     apiVersions: ["v2"]
@@ -324,7 +330,9 @@ webhooks:
       name: {{ .Chart.Name }}
       path: /validate-netcracker-com-v1-sitemanager
       port: 442
+    {{- if .Values.tls.ca }}
     caBundle: "{{ .Values.tls.ca | b64enc }}"
+    {{- end }}
   rules:
   - apiGroups:   ["netcracker.com"]
     apiVersions: ["v1"]
