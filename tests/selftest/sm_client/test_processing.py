@@ -237,15 +237,15 @@ def test_sm_poll_service_required_status(mocker, caplog):
 def test_sm_process_service_with_polling(mocker, caplog):
     smclient.args = args_init()
     init_and_check_config(args_init())
-    test_resp = {'services': {'serv1': {'healthz': 'up', 'mode': 'active', 'status': 'failed'}}}
     caplog.set_level(logging.DEBUG)
     fake_resp = mocker.Mock()
+
+    # custom timeout
+    test_resp = {'services': {'serv1': {'healthz': 'up', 'mode': 'active', 'status': 'failed'}}}
+    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
 
-    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
-
-    # custom timeout
     sm_dict = SMClusterState()
     sm_dict["k8s-1"] = {
         "services": {
@@ -323,6 +323,20 @@ def test_sm_process_service_with_polling(mocker, caplog):
         service_response.sortout_service_results()
         assert 'serv4' in settings.done_services
 
+    # no response from service
+    # to test fix https://github.com/Netcracker/DRNavigator/pull/183
+    # sm_process_service returns False in case no responce from service
+    mocker.patch("sm_client.processing.sm_process_service", return_value=({}, False, 0))
+    sm_dict = SMClusterState()
+    sm_dict["k8s-1"] = {
+        "services": {"serv2": {}},
+        "status": True}
+    with caplog.at_level(logging.INFO):
+        caplog.clear()
+        sm_process_service_with_polling("serv2", "k8s-1", "active", sm_dict)
+        service_response = thread_result_queue.get()
+        service_response.sortout_service_results()
+        assert 'serv2' in settings.failed_services
 
 def test_process_module_services(mocker, caplog):
     caplog.set_level(logging.INFO)
