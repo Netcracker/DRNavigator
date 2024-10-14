@@ -30,7 +30,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r ${{ matrix.req-file }}
       - name: Install software
-        run: pip install bandit pylint mypy radon xenon
+        run: pip install bandit pylint mypy==1.11.* radon xenon
       - name: Security check with bandit
         id: bandit_check
         run: bandit -r ${{ matrix.dir-list }}

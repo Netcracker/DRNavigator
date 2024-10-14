@@ -329,7 +329,7 @@ def test_sm_process_service_with_polling(mocker, caplog):
     mocker.patch("sm_client.processing.sm_process_service", return_value=({}, False, 0))
     sm_dict = SMClusterState()
     sm_dict["k8s-1"] = {
-        "services": {"serv2": {}},
+        "services": {"serv2": {"timeout": 1}},
         "status": True}
     with caplog.at_level(logging.INFO):
         caplog.clear()
