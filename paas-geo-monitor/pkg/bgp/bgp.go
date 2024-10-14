@@ -24,7 +24,7 @@ var BgpMetrics = &BGPMetrics{
 	prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "paas_geo_monitor_bgp_peer",
-			Help: "paas_geo_monitor bgp global peer: : 1 - Established, 0 - not Established, -1 - did not update",
+			Help: "paas_geo_monitor bgp peer: : 1 - Established, 0 - not Established, -1 - did not update",
 		},
 		[]string{"node", "peer_ip", "state", "type"},
 	),
@@ -97,30 +97,28 @@ func UpdateBgpMetrics(bgpMetrics *BGPMetrics, list *v3.CalicoNodeStatusList, paa
 
 	for _, item := range list.Items {
 		for _, peer := range item.Status.BGP.PeersV4 {
-			if peer.Type == "GlobalPeer" {
-				if peer.State == "Established" {
-					peer_status = 1
-				} else {
-					peer_status = 0
-				}
-
-				if item.Status.LastUpdated.Unix() < time.Now().Unix()-int64(paasBgpCheckTimeout) {
-					peer_status = -1
-				}
-
-				bgpMetrics.BgpPeer.With(prometheus.Labels{
-					"node":    item.Spec.Node,
-					"peer_ip": peer.PeerIP,
-					"state":   string(peer.State),
-					"type":    string(peer.Type),
-				}).Set(peer_status)
-
-				log.Debugf("paas_geo_monitor_bgp_peer{node=%#v, peer_ip=%#v, state=%#v, type=%#v}",
-					item.Spec.Node,
-					peer.PeerIP,
-					peer.State,
-					peer.Type)
+			if peer.State == "Established" {
+				peer_status = 1
+			} else {
+				peer_status = 0
 			}
+
+			if item.Status.LastUpdated.Unix() < time.Now().Unix()-int64(paasBgpCheckTimeout) {
+				peer_status = -1
+			}
+
+			bgpMetrics.BgpPeer.With(prometheus.Labels{
+				"node":    item.Spec.Node,
+				"peer_ip": peer.PeerIP,
+				"state":   string(peer.State),
+				"type":    string(peer.Type),
+			}).Set(peer_status)
+
+			log.Debugf("paas_geo_monitor_bgp_peer{node=%#v, peer_ip=%#v, state=%#v, type=%#v}",
+				item.Spec.Node,
+				peer.PeerIP,
+				peer.State,
+				peer.Type)
 		}
 
 		for _, route := range item.Status.Routes.RoutesV4 {
