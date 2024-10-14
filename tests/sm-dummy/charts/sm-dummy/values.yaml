@@ -14,6 +14,7 @@ env:
   SMA_SM_NAMESPACE: site-manager
   SMA_SM_SA: ~
   SMA_CUSTOM_AUDIENCE: sm-services
+  SMA_REQUEST_TIMEOUT: 0
 
 # Pod Security Context
 # ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/

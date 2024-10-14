@@ -31,6 +31,8 @@ spec:
         env:
           - name: SMA_TIMEOUT
             value: '{{ .Values.env.SMA_TIMEOUT }}'
+          - name: SMA_REQUEST_TIMEOUT
+            value: '{{ .Values.env.SMA_REQUEST_TIMEOUT }}'
           - name: SMA_INIT_MODE
             value: '{{ .Values.env.SMA_INIT_MODE }}'
           - name: SMA_DEBUG

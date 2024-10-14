@@ -4,6 +4,7 @@ Script to emulate operator functionality to test site-manager.
 
 Supported env parameters:
  - SMA_TIMEOUT    - set sleep timeout for DR procedure, by default 15
+ - SMA_REQUEST_TIMEOUT - set timeout for /sitemanager requests, by default 0
  - SMA_INIT_MODE  - initial mode for service, by default active
  - SMA_DEBUG      - debug mode for Flask, by default False
  - SMA_PORT       - port for http server, by default 8080
@@ -26,6 +27,7 @@ from kubernetes import client, config
 
 sma_timeout = int(os.environ.get("SMA_TIMEOUT", 15))
 sma_port = int(os.environ.get("SMA_PORT", 8080))
+sma_request_timeout = int(os.environ.get("SMA_REQUEST_TIMEOUT", 0))
 
 mode = os.environ.get("SMA_INIT_MODE", "active")
 status = 'done'
@@ -132,6 +134,8 @@ def sitemanager():
     result = check_authorization(request)
     if result:
         return result
+
+    time.sleep(sma_request_timeout)
 
     global mode
     global status
