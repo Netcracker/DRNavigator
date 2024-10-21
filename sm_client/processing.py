@@ -152,6 +152,8 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict, is_failover=Fal
                 force = settings.force
             if not ok:
                 logging.error(f"Failed changing status for service {service}, returned status code {status_code}")
+                if not data:
+                    data = {'services':{service:{"message": "Service didn't reply"}}}
                 service_response = ServiceDRStatus(data, sm_dict, site, mode, force, allow_failure)
             else:
                 service_response = sm_poll_service_required_status(site, service, mode, sm_dict, force, allow_failure)
@@ -177,6 +179,8 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict, is_failover=Fal
                 data, ok, status_code = sm_process_service(site_to_process, service, mode, 'move' not in cmd)
                 if not ok:
                     logging.error(f"Failed changing status for service {service}, returned status code {status_code}")
+                    if not data:
+                        data = {'services':{service:{"message": "Service didn't reply"}}}
                     service_response = ServiceDRStatus(data, sm_dict, site, mode, force, allow_failure)
                 else:
                     service_response = sm_poll_service_required_status(site_to_process, service, mode, sm_dict, force, allow_failure)

@@ -10,6 +10,7 @@ Dummy service to test site-manager
 | PAAS_PLATFORM                       | define PAAS type. It can be "KUBERNETES" or "OPENSHIFT"                                 | "KUBERNETES"                                                          |
 | smSecureAuth                        | Secure authiruzation mode in SM                                                         | false                                                                 |
 | env.SMA_TIMEOUT                     | sleep timeout for DR procedure                                                          | 15                                                                    |
+| env.SMA_REQUEST_TIMEOUT             | set timeout for /sitemanager requests                                                   | 0                                                                     |
 | env.SMA_INIT_MODE                   | initial mode for service                                                                | "active"                                                              |
 | env.SMA_DEBUG                       | debug mode for Flask                                                                    | True                                                                  |
 | env.SMA_HEALTHZ                     | healthz output in dummy mode                                                            | "up"                                                                  |
