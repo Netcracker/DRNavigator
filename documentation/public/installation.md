@@ -359,10 +359,15 @@ peers.
 
 Where,
 
-- `<BEARER TOKEN>` should be taken from the `sm-auth-sa-token` secret. Its name is specified in the `sm-auth-sa` Service Account and can be obtained as:
-```shell
-kubectl get secret sm-auth-sa-token -n site-manager -o yaml | grep token: | cut -d ' ' -f4 | base64 --decode
-```
+- `<BEARER TOKEN>` should be taken from the `sm-auth-sa` service-account. It can be endless token from `sm-auth-sa-token` 
+secret, that can be obtained with following command:
+  ```shell
+  kubectl get secret sm-auth-sa-token -n site-manager -o yaml | grep token: | cut -d ' ' -f4 | base64 --decode
+  ```
+  Or you can always generate temporary token with specified duration using command:
+  ```shell
+  kubectl create token -n site-manager sm-auth-sa --duration=1h
+  ```
 
 - cacert is a content of `ca.crt` which has been generated during the SiteManager installation.
 
