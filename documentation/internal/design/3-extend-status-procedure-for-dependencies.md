@@ -12,7 +12,7 @@ Contents:
 
 Now we have special status procedure in site-manager, that returns status information about concrete service. 
 Example:
-```commandline
+```bash
 $ curl -X POST -H "Content-Type: application/json" \
     -d '{"procedure": "status", "run-service": "some-service"}' \
     https://site-manager:8443/sitemanager
@@ -36,9 +36,9 @@ call status procedure for all of them (especially since their dependent services
 ## Proposal
 
 It is proposed to extend status procedure and get information about dependencies for all depth.
-For this, response will return status and after/before not only for called service but also for it's dependencies (on all depth).   
+For this, response will return status and after/before not only for called service but also for its dependencies (on all depth).   
 Template looks like:
-```json
+```
 {
   "services": {
     "some-service": {
@@ -186,8 +186,8 @@ Dependencies in status procedure for `serviceA` and `serviceC` will be empty, be
       "mode": "<mode>",
       "status": "<status>",
       "deps": {
-        "before": ['serviceB'],
-        "after": ['serviceC']
+        "before": ["serviceB"],
+        "after": ["serviceC"]
       }
     }
   }

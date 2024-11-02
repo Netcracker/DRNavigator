@@ -6,7 +6,7 @@ import sys
 
 import yaml
 
-from common import utils
+from sm_client import utils
 from sm_client.data import settings
 from sm_client.data.structures import SMClusterState, SMConf
 from sm_client.processing import sm_process_service

@@ -1,17 +1,19 @@
 # DR Navigator Installation Procedure
+
 <!-- TOC -->
-- [Site-manager](#site-manager)
-  - [Requirements](#requirements)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Certificate Renewal Procedure](#certificate-renewal-procedure)
-- [Paas-Geo-Monitor](#paas-geo-monitor)
-  - [Installation Procedure](#installation-procedure)
-  - [Configuration](#configuration)
-- [sm-client](#sm-client)
-  - [Prepare Environment](#prepare-environment)
-  - [Running From CLI](#running-from-cli)
-  - [Running From Docker](#running-from-docker)
+* [DR Navigator Installation Procedure](#dr-navigator-installation-procedure)
+  * [Site-manager](#site-manager)
+    * [Requirements](#requirements)
+    * [Prerequisites](#prerequisites)
+    * [Installation](#installation)
+    * [Certificate Renewal Procedure](#certificate-renewal-procedure)
+  * [Paas-Geo-Monitor](#paas-geo-monitor)
+    * [Installation Procedure](#installation-procedure)
+    * [Configuration](#configuration)
+  * [sm-client](#sm-client)
+    * [Prepare Environment](#prepare-environment)
+    * [Running From CLI](#running-from-cli)
+    * [Running From Docker](#running-from-docker)
 <!-- TOC -->
 
 ## Site-manager
@@ -91,7 +93,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
     ```
 
-3. Create CustomResourceDefinition `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` from [file](./manifests/crd-sitemanager.yaml) as it will be described below.
+3. Create CustomResourceDefinition `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` from [file](../../manifests/crd-sitemanager.yaml) as it will be described below.
 
     **Important**: You can skip this part, if you add `crd.install=true` to helm installation.
 
@@ -210,7 +212,7 @@ To support the ability of services to be managed by `site-manager`, implement th
 | image.tag                                                      | The docker image tag.                                                                                                                                                    | v1.0                            |
 | ingress.create                                                 | Enable/disable ingress creation.                                                                                                                                         | true                            |
 | ingress.name                                                   | Define URL for `site-manager` ingress.                                                                                                                                   | ""                              |
- | ingress.className                                             | Define class name for ingress.                                                                                                                                           | ""                              |
+| ingress.className                                              | Define class name for ingress.                                                                                                                                           | ""                              |
 | limits.cpu                                                     | CPU limits per pod.                                                                                                                                                      | 200m                            |
 | limits.memory                                                  | Memory limits per pod.                                                                                                                                                   | 160Mi                           |
 | requests.cpu                                                   | CPU requests per pod.                                                                                                                                                    | 100m                            |
@@ -331,9 +333,9 @@ peers.
 
 **Note**: `PING_IP` env variable should be set, otherwise service will not work. See [ping endpoint](architecture.md#ping).
 
-| Field                               | Description                                             |
-|-------------------------------------|---------------------------------------------------------|
-| **port**<br/>*int*                  | The port that the service should listen. Default 8080.  |
+| Field                                                      | Description                                             |
+|------------------------------------------------------------|---------------------------------------------------------|
+| **port**<br/>*int*                                         | The port that the service should listen. Default 8080.  |
 | **peers**<br/>*array [Peer](architecture.md#peers-status)* | Array of peer service <br/>instances in other clusters. |
 
 ## sm-client

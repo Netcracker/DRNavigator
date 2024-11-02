@@ -20,7 +20,7 @@ As result, we should restrict some cluster final states to forbid user to do it.
 
 ### Issue Examples
 * **OpenSearch case**  
-issue state: stadnby-standby   
+issue state: standby-standby   
 severity: high  
 For OpenSearch moving to standby state cleans all data. So, using command "standby left" and "standby right" all data 
 will be lost. 
@@ -33,37 +33,37 @@ For Kafka moving to standby state runs replication from opposite side. So, using
 
 ### Requirements and Reflections
 1. **What services are restricted?**
-  * *For all* - it easier to implement, but services, for which restricted states can be used, can exist;
-  * *Defined services* - can be customized;
+   * *For all* - it easier to implement, but services, for which restricted states can be used, can exist;
+   * *Defined services* - can be customized;
 2. **What states are restricted?**
-  * *Only standby-standby* - we know only about cases with them, but theoretically can be others (e.g. active-active or disable-disable);
-  * *Defined states* - can be customized, but special configuration should be;
+   * *Only standby-standby* - we know only about cases with them, but theoretically can be others (e.g. active-active or disable-disable);
+   * *Defined states* - can be customized, but special configuration should be;
 3. **Should intermediate states should be restricted?**
-  * DR operations (`move`, `stop`) are described with sequence;
-  * Atomic procedures don't have intermediate states;
-  * Runtime problems can't be fully predicted;
+   * DR operations (`move`, `stop`) are described with sequence;
+   * Atomic procedures don't have intermediate states;
+   * Runtime problems can't be fully predicted;
 4. **What operations should be checked for restrictions?**
-  * Cases appear after atomic operations: `active`, `standby`, `disable`, `return`;
+   * Cases appear after atomic operations: `active`, `standby`, `disable`, `return`;
 5. **Are restricted states are similar for all operations?**
-  * Problems are related only with *final* sites' state;
+   * Problems are related only with *final* sites' state;
 6. **Where restrictions rules should be described?**
-  * *Hardcode as constants* - it is only appropriate if the restrictions apply to all services on the predefined states;
-  * *In services' CRs* - it requires new CR version, and at the same time there are described per-site rules, for this 
+   * *Hardcode as constants* - it is only appropriate if the restrictions apply to all services on the predefined states;
+   * *In services' CRs* - it requires new CR version, and at the same time there are described per-site rules, for this 
 reason we have to resolve descriptions differences from different sites.
-  * *In sm-client configuration* - it's the most logical, but configuration format should be designed;
+   * *In sm-client configuration* - it's the most logical, but configuration format should be designed;
 7. **What restrictions should be default?**
-  * *All services in standby-standby* - this is the most frequent case;
-  * *No restrictions* - writing new restrictions is easier than clearing predefined;
+   * *All services in standby-standby* - this is the most frequent case;
+   * *No restrictions* - writing new restrictions is easier than clearing predefined;
 8. **Should health and dr status be taken into account?**
-  * No, because those are runtime problems;
+   * No, because those are runtime problems;
 9. **Where and when restrictions should be checked?**
-  * Operation result should be predicted and checked *before* running procedure;
-  * We have already had *validate_operation* function in sm-client: where we check dependencies, availability of 
+   * Operation result should be predicted and checked *before* running procedure;
+   * We have already had *validate_operation* function in sm-client: where we check dependencies, availability of 
 services on sites, etc. 
 10. **Should we really always restrict those states?**
-  * We can add special option in sm-client like `--ignore-restrictions` to skip state restrictions check;
+    * We can add special option in sm-client like `--ignore-restrictions` to skip state restrictions check;
 11. **What should we do if service status is unknown (e.g. no connection to service from site-manager)?**
-  * sm-client should fail (operation can be applied with force, if option from point #10 will be implemented);
+    * sm-client should fail (operation can be applied with force, if option from point #10 will be implemented);
 
 ## Proposal
 
@@ -86,7 +86,7 @@ Pros:
   * Not need additional configuration;  
 
 Cons:
-  * Used always and can't be overriden;
+  * Used always and can't be overridden;
 
 ##### 2. Get services list for every restricted state
 ```yaml
@@ -100,7 +100,7 @@ restrictions:
 `*` means applying for all services;
 
 Procs:
-* Services and states can be overriden;
+* Services and states can be overridden;
 * Intuitive to the user;
 
 Cons:
@@ -118,13 +118,13 @@ restrictions:
   - standby-standby
   opensearch: 
   - standby-standby
-  *:
+  "*":
   - active-active
 ```
 `*` means applying for all services;
 
 Procs:
-* Services and states can be overriden;
+* Services and states can be overridden;
 * Intuitive to the user;
 * Easy to get restricted states per service;
 
@@ -143,13 +143,13 @@ restrictions:
     standby: 2
   opensearch: 
     standby: 2
-  *:
+  "*":
     active: 0
 ```
 `*` means applying for all services;
 
 Procs:
-* Services and states can be overriden;
+* Services and states can be overridden;
 * Not depend on states order;
 * Easy to get restricted states per service;
 * Can be used with any counts of sites;

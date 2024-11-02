@@ -12,11 +12,11 @@ import (
 )
 
 func TestConverter_ConvertV2ToV3_stateful(t *testing.T) {
-	// Test conversation from v2 to v3
+	// Test conversion from v2 to v3
 	_ = config.InitConfig()
 	assert := require.New(t)
 
-	// Check stateful service conversation
+	// Check stateful service conversion
 	testService := &crv2.CR{}
 	test_objects.ServiceV2.DeepCopyInto(testService)
 	testService.Spec.SiteManager.Module = "stateful"
@@ -24,7 +24,7 @@ func TestConverter_ConvertV2ToV3_stateful(t *testing.T) {
 	convertedService := &crv3.CR{}
 	convertedService.TypeMeta = test_objects.ServiceV3.TypeMeta
 	err := testService.ConvertTo(convertedService)
-	assert.NoError(err, "conversation error")
+	assert.NoError(err, "conversion error")
 
 	assert.Equal(test_objects.ServiceV3.TypeMeta, convertedService.TypeMeta, "type meta is not equal")
 	assert.Equal(testService.ObjectMeta, convertedService.ObjectMeta, "object meta is not actual")
@@ -45,18 +45,18 @@ func TestConverter_ConvertV2ToV3_stateful(t *testing.T) {
 }
 
 func TestConverter_ConvertV2ToV3_not_stateful(t *testing.T) {
-	// Test conversation from v2 to v3
+	// Test conversion from v2 to v3
 	_ = config.InitConfig()
 	assert := require.New(t)
 
-	// Check stateful service conversation
+	// Check stateful service conversion
 	testService := &crv2.CR{}
 	test_objects.ServiceV2.DeepCopyInto(testService)
 
 	convertedService := &crv3.CR{}
 	convertedService.TypeMeta = test_objects.ServiceV3.TypeMeta
 	err := testService.ConvertTo(convertedService)
-	assert.NoError(err, "conversation error")
+	assert.NoError(err, "conversion error")
 
 	assert.Equal(test_objects.ServiceV3.TypeMeta, convertedService.TypeMeta, "type meta is not equal")
 	assert.Equal(testService.ObjectMeta, convertedService.ObjectMeta, "object meta is not actual")
@@ -77,7 +77,7 @@ func TestConverter_ConvertV2ToV3_not_stateful(t *testing.T) {
 }
 
 func TestConverter_ConvertV1ToV3(t *testing.T) {
-	// Test conversation from v1 to v3
+	// Test conversion from v1 to v3
 	_ = config.InitConfig()
 	assert := require.New(t)
 
@@ -87,7 +87,7 @@ func TestConverter_ConvertV1ToV3(t *testing.T) {
 	convertedService := &crv3.CR{}
 	convertedService.TypeMeta = test_objects.ServiceV3.TypeMeta
 	err := testService.ConvertTo(convertedService)
-	assert.NoError(err, "conversation error")
+	assert.NoError(err, "conversion error")
 
 	assert.Equal(test_objects.ServiceV3.TypeMeta, convertedService.TypeMeta, "type meta is not equal")
 	assert.Equal(testService.ObjectMeta, convertedService.ObjectMeta, "object meta is not actual")
@@ -108,7 +108,7 @@ func TestConverter_ConvertV1ToV3(t *testing.T) {
 }
 
 func TestConverter_ConvertV3ToV2(t *testing.T) {
-	// Test conversation from v2 to v1
+	// Test conversion from v2 to v1
 	_ = config.InitConfig()
 	assert := require.New(t)
 
@@ -118,7 +118,7 @@ func TestConverter_ConvertV3ToV2(t *testing.T) {
 	convertedService := &crv2.CR{}
 	convertedService.TypeMeta = test_objects.ServiceV2.TypeMeta
 	err := convertedService.ConvertFrom(testService)
-	assert.NoError(err, "conversation error")
+	assert.NoError(err, "conversion error")
 
 	assert.Equal(test_objects.ServiceV2.TypeMeta, convertedService.TypeMeta, "type meta is not equal")
 	assert.Equal(testService.ObjectMeta, convertedService.ObjectMeta, "object meta is not actual")
@@ -138,7 +138,7 @@ func TestConverter_ConvertV3ToV2(t *testing.T) {
 }
 
 func TestConverter_ConvertV3ToV1(t *testing.T) {
-	// Test conversation from v3 to v1
+	// Test conversion from v3 to v1
 	_ = config.InitConfig()
 	assert := require.New(t)
 
@@ -148,7 +148,7 @@ func TestConverter_ConvertV3ToV1(t *testing.T) {
 	convertedService := &crv1.CR{}
 	convertedService.TypeMeta = test_objects.ServiceV1.TypeMeta
 	err := convertedService.ConvertFrom(testService)
-	assert.NoError(err, "conversation error")
+	assert.NoError(err, "conversion error")
 
 	assert.Equal(test_objects.ServiceV1.TypeMeta, convertedService.TypeMeta, "type meta is not equal")
 	assert.Equal(testService.ObjectMeta, convertedService.ObjectMeta, "object meta is not actual")

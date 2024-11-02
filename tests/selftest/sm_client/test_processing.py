@@ -10,7 +10,7 @@ import pytest
 import urllib3.exceptions
 
 import smclient
-from common.utils import io_make_http_json_request
+from sm_client.utils import io_make_http_json_request
 from sm_client.data import settings
 from sm_client.data.structures import *
 from sm_client.initialization import init_and_check_config

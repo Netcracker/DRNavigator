@@ -1,4 +1,5 @@
 # DR Navigator architecture
+
 <!-- TOC -->
 - [Overview](#overview)
 - [Managing Services](#managing-services)
@@ -277,7 +278,7 @@ SM has two modes for token generation, that can be switched using `smSecureAuth`
 | true                 | `site-manager-sa` | 1 hour          | sm-services (can be overridden with `customAudience` parameter) | 
 
 * **Note**: `smSecureAuth=true` is recommended, because `smSecureAuth=false` mode is deprecated and will be
-removed in future.
+removed in the future.
 
 For the dr-managed service to make sure that the request is secure, on the dr-managed service side, it is necessary to
 organize the verification of the token for authenticity and belonging to SiteManager. This is done as follows:
@@ -496,7 +497,7 @@ Bearer Token:
 is sent to manageable services in the header;
 2. The token from `site-manager-sa` is delivered to `site-manager` using 
 [token-projection mechanism](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/#serviceaccount-token-volume-projection);
-2. For more information about this scheme, see [API Security Model](#api-security-model);
+3. For more information about this scheme, see [API Security Model](#api-security-model);
 
 **Note**: `site-manager` is installed by default with `FRONT_HTTP_AUTH` "True" and `BACK_HTTP_AUTH` "True", which means
 that authorization is enabled by default;
@@ -878,25 +879,25 @@ Output:
 
     HTTP Code: 400
 
-5. Try to start status procedure with `with_deps=true` when needed service contains non-existent dependency:
+6. Try to start status procedure with `with_deps=true` when needed service contains non-existent dependency:
 
-```bash
-$ curl -XPOST --header "Content-Type: application/json" \
-       -d '{"procedure":"status", "run-service": "some-service.namespace", "with_deps": true}' \
-       http://site-manager.example.com/sitemanager
-```
+   ```bash
+   $ curl -XPOST --header "Content-Type: application/json" \
+          -d '{"procedure":"status", "run-service": "some-service.namespace", "with_deps": true}' \
+          http://site-manager.example.com/sitemanager
+   ```
 
-Output:
+   Output:
 
-```json
-{
-  "message": "Dependency defined in CR doesn't exist",
-  "wrong-service": "non-existed service",
-  "problem-cr": "some-service.namespace"
-}
-```
+   ```json
+   {
+     "message": "Dependency defined in CR doesn't exist",
+     "wrong-service": "non-existed service",
+     "problem-cr": "some-service.namespace"
+   }
+   ```
 
-HTTP Code: 400
+   HTTP Code: 400
 
 #### Monitoring metrics
 
