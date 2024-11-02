@@ -27,7 +27,7 @@ def test_sm_process_service(mocker, caplog):
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
 
-    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("sm_client.utils.requests.Session.post", return_value=fake_resp)
 
     json_body_s, ret, code = sm_process_service("k8s-1", "test1", "active")
 
@@ -155,7 +155,7 @@ def test_sm_poll_service_required_status(mocker, caplog):
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
 
-    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("sm_client.utils.requests.Session.post", return_value=fake_resp)
 
     # default timeout
     sm_dict = SMClusterState()
@@ -242,7 +242,7 @@ def test_sm_process_service_with_polling(mocker, caplog):
 
     # custom timeout
     test_resp = {'services': {'serv1': {'healthz': 'up', 'mode': 'active', 'status': 'failed'}}}
-    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("sm_client.utils.requests.Session.post", return_value=fake_resp)
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
 
@@ -263,7 +263,7 @@ def test_sm_process_service_with_polling(mocker, caplog):
     # timeout expired fail
     test_resp = {'services': {'serv2': {'healthz': 'up', 'mode': 'standby', 'status': 'done'}}}
     fake_resp.json = mocker.Mock(return_value=test_resp)
-    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("sm_client.utils.requests.Session.post", return_value=fake_resp)
     sm_dict = SMClusterState()
     sm_dict["k8s-1"] = {
         "services": {"serv2": {"timeout": 1}},
@@ -278,7 +278,7 @@ def test_sm_process_service_with_polling(mocker, caplog):
     # standby with  allowedStandbyStateList=down
     test_resp = {'services': {'serv3': {'healthz': 'down', 'mode': 'standby', 'status': 'done'}}}
     fake_resp.json = mocker.Mock(return_value=test_resp)
-    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("sm_client.utils.requests.Session.post", return_value=fake_resp)
 
     sm_dict = SMClusterState()
     sm_dict["k8s-1"] = {
@@ -303,7 +303,7 @@ def test_sm_process_service_with_polling(mocker, caplog):
             return_value={'services': {'serv4': {'healthz': 'up', 'mode': 'active', 'status': 'done'}}})
         return fake_resp
 
-    mocker.patch("common.utils.requests.Session.post", new=functools.partial(condition))
+    mocker.patch("sm_client.utils.requests.Session.post", new=functools.partial(condition))
 
     sm_dict = SMClusterState()
     sm_dict["k8s-1"] = {
@@ -348,7 +348,7 @@ def test_process_module_services(mocker, caplog):
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
 
-    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("sm_client.utils.requests.Session.post", return_value=fake_resp)
 
     settings.done_services.clear()
     sm_dict = SMClusterState()

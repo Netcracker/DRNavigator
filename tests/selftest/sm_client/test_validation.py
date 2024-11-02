@@ -157,7 +157,7 @@ def test_validate_restrictions(mocker, caplog):
     fake_resp = mocker.Mock()
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
-    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("sm_client.utils.requests.Session.post", return_value=fake_resp)
     with pytest.raises(NotValid):
         assert validate_operation(sm_dict, "standby", "k8s-1")
 
@@ -166,7 +166,7 @@ def test_validate_restrictions(mocker, caplog):
     fake_resp = mocker.Mock()
     fake_resp.json = mocker.Mock(return_value=test_resp)
     fake_resp.status_code = HTTPStatus.OK
-    mocker.patch("common.utils.requests.Session.post", return_value=fake_resp)
+    mocker.patch("sm_client.utils.requests.Session.post", return_value=fake_resp)
     with pytest.raises(NotValid):
         caplog.clear()
         assert validate_operation(sm_dict, "active", "k8s-1")
