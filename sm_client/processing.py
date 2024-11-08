@@ -7,7 +7,7 @@ import time
 from http import HTTPStatus
 from typing import Tuple, Dict
 
-from common import utils
+from sm_client import utils
 from sm_client.data import settings
 from sm_client.data.structures import TopologicalSorter2, ServiceDRStatus, SMClusterState
 
@@ -274,8 +274,8 @@ def sm_process_service(site, service, site_cmd: str, no_wait=True, force=False) 
                 "no-wait": no_wait, "force": force}
 
     _, response, return_code = utils.io_make_http_json_request(settings.sm_conf[site]["url"],
-                                                                 settings.sm_conf[site]["token"],
-                                                                 settings.sm_conf[site]["cacert"],
-                                                                 body,
-                                                                 use_auth=settings.FRONT_HTTP_AUTH)
+                                                               settings.sm_conf[site]["token"],
+                                                               settings.sm_conf[site]["cacert"],
+                                                               body,
+                                                               use_auth=settings.FRONT_HTTP_AUTH)
     return response, return_code == HTTPStatus.OK, return_code

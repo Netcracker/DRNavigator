@@ -8,7 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 )
 
-// Hub method is used to mark storage object (needed for conversation)
+// Hub method is used to mark storage object (needed for conversion)
 func (cr *CR) Hub() {}
 
 // SetupWebhookWithManager setup webhook for current CR version

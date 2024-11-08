@@ -7,7 +7,6 @@ USER root
 
 COPY smclient.py version sm-client /app/
 COPY sm_client/ /app/sm_client/
-COPY common/ /app/common/
 
 COPY requirements-sc.txt /app/requirements.txt
 

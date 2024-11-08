@@ -12,7 +12,7 @@ Contents:
 ## Issue
 
 At the moment we get the name of the service in the site-manager as the name of CR that is deployed along with this service. 
-In our consept this name is unique, because we provide operations on this services by those names.
+In our consept this name is unique, because we provide operations on these services by those names.
 
 But this way is followed with the problem, because site can consist several identical services in different namespaces 
 (e.g. some postgres DB, some kafka instances and so on). 
@@ -47,14 +47,14 @@ In that case those names automatically will be used in interaction between sm-cl
 
 Difficulties will only appear in places where service names are hardcoded:
 * `after`/`before` sections in CRs - *most critical*;
-* `run-service` in body of POST /sitemanager request to site-manager;
+* `run-service` in body of POST `/sitemanager` request to site-manager;
 * `--run-services` and `--skip-services` options in sm-client;
 
 In order for users not to urgently need to edit their CRs, it is required to maintain backward 
 compatibility, i.e. it should be possible to use only the CR name (without namespace) like now.
 
 For this it's proposed to implement new v3 CR api version to make a difference between current and new approaches.  
-During convertation from v2 to v3 version, site-manager adds namespaces to service names in `after`/`before` sections.  
+During conversion from v2 to v3 version, site-manager adds namespaces to service names in `after`/`before` sections.  
 After that this CRs can be used for SM procedures.
 
 If some service's already had namespace in CR names (e.g. it's dynamically calculated via helm), it should be excluded, CR should be 
@@ -212,9 +212,9 @@ with new name;
 ## Namespace Restriction Bypass
 
 Unfortunately for some services it's important to have different namespaces on different sites of DR cluster. 
-As result after changes in service name rules will be implemented, such service will be define as two different services 
+As result after changes in service name rules will be implemented, such service will be defined as two different services 
 on different sites, e.g.:
-```commandline
+```
 +-----------------------------+--------------------------------------+--------------------------------------+
 | Service                     |                site-1                |                site-2                |
 +-----------------------------+--------------------------------------+--------------------------------------+
@@ -243,7 +243,7 @@ aliases:
 configuration sm-client can understand, that `sm-dummy.ns-in-site-1` and `sm-dummy.ns-in-site-2` represent one service 
 on different sites:
 
-```commandline
+```
 +-----------------------------+--------------------------------------+--------------------------------------+
 | Service                     |                site-1                |                site-2                |
 +-----------------------------+--------------------------------------+--------------------------------------+
@@ -290,7 +290,7 @@ In sm-client this field can be used to make links between services with differen
 * Requires implementation in CR and sm-client;
 * It is not obvious what name should be used in sm-client: `--run-services`, `-skip-services`, status table, etc.;
 * Unexpected behaviour, if `opponentService` options aren't consistent in DR sites` CRs.
-* Automatic v2->v3 conversation for already existed services can be wrong;
+* Automatic v2->v3 conversion for already existed services can be wrong;
 * Additional test cases are required;
 
 #### 3. Override service name
@@ -311,7 +311,7 @@ spec:
 
 `serviceName` value will be used instead of `<cr-name>.<namespace>` for all operations on this service:
 
-```commandline
+```
 +-----------------------------+--------------------------------------+--------------------------------------+
 | Service                     |                site-1                |                site-2                |
 +-----------------------------+--------------------------------------+--------------------------------------+
@@ -329,7 +329,7 @@ spec:
 ### Negative Consequences
 * Requires to validate, if `serviceName` value is unique on cluster;
 * Сan broken concept "service name like dns name";
-* Automatic v2->v3 conversation for already existed services can be wrong;
+* Automatic v2->v3 conversion for already existed services can be wrong;
 
 #### 4. Turn on/off namespace concatenation
 
@@ -350,7 +350,7 @@ spec:
 If `isUniqueOnCluster` is `true`, it means, that this service has only one exemplar in cluster and for it service name 
 is `<cr-name>` like now:
 
-```commandline
+```
 +-----------------------------+--------------------------------------+--------------------------------------+
 | Service                     |                site-1                |                site-2                |
 +-----------------------------+--------------------------------------+--------------------------------------+
@@ -367,7 +367,7 @@ is `<cr-name>` like now:
 ### Negative Consequences
 * Requires to validate, if service names for unique if `isUniqueOnCluster` is true;
 * Сan broken concept "service name like dns name";
-* Automatic v2->v3 conversation for already existed services can be wrong;
+* Automatic v2->v3 conversion for already existed services can be wrong;
 
 ### 5. Different module behaviour
 
@@ -388,7 +388,7 @@ spec:
 
 Result:
 
-```commandline
+```
 +-----------------------------+--------------------------------------+--------------------------------------+
 | Service                     |                site-1                |                site-2                |
 +-----------------------------+--------------------------------------+--------------------------------------+
@@ -407,7 +407,7 @@ Result:
 * Such situation doesn't relate to module and can appear for stateful services. Changing module for such
 service follows additional problems with dependencies and flow;
 * Сan broken concept "service name like dns name";
-* Automatic v2->v3 conversation for already existed services can be wrong;
+* Automatic v2->v3 conversion for already existed services can be wrong;
 
 ## Summary
 

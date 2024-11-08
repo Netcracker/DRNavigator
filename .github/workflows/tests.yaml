@@ -84,6 +84,7 @@ jobs:
           cd site-manager
           go test -vet=all -shuffle=on -v ./tests/
 
+
   paas-geo-monitor-unittest:
     runs-on: ubuntu-latest
     steps:
@@ -96,6 +97,7 @@ jobs:
         run: |
           cd paas-geo-monitor
           go test -vet=all -shuffle=on -v ./...
+
 
 
   publish-test-sm-dummy-image:

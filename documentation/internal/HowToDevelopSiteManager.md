@@ -1,5 +1,16 @@
 # How to develop site-manager
 
+<!-- TOC -->
+* [How to develop site-manager](#how-to-develop-site-manager)
+  * [Site-manager development](#site-manager-development)
+    * [Requirements for development](#requirements-for-development)
+    * [How to build site-manager locally](#how-to-build-site-manager-locally)
+    * [How to run site-manager for development](#how-to-run-site-manager-for-development)
+      * [without-cluster mode run](#without-cluster-mode-run)
+      * [outside-the-cluster mode run](#outside-the-cluster-mode-run)
+      * [inside-the-cluster mode run](#inside-the-cluster-mode-run)
+<!-- TOC -->
+
 ## Site-manager development
 
 Site-manager is the server side tool, that is based on [controller-runtime library](https://github.com/kubernetes-sigs/controller-runtime) 
@@ -15,7 +26,7 @@ Required:
 
 Additionally, you should install following tools that are required for code-generation:
 1. `swagg` is used for swagger API generation;
-2. `controller-gen` is used for DeepCopy methods generation, that are required in CRs structures to make it matche the kubernetes 
+2. `controller-gen` is used for DeepCopy methods generation, that are required in CRs structures to make it matched the kubernetes 
 `runtime.Object` interface;
 They can be installed with `go install` command, e.g.:
 ```bash
@@ -23,7 +34,7 @@ $ go install github.com/swaggo/swag/cmd/swag
 $ go install sigs.k8s.io/controller-tools/cmd/controller-gen
 ```
 
-### How to build site-manager
+### How to build site-manager locally
 
 Before building site-manager you should regenerate code, in case, if you've changed the following places:
 1. CR structure (new or already existed ones);
@@ -55,7 +66,7 @@ $ ./site-manager -h
 ```
 The full list of environment variables is available in [configuration file](/site-manager/config/config.go);
 
-Site-manager can be run in following modes:
+Site-manager can be run locally in following modes:
 1. `without-cluster mode`;
 2. `outside-the-cluster mode`;
 3. `inside-the-cluster mode`;
@@ -66,8 +77,8 @@ SM can run without access to any clusters, but in that case it can provide only 
 or metrics API. This mode is good in case, if you develop contract between SM and sm-client or SM and services and do not 
 affect CR changes.
 
-This mode is used in [test docker-compose](/tests/README.md#site-manager-local-docker-compose) and 
-[integration test](/tests/README.md#site-manager-integration-tests).
+This mode is used in [test docker-compose](/documentation/internal/HowToDevelopSmClient.md#site-manager-local-docker-compose)
+and [integration test](/documentation/internal/HowToDevelopSmClient.md#site-manager-integration-tests).
 
 To run SM in following mode, you should run a couple of [sm-dummy](/tests/sm-dummy) services in docker (or docker-compose)
 and then fill the special yam configuration file, that contains the list of SM objects, that SM should use. 
@@ -111,10 +122,9 @@ $ SM_KUBECONFIG_FILE=<path-to-kubeconfig> SM_DEBUG=true ./site-manager \
 #### inside-the-cluster mode run
 
 SM can be installed in the cluster with helm chart. You can follow [installation guide](/documentation/public/installation.md) to deploy SM in your cloud;
-Additionally, you can install/update SM as kubemarine plugin. This approach is used in [site-manager cloud tests](/tests/README.md#site-manager-cloud-tests);
+Additionally, you can install/update SM as kubemarine plugin. This approach is used in [site-manager cloud tests](/documentation/internal/HowToDevelopSmClient.md#site-manager-cloud-tests);
 
-Also it's possible to install the second SM in separate namespace with it's own CRD.
+Also, it's possible to install the second SM in separate namespace with its own CRD.
 For it:
 1. install the second CRD and webhooks manually with another kind and group; 
-2. deploy site-manager with overriden `SM_KIND`, `SM_KIND_LIST` and `SM_GROUP`;
-
+2. deploy site-manager with overridden `SM_KIND`, `SM_KIND_LIST` and `SM_GROUP`;
