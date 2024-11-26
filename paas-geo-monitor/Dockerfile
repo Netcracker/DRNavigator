@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.22.6-alpine3.20 as builder
+FROM --platform=$BUILDPLATFORM golang:1.23.2-alpine3.20 as builder
 
 WORKDIR /workspace
 
@@ -20,7 +20,7 @@ ARG TARGETOS
 ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GO111MODULE=on go build -a -o paas-geo-monitor ./main.go
 
-FROM --platform=$BUILDPLATFORM alpine:3.19.1
+FROM --platform=$BUILDPLATFORM alpine:3.20.3
 
 ENV USER_UID=1001 USER_NAME=paas-geo-monitor GROUP_NAME=paas-geo-monitor
 
