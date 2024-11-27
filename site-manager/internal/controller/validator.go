@@ -45,7 +45,8 @@ func (v *validator) validateServiceName(ctx context.Context, name string, uid ty
 	}
 	if value, found := smDict.Services[name]; found && value.UID != uid {
 		log.V(1).Info("Found service, that already uses service name", "name", value.CRName, "namespace", value.Namespace, "service-name", name)
-		return fmt.Errorf(getServiceNameExistsMessage(name, isAlias))
+		err := getServiceNameExistsMessage(name, isAlias)
+		return fmt.Errorf("%s", err)
 	}
 	log.V(1).Info("Service name is not used", "service-name", name)
 	return nil
