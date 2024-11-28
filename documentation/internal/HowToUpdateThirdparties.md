@@ -37,7 +37,7 @@ Update golang deps:
 
 ### [sm-check](../../sm-check)
 
-- Debian image [Dockerfile](../../paas-geo-monitor/Dockerfile).
+- Debian image [Dockerfile](../../sm-check/Dockerfile).
 
 ### [sm-client](../../sm-client)
 
