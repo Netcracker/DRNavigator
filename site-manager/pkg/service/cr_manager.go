@@ -298,7 +298,7 @@ func applyDefaults(obj *model.SMObject) {
 
 // applyHttpScheme apply defaunt http scheme to endpoint if it's not already presended
 func applyHttpScheme(endpoint string) string {
-	if len(endpoint) == 0 || strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https//") {
+	if len(endpoint) == 0 || strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https://") {
 		return endpoint
 	}
 	return fmt.Sprintf("%s%s", envconfig.EnvConfig.HttpScheme, endpoint)
