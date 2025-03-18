@@ -292,7 +292,7 @@ webhooks:
     service:
       namespace: {{ .Release.Namespace }}
       name: {{ .Chart.Name }}
-      path: /validate-netcracker-com-v3-sitemanager
+      path: /validate-qubership-org-v3-sitemanager
       port: 442
     {{- if .Values.tls.ca }}
     caBundle: "{{ .Values.tls.ca | b64enc }}"
@@ -310,7 +310,7 @@ webhooks:
     service:
       namespace: {{ .Release.Namespace }}
       name: {{ .Chart.Name }}
-      path: /validate-netcracker-com-v2-sitemanager
+      path: /validate-qubership-org-v2-sitemanager
       port: 442
     {{- if .Values.tls.ca }}
     caBundle: "{{ .Values.tls.ca | b64enc }}"
@@ -328,7 +328,7 @@ webhooks:
     service:
       namespace: {{ .Release.Namespace }}
       name: {{ .Chart.Name }}
-      path: /validate-netcracker-com-v1-sitemanager
+      path: /validate-qubership-org-v1-sitemanager
       port: 442
     {{- if .Values.tls.ca }}
     caBundle: "{{ .Values.tls.ca | b64enc }}"
