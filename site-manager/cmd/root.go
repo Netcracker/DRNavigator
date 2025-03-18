@@ -187,7 +187,7 @@ func ServeApp(cmd *cobra.Command, args []string) {
 			},
 			WebhookServer:           webhookServer,
 			LeaderElection:          !devMode,
-			LeaderElectionID:        "sitemanagers.netcracker.com",
+			LeaderElectionID:        "sitemanagers.qubership.org",
 			LeaderElectionNamespace: envconfig.EnvConfig.PodNamespace,
 		}); err != nil {
 			setupLog.Error(err, "unable to start manager")
@@ -247,7 +247,7 @@ func ServeApp(cmd *cobra.Command, args []string) {
 
 	// handle token if authorization is enabled in separate gorutine
 	if !smConfig.Testing.Enabled && envconfig.EnvConfig.BackHttpAuth {
-		go func () {
+		go func() {
 			errorChannel <- tokenWatcher.Start()
 		}()
 	}

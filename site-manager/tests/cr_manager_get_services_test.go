@@ -59,7 +59,7 @@ func TestCRManager_MappingDefaults(t *testing.T) {
 	}
 	emptyCR := crv3.CR{
 		TypeMeta: v1.TypeMeta{
-			APIVersion: "netcracker.com/v3",
+			APIVersion: "qubership.org/v3",
 			Kind:       "SiteManager",
 		},
 		ObjectMeta: v1.ObjectMeta{

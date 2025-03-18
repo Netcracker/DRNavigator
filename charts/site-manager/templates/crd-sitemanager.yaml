@@ -2,7 +2,7 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: sitemanagers.netcracker.com
+  name: sitemanagers.qubership.org
   {{- if .Values.tls.generateCerts.enabled }}
   annotations:
     {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
@@ -13,7 +13,7 @@ metadata:
     {{- end }}
   {{- end }}
 spec:
-  group: netcracker.com
+  group: qubership.org
   names:
     kind: SiteManager
     listKind: SiteManagerList
@@ -105,7 +105,7 @@ spec:
     served: true
     storage: false
     deprecated: true
-    deprecationWarning: "netcracker.com/v2 SiteManager is deprecated; use v3 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
+    deprecationWarning: "qubership.org/v2 SiteManager is deprecated; use v3 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
     subresources:
       status: {}
     schema:
@@ -187,7 +187,7 @@ spec:
     served: false
     storage: false
     deprecated: true
-    deprecationWarning: "netcracker.com/v1 SiteManager is deprecated; use v2 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
+    deprecationWarning: "qubership.org/v1 SiteManager is deprecated; use v2 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
     subresources:
       status: {}
     schema:
@@ -286,7 +286,7 @@ metadata:
     {{- end }}
   {{- end }}
 webhooks:
-- name: "site-manager-crd-validating-webhook-v3.netcracker.com"
+- name: "site-manager-crd-validating-webhook-v3.qubership.org"
   admissionReviewVersions: ["v1"]
   clientConfig:
     service:
@@ -298,13 +298,13 @@ webhooks:
     caBundle: "{{ .Values.tls.ca | b64enc }}"
     {{- end }}
   rules:
-  - apiGroups:   ["netcracker.com"]
+  - apiGroups:   ["qubership.org"]
     apiVersions: ["v3"]
     operations:  ["CREATE", "UPDATE"]
     resources:   ["sitemanagers"]
     scope:       "Namespaced"
   sideEffects: None
-- name: "site-manager-crd-validating-webhook-v2.netcracker.com"
+- name: "site-manager-crd-validating-webhook-v2.qubership.org"
   admissionReviewVersions: ["v1"]
   clientConfig:
     service:
@@ -316,13 +316,13 @@ webhooks:
     caBundle: "{{ .Values.tls.ca | b64enc }}"
     {{- end }}
   rules:
-  - apiGroups:   ["netcracker.com"]
+  - apiGroups:   ["qubership.org"]
     apiVersions: ["v2"]
     operations:  ["CREATE", "UPDATE"]
     resources:   ["sitemanagers"]
     scope:       "Namespaced"
   sideEffects: None
-- name: "site-manager-crd-validating-webhook-v1.netcracker.com"
+- name: "site-manager-crd-validating-webhook-v1.qubership.org"
   admissionReviewVersions: ["v1"]
   clientConfig:
     service:
@@ -334,7 +334,7 @@ webhooks:
     caBundle: "{{ .Values.tls.ca | b64enc }}"
     {{- end }}
   rules:
-  - apiGroups:   ["netcracker.com"]
+  - apiGroups:   ["qubership.org"]
     apiVersions: ["v1"]
     operations:  ["CREATE", "UPDATE"]
     resources:   ["sitemanagers"]

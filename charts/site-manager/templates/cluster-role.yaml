@@ -4,10 +4,10 @@ kind: ClusterRole
 metadata:
   name: {{ .Values.serviceAccount.name }}
 rules:
-  - apiGroups: ["netcracker.com"]
+  - apiGroups: ["qubership.org"]
     resources: ["sitemanagers"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: ["netcracker.com"]
+  - apiGroups: ["qubership.org"]
     resources: ["sitemanagers/status"]
     verbs: ["get", "list", "watch", "update"]
   - apiGroups: ["coordination.k8s.io"]

@@ -10,7 +10,7 @@ env:
   SM_DEBUG: "False"
 
   # set CRD parameters
-  SM_GROUP: "netcracker.com"
+  SM_GROUP: "qubership.org"
   SM_KIND: "SiteManager"
   SM_KIND_LIST: "SiteManagerList"
   # set HTTP scheme for microservices

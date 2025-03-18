@@ -1,10 +1,10 @@
 sites:
   - name: k8s-1
     token: XXX
-    site-manager: http://site-manager.k8s-1.netcracker.com/sitemanager
+    site-manager: http://site-manager.k8s-1.qubership.org/sitemanager
   - name: k8s-2
     token: XXX
-    site-manager: http://site-manager.k8s-2.netcracker.com/sitemanager
+    site-manager: http://site-manager.k8s-2.qubership.org/sitemanager
 sm-client:
   http_auth: True
   

@@ -126,7 +126,7 @@ services of the standby Kubernetes cluster.
 CR SiteManager description:
 
 ```yaml
-apiVersion: netcracker.com/v3
+apiVersion: qubership.org/v3
 kind: SiteManager
 metadata:
   name: <SERVICE>
@@ -170,7 +170,7 @@ for details;
 Example for `postgres` service:
 
 ```yaml
-apiVersion: netcracker.com/v3
+apiVersion: qubership.org/v3
 kind: SiteManager
 metadata:
   annotations:

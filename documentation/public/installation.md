@@ -93,7 +93,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
     ```
 
-3. Create CustomResourceDefinition `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` from [file](../../manifests/crd-sitemanager.yaml) as it will be described below.
+3. Create CustomResourceDefinition `sitemanagers.qubership.org` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` from [file](../../manifests/crd-sitemanager.yaml) as it will be described below.
 
     **Important**: You can skip this part, if you add `crd.install=true` to helm installation.
 
@@ -103,7 +103,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     apiVersion: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
     metadata:
-        name: sitemanagers.netcracker.com
+        name: sitemanagers.qubership.org
         annotations:
             cert-manager.io/inject-ca-from: <NAMESPACE>/site-manager-tls-certificate
     ```
@@ -117,7 +117,7 @@ To support the ability of services to be managed by `site-manager`, implement th
             cert-manager.io/inject-ca-from: <NAMESPACE>/site-manager-tls-certificate
     ```
 
-     Create CustomResourceDefinition `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` without caBundle field:
+     Create CustomResourceDefinition `sitemanagers.qubership.org` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` without caBundle field:
 
     ```bash
     cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
@@ -126,7 +126,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     If you already had site-manager CRD or ValidatingWebhookConfiguration in your cloud and want to migrate to cert-manager integration, it is enough to annotate it:
 
     ```bash
-    kubectl annotate crds sitemanagers.netcracker.com cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
+    kubectl annotate crds sitemanagers.qubership.org cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
     kubectl annotate validatingwebhookconfigurations site-manager-crd-validating-webhook-configuration cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
     ```
 
@@ -136,7 +136,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     apiVersion: apiextensions.k8s.io/v1
     kind: CustomResourceDefinition
     metadata:
-        name: sitemanagers.netcracker.com
+        name: sitemanagers.qubership.org
         annotations:
             service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
             service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
@@ -152,7 +152,7 @@ To support the ability of services to be managed by `site-manager`, implement th
             service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
     ```
 
-     Create CustomResourceDefinition `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` without caBundle field:
+     Create CustomResourceDefinition `sitemanagers.qubership.org` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` without caBundle field:
 
     ```bash
     cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
@@ -161,9 +161,9 @@ To support the ability of services to be managed by `site-manager`, implement th
     If you already had site-manager CRD or ValidatingWebhookConfiguration in your cloud and want to migrate to integration with OpenShift service serving certificates mechanism, it is enough to annotate it (choose *alpha* or *beta* according your OpenShift version):
 
     ```bash
-    kubectl annotate crds sitemanagers.netcracker.com service.alpha.openshift.io/inject-cabundle=true
+    kubectl annotate crds sitemanagers.qubership.org service.alpha.openshift.io/inject-cabundle=true
     kubectl annotate validatingwebhookconfigurations service.alpha.openshift.io/inject-cabundle=true
-    kubectl annotate crds sitemanagers.netcracker.com service.beta.openshift.io/inject-cabundle=true
+    kubectl annotate crds sitemanagers.qubership.org service.beta.openshift.io/inject-cabundle=true
     kubectl annotate validatingwebhookconfigurations service.beta.openshift.io/inject-cabundle=true
     ```
 
@@ -173,7 +173,7 @@ To support the ability of services to be managed by `site-manager`, implement th
     CA_BUNDLE=$(cat ca.crt | base64 - | tr -d '\n')
     ```
 
-    Create CRD `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration`:
+    Create CRD `sitemanagers.qubership.org` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration`:
 
     ```bash
     cat manifests/crd-sitemanager.yaml | sed "s/<base-64-encoded-ca-bundle>/${CA_BUNDLE}/" | kubectl apply -f -
@@ -197,7 +197,7 @@ To support the ability of services to be managed by `site-manager`, implement th
 | env.FRONT_HTTP_AUTH                                            | Set the authentication mode between sm-client and Site-Manager.                                                                                                          | "Yes"                           |
 | env.BACK_HTTP_AUTH                                             | Set the authentication mode between Site-Manager and manageable services.                                                                                                | "Yes"                           |
 | env.SM_DEBUG                                                   | Set `debug` logging level.                                                                                                                                               | "False"                         |
-| env.SM_GROUP                                                   | Define API group for CRD.                                                                                                                                                | "netcracker.com"                |
+| env.SM_GROUP                                                   | Define API group for CRD.                                                                                                                                                | "qubership.org"                |
 | env.SM_KIND                                                    | Define the kind of API group.                                                                                                                                            | "SiteManager"                   |
 | env.SM_KIND_LIST                                               | Define the kind  for list API group.                                                                                                                                     | "SiteManagerList"               |
 | env.HTTP_SCHEME                                                | Define the HTTP scheme for connection to microservice operator.                                                                                                          | "http://"                       |
@@ -348,11 +348,11 @@ peers.
     sites:
       - name: k8s-1
         token: <BEARER TOKEN>
-        site-manager: http://site-manager.k8s-1.netcracker.com/sitemanager
+        site-manager: http://site-manager.k8s-1.qubership.org/sitemanager
         cacert: <path-to-ca-certificate>
       - name: k8s-2
         token: <BEARER TOKEN>
-        site-manager: http://site-manager.k8s-2.netcracker.com/sitemanager
+        site-manager: http://site-manager.k8s-2.qubership.org/sitemanager
         cacert: <path-to-ca-certificate>
     
     sm-client:
