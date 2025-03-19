@@ -63,6 +63,20 @@ requests:
   cpu: "20m"
   memory: "100Mi"
 
+# A Kubernetes Affinity, if required.
+#
+# For example:
+#   affinity:
+#     nodeAffinity:
+#      requiredDuringSchedulingIgnoredDuringExecution:
+#        nodeSelectorTerms:
+#        - matchExpressions:
+#          - key: foo.bar.com/role
+#            operator: In
+#            values:
+#            - worker
+affinity: {}
+
 tls:
   enabled: true
   crt: ""
