@@ -143,3 +143,7 @@ spec:
                   fieldRef:
                     apiVersion: v1
                     fieldPath: metadata.namespace
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
