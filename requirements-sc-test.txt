@@ -2,4 +2,4 @@ pytest
 pytest-depends
 pytest-mock
 jinja2
-kubernetes==30.*
+kubernetes==31.*
