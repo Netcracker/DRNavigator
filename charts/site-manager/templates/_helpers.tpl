@@ -42,3 +42,14 @@ IP addresses used to generate SSL certificate with "Subject Alternative Name" fi
   {{- print ( default 8080 .Values.paasGeoMonitor.config.port ) -}}
 {{- end -}}
 
+{{/*
+Checks if the environment is restricted (from .Values.INFRA_RESTRICTED_ENVIRONMENT).
+And render ClusterAdminEntities templates (cluster-role & cluster-role-biding) only if environment is not restricted. 
+*/}}
+{{- define "sitemanager.shouldCreateClusterAdminEntities" -}}
+  {{- if or (not (hasKey .Values "INFRA_RESTRICTED_ENVIRONMENT")) (not .Values.INFRA_RESTRICTED_ENVIRONMENT) -}}
+    {{- .Values.createClusterAdminEntities | default false | toYaml -}}
+  {{- else -}}
+    false
+  {{- end -}}
+{{- end -}}
