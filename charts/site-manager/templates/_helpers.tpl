@@ -43,13 +43,14 @@ IP addresses used to generate SSL certificate with "Subject Alternative Name" fi
 {{- end -}}
 
 {{/*
-Checks if the environment is restricted (from .Values.INFRA_RESTRICTED_ENVIRONMENT).
-And render ClusterAdminEntities templates (cluster-role & cluster-role-biding) only if environment is not restricted. 
+Returns true if RBAC should be created.
+If INFRA_RESTRICTED_ENVIRONMENT is true => return false
+Else => return createClusterAdminEntities (default false)
 */}}
-{{- define "sitemanager.shouldCreateClusterAdminEntities" -}}
-  {{- if or (not (hasKey .Values "INFRA_RESTRICTED_ENVIRONMENT")) (not .Values.INFRA_RESTRICTED_ENVIRONMENT) -}}
-    {{- .Values.createClusterAdminEntities | default false | toYaml -}}
-  {{- else -}}
+{{- define "site-manager.shouldCreateClusterAdminEntities" -}}
+  {{- if and (hasKey .Values "INFRA_RESTRICTED_ENVIRONMENT") .Values.INFRA_RESTRICTED_ENVIRONMENT }}
     false
-  {{- end -}}
-{{- end -}}
+  {{- else }}
+    {{- .Values.createClusterAdminEntities | default false }}
+  {{- end }}
+{{- end }}
