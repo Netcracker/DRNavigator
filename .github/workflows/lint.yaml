@@ -75,4 +75,4 @@ jobs:
         with:
           version: v1.61
           working-directory:  ${{ matrix.working-directory }}
-          args: --timeout=5m
+          args: --timeout=5m --out-format=colored-line-number
