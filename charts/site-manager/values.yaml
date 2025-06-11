@@ -11,6 +11,7 @@ env:
 
   # set CRD parameters
   SM_GROUP: "qubership.org"
+  SM_SecGroup: "netcracker.com"
   SM_KIND: "SiteManager"
   SM_KIND_LIST: "SiteManagerList"
   # set HTTP scheme for microservices
