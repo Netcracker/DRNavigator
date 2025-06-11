@@ -24,12 +24,14 @@ func SetupCRReconciler(crClient cr_client.CRClient, mgr ctrl.Manager) error {
 	if err := ctrl.NewControllerManagedBy(mgr).
 		For(&crv3.CR{}).
 		Complete(&reconciler); err != nil {
+		log.Log.Error(err, "Failed to set up CR controller")
 
 	}
 
 	if err := ctrl.NewControllerManagedBy(mgr).
 		For(&crv3.SecondaryCR{}).
 		Complete(&reconciler); err != nil {
+		log.Log.Error(err, "Failed to set up SecondaryCR controller")
 
 	}
 	return nil
