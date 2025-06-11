@@ -12,6 +12,11 @@ func AddToScheme(s *runtime.Scheme) error {
 	groupVersion := schema.GroupVersion{Group: envconfig.EnvConfig.CRGroup, Version: CRVersion}
 	s.AddKnownTypeWithName(groupVersion.WithKind(envconfig.EnvConfig.CRKind), &CR{})
 	s.AddKnownTypeWithName(groupVersion.WithKind(envconfig.EnvConfig.CRKindList), &CRList{})
+
+	// Register secondary CR
+	s.AddKnownTypeWithName(groupVersion.WithKind("SecondaryCR"), &SecondaryCR{})
+	s.AddKnownTypeWithName(groupVersion.WithKind("SecondaryCRList"), &SecondaryCRList{})
+
 	metav1.AddToGroupVersion(s, groupVersion)
 	return nil
 }

@@ -71,3 +71,31 @@ func (cr *CR) GetServiceName() string {
 	}
 	return fmt.Sprintf("%s.%s", cr.GetName(), cr.GetNamespace())
 }
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// SecondaryCRList defines a list of SecondaryCR
+type SecondaryCRList struct {
+	metav1.TypeMeta `json:",inline"`
+	metav1.ListMeta `json:"metadata,omitempty"`
+	Items           []SecondaryCR `json:"items"`
+}
+
+// +k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+// SecondaryCR defines another CR kind in the same API group/version
+type SecondaryCR struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   SecondaryCRSpec   `json:"spec"`
+	Status SecondaryCRStatus `json:"status"`
+}
+
+// +k8s:deepcopy-gen=true
+type SecondaryCRSpec struct {
+	Value string `json:"value"`
+}
+
+// +k8s:deepcopy-gen=true
+type SecondaryCRStatus struct {
+	State string `json:"state"`
+}

@@ -19,6 +19,7 @@ type CRClient interface {
 	Get(ctx context.Context, namespace string, name string, opts *client.GetOptions) (*crv3.CR, error)
 	// UpdateStatus updates the status for given CR
 	UpdateStatus(ctx context.Context, obj *crv3.CR, opts *client.SubResourceUpdateOptions) error
+	GetSecondary(ctx context.Context, namespace, name string, opts *client.GetOptions) (*crv3.SecondaryCR, error)
 }
 
 // crClient is implementation of CRClient
@@ -46,6 +47,14 @@ func (crc *crClient) Get(ctx context.Context, namespace string, name string, opt
 	obj := &crv3.CR{}
 	err := crc.kubeClient.Get(ctx, types.NamespacedName{Namespace: namespace, Name: name}, obj, opts)
 	return obj, err
+}
+
+// Get returns secondary CR object with specified name and namespace
+func (crc *crClient) GetSecondary(ctx context.Context, namespace, name string,
+	opts *client.GetOptions) (*crv3.SecondaryCR, error) {
+	secondary := &crv3.SecondaryCR{}
+	err := crc.kubeClient.Get(ctx, types.NamespacedName{Name: name, Namespace: namespace}, secondary, opts)
+	return secondary, err
 }
 
 // UpdateStatus updates the status for given CR

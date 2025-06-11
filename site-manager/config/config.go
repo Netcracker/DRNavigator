@@ -20,6 +20,7 @@ type Config struct {
 
 	// cr configuration
 	CRGroup    string `envconfig:"SM_GROUP" default:"qubership.org"`
+	CRScGroup  string `envconfig:"SM_SecGroup" default:"netcracker.com"`
 	CRKind     string `envconfig:"SM_KIND" default:"SiteManager"`
 	CRKindList string `envconfig:"SM_KIND_LIST" default:"SiteManagerList"`
 
