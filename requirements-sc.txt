@@ -1,4 +1,4 @@
 PyYAML==6.*
-prettytable==3.12.*
+prettytable==3.16.*
 requests==2.32.*
-kubernetes==30.*
+kubernetes==32.*
