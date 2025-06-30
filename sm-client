@@ -85,9 +85,9 @@ def print_service_order(sm_dict: SMClusterState, cmd, site):
                 if cmd in settings.dr_processing_cmd:
                     if flow_cmds:
                         actual_site = site
-                        if flow_cmds[0] == "standby" and cmd == "move":
-                            actual_site = settings.sm_conf.get_opposite_site(site) 
-                        if flow_cmds[0] == "active" and cmd == "stop":
+                        is_standby_during_move = flow_cmds[0] == "standby" and cmd == "move"
+                        is_active_during_stop = flow_cmds[0] == "active" and cmd == "stop"
+                        if is_standby_during_move or is_active_during_stop:
                             actual_site = settings.sm_conf.get_opposite_site(site)
                         logging.debug(f"{svc}: {flow_cmds[0]} on {actual_site}")
                     else:
