@@ -53,28 +53,42 @@ This site:
 
 args: argparse.Namespace
 
-
 def print_service_order(sm_dict: SMClusterState, cmd, site):
     """ Show service list ordered by dependency in debug mode"""
+    if cmd == "status" or cmd == "list":
+        # status is collected in parallel for all services, there is no order
+        return
+    
     stage = 0
     logging.debug("Service order by dependency:")
-    for mod_i in [ i for i in settings.sm_conf.get_modules() if i not in settings.default_module]: #@todo to rework module support
-        logging.debug("--------------------")
-        for service_name in sm_dict.get_module_services(sm_dict.get_available_sites()[0],mod_i): #@todo if not
-            logging.debug(f"{service_name}")
+    for elem in settings.module_flow:
+        module, states = list(elem.items())[0]
+        if cmd in ['standby', 'disable', 'return'] and (states and states == ['active']):
+            continue
+        if cmd == 'active' and (states and set(states) == {'standby', 'disable'}):
+            continue
 
-    ts = copy.deepcopy(sm_dict.globals[settings.default_module]['ts'])
-    while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
-        stage += 1
-        logging.debug(f"------ Stage {stage} -------")
-        for serv in ts.get_ready():
-            serv_sequence_info = "" if cmd not in settings.dr_processing_cmd else \
-                "( " + " ".join(map(lambda site_mode: f"-> {site_mode[1]} on {site_mode[0]}",
-                                    sm_dict.get_dr_operation_sequence(serv, cmd, site))) + " )"
-            logging.debug(f"{serv} {serv_sequence_info}")
-            ts.done(serv)
-    logging.debug("Done. ----------------")
-
+        ts = copy.deepcopy(sm_dict.globals[module]['ts'])
+        while ts and ts.is_active():  # process all services one by one  in  sorted by dependency
+            stage += 1
+            logging.debug(f"------ Stage {stage} -------")
+            for serv in ts.get_ready():
+                if cmd in settings.dr_processing_cmd:
+                    if states:
+                        actual_site = site
+                        if states[0] == "standby" and cmd == "move":
+                            actual_site = settings.sm_conf.get_opposite_site(site) 
+                        if states[0] == "active" and cmd == "stop":
+                            actual_site = settings.sm_conf.get_opposite_site(site)
+                        logging.debug(f"{serv}: {states[0]} on {actual_site}")
+                    else:
+                        site_mode_list = sm_dict.get_dr_operation_sequence(serv, cmd, site)
+                        info = " -> ".join(map(lambda site_mode: f"{site_mode[1]} on {site_mode[0]}", site_mode_list))
+                        logging.debug(f"{serv}: {info}")
+                else:
+                    logging.debug(f"{serv}: {cmd} on {site}")
+                ts.done(serv)
+    logging.debug("------ Done ------")
 
 def run(services: list = None, cmd="", site=""):
     """ Business Logic - implements main flow """
