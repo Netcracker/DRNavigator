@@ -8,12 +8,12 @@ import (
 
 	"path/filepath"
 
-	crv1 "github.com/netcracker/drnavigator/site-manager/api/legacy/v1"
-	crv2 "github.com/netcracker/drnavigator/site-manager/api/legacy/v2"
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
+	legacyv1 "github.com/netcracker/drnavigator/site-manager/api/legacy/v1"
+	legacyv2 "github.com/netcracker/drnavigator/site-manager/api/legacy/v2"
+	legacyv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
 	"github.com/netcracker/drnavigator/site-manager/config/kube_config"
-	"github.com/netcracker/drnavigator/site-manager/internal/controller"
+	"github.com/netcracker/drnavigator/site-manager/internal/controller/legacy"
 	"github.com/netcracker/drnavigator/site-manager/logger"
 	"github.com/netcracker/drnavigator/site-manager/pkg/app"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
@@ -47,9 +47,9 @@ func init() {
 
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(crv1.AddToScheme(scheme))
-	utilruntime.Must(crv2.AddToScheme(scheme))
-	utilruntime.Must(crv3.AddToScheme(scheme))
+	utilruntime.Must(legacyv1.AddToScheme(scheme))
+	utilruntime.Must(legacyv2.AddToScheme(scheme))
+	utilruntime.Must(legacyv3.AddToScheme(scheme))
 
 	// +kubebuilder:scaffold:scheme
 
@@ -211,7 +211,7 @@ func ServeApp(cmd *cobra.Command, args []string) {
 		crClient := cr_client.NewCRClient(mgr.GetClient())
 
 		// Initialize CR reconciller
-		if err := controller.SetupCRReconciler(crClient, mgr); err != nil {
+		if err := legacy.SetupCRReconciler(crClient, mgr); err != nil {
 			setupLog.Error(err, "unable to create controller")
 			os.Exit(1)
 		}
@@ -231,16 +231,16 @@ func ServeApp(cmd *cobra.Command, args []string) {
 		}
 
 		// Initialize webhooks
-		validator := controller.NewValidator(crManager)
-		if err := crv1.SetupWebhookWithManager(mgr, validator); err != nil {
+		validator := legacy.NewValidator(crManager)
+		if err := legacyv1.SetupWebhookWithManager(mgr, validator); err != nil {
 			setupLog.Error(err, "unable to initialize validator")
 			os.Exit(1)
 		}
-		if err := crv2.SetupWebhookWithManager(mgr, validator); err != nil {
+		if err := legacyv2.SetupWebhookWithManager(mgr, validator); err != nil {
 			setupLog.Error(err, "unable to initialize validator")
 			os.Exit(1)
 		}
-		if err := crv3.SetupWebhookWithManager(mgr, validator); err != nil {
+		if err := legacyv3.SetupWebhookWithManager(mgr, validator); err != nil {
 			setupLog.Error(err, "unable to initialize validator")
 			os.Exit(1)
 		}

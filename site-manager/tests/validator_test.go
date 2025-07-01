@@ -9,7 +9,7 @@ import (
 	crv2 "github.com/netcracker/drnavigator/site-manager/api/legacy/v2"
 	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	"github.com/netcracker/drnavigator/site-manager/config"
-	"github.com/netcracker/drnavigator/site-manager/internal/controller"
+	"github.com/netcracker/drnavigator/site-manager/internal/controller/legacy"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"
 	"github.com/netcracker/drnavigator/site-manager/pkg/service"
 	"github.com/stretchr/testify/require"
@@ -104,7 +104,7 @@ func createCRFromTemplate(name string, namespace string, uid types.UID, alias *s
 	return nil
 }
 
-func successfulValidation(assert *require.Assertions, validator controller.Validator, serviceCROld runtime.Object, serviceCR runtime.Object) {
+func successfulValidation(assert *require.Assertions, validator legacy.Validator, serviceCROld runtime.Object, serviceCR runtime.Object) {
 	var err error
 	var warnings admission.Warnings
 	if serviceCROld == nil {
@@ -116,7 +116,7 @@ func successfulValidation(assert *require.Assertions, validator controller.Valid
 	assert.Empty(warnings, "warnings is not empty for creating valudation")
 }
 
-func failedValidation(assert *require.Assertions, validator controller.Validator, serviceCROld runtime.Object, serviceCR runtime.Object, expectedMessage string) {
+func failedValidation(assert *require.Assertions, validator legacy.Validator, serviceCROld runtime.Object, serviceCR runtime.Object, expectedMessage string) {
 	var err error
 	var warnings admission.Warnings
 	if serviceCROld == nil {
@@ -128,12 +128,12 @@ func failedValidation(assert *require.Assertions, validator controller.Validator
 	assert.Empty(warnings, "warnings is not empty for creating valudation")
 }
 
-func successfulValidationsV3(assert *require.Assertions, validator controller.Validator, serviceCROld runtime.Object, name string, namespace string, uid types.UID, alias *string) {
+func successfulValidationsV3(assert *require.Assertions, validator legacy.Validator, serviceCROld runtime.Object, name string, namespace string, uid types.UID, alias *string) {
 	serviceCRv3 := createCRFromTemplate(name, namespace, uid, alias, crv3.CRVersion)
 	successfulValidation(assert, validator, serviceCROld, serviceCRv3)
 }
 
-func successfulValidationsAll(assert *require.Assertions, validator controller.Validator, serviceCROld runtime.Object, name string, namespace string, uid types.UID) {
+func successfulValidationsAll(assert *require.Assertions, validator legacy.Validator, serviceCROld runtime.Object, name string, namespace string, uid types.UID) {
 	serviceCRv1 := createCRFromTemplate(name, namespace, uid, nil, crv1.CRVersion)
 	successfulValidation(assert, validator, serviceCROld, serviceCRv1)
 	serviceCRv2 := createCRFromTemplate(name, namespace, uid, nil, crv2.CRVersion)
@@ -141,12 +141,12 @@ func successfulValidationsAll(assert *require.Assertions, validator controller.V
 	successfulValidationsV3(assert, validator, serviceCROld, name, namespace, uid, nil)
 }
 
-func failedValidationsV3(assert *require.Assertions, validator controller.Validator, serviceCROld runtime.Object, name string, namespace string, uid types.UID, alias *string, expectedMessage string) {
+func failedValidationsV3(assert *require.Assertions, validator legacy.Validator, serviceCROld runtime.Object, name string, namespace string, uid types.UID, alias *string, expectedMessage string) {
 	serviceCRv3 := createCRFromTemplate(name, namespace, uid, alias, crv3.CRVersion)
 	failedValidation(assert, validator, serviceCROld, serviceCRv3, expectedMessage)
 }
 
-func failedValidationsAll(assert *require.Assertions, validator controller.Validator, serviceCROld runtime.Object, name string, namespace string, uid types.UID, expectedMessage string) {
+func failedValidationsAll(assert *require.Assertions, validator legacy.Validator, serviceCROld runtime.Object, name string, namespace string, uid types.UID, expectedMessage string) {
 	serviceCRv1 := createCRFromTemplate(name, namespace, uid, nil, crv1.CRVersion)
 	failedValidation(assert, validator, serviceCROld, serviceCRv1, expectedMessage)
 	serviceCRv2 := createCRFromTemplate(name, namespace, uid, nil, crv2.CRVersion)
@@ -171,7 +171,7 @@ func TestValidator_ValidatesNewCRCreation(t *testing.T) {
 	}
 
 	crManager := &service.CRManagerImpl{SMConfig: &smConfig}
-	validator := controller.NewValidator(crManager)
+	validator := legacy.NewValidator(crManager)
 
 	// Successful on new service without alias
 	successfulValidationsAll(assert, validator, nil, "test-service", "test-ns", "test-service-uid")
@@ -201,7 +201,7 @@ func TestValidator_ValidatesNewCRCreation_ProideAlias(t *testing.T) {
 	}
 
 	crManager := &service.CRManagerImpl{SMConfig: &smConfig}
-	validator := controller.NewValidator(crManager)
+	validator := legacy.NewValidator(crManager)
 
 	serviceAlias := "test-service-alias"
 
@@ -241,7 +241,7 @@ func TestValidator_ValidatesNewCRCreation_ServiceDefinedAsAlias(t *testing.T) {
 	}
 
 	crManager := &service.CRManagerImpl{SMConfig: &smConfig}
-	validator := controller.NewValidator(crManager)
+	validator := legacy.NewValidator(crManager)
 
 	// Fai on service, which name is used as alias
 	failedValidationsAll(assert, validator, nil, dnsName, dnsNamespace, "test-service-uid",
@@ -272,7 +272,7 @@ func TestValidator_ValidatesCRUpdate(t *testing.T) {
 	}
 
 	crManager := &service.CRManagerImpl{SMConfig: &smConfig}
-	validator := controller.NewValidator(crManager)
+	validator := legacy.NewValidator(crManager)
 
 	// Successful on common update
 	serviceWithoutAliasV3 := createCRFromTemplate(serviceWithoutAlias.CRName, serviceWithoutAlias.Namespace, serviceWithoutAlias.UID, nil, crv3.CRVersion)
