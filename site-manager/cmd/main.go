@@ -8,18 +8,6 @@ import (
 
 	"path/filepath"
 
-	legacyv1 "github.com/netcracker/drnavigator/site-manager/api/legacy/v1"
-	legacyv2 "github.com/netcracker/drnavigator/site-manager/api/legacy/v2"
-	legacyv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
-	envconfig "github.com/netcracker/drnavigator/site-manager/config"
-	"github.com/netcracker/drnavigator/site-manager/config/kube_config"
-	"github.com/netcracker/drnavigator/site-manager/internal/controller/legacy"
-	"github.com/netcracker/drnavigator/site-manager/logger"
-	"github.com/netcracker/drnavigator/site-manager/pkg/app"
-	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
-	"github.com/netcracker/drnavigator/site-manager/pkg/model"
-	"github.com/netcracker/drnavigator/site-manager/pkg/service"
-	"github.com/netcracker/drnavigator/site-manager/pkg/utils"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -27,6 +15,21 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	legacyv1 "github.com/netcracker/drnavigator/site-manager/api/legacy/v1"
+	legacyv2 "github.com/netcracker/drnavigator/site-manager/api/legacy/v2"
+	legacyv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
+	qubershiporgv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	envconfig "github.com/netcracker/drnavigator/site-manager/config"
+	"github.com/netcracker/drnavigator/site-manager/config/kube_config"
+	"github.com/netcracker/drnavigator/site-manager/internal/controller"
+	"github.com/netcracker/drnavigator/site-manager/internal/controller/legacy"
+	"github.com/netcracker/drnavigator/site-manager/logger"
+	"github.com/netcracker/drnavigator/site-manager/pkg/app"
+	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
+	"github.com/netcracker/drnavigator/site-manager/pkg/model"
+	"github.com/netcracker/drnavigator/site-manager/pkg/service"
+	"github.com/netcracker/drnavigator/site-manager/pkg/utils"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -51,6 +54,7 @@ func init() {
 	utilruntime.Must(legacyv2.AddToScheme(scheme))
 	utilruntime.Must(legacyv3.AddToScheme(scheme))
 
+	utilruntime.Must(qubershiporgv3.AddToScheme(scheme))
 	// +kubebuilder:scaffold:scheme
 
 	rootCmd.PersistentFlags().StringP("bind", "b", ":8443", "The socket to bind main app (default is \":8443\")")
@@ -216,6 +220,13 @@ func ServeApp(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 
+		if err := (&controller.SiteManagerReconciler{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "SiteManager")
+			os.Exit(1)
+		}
 		// +kubebuilder:scaffold:builder
 
 		// Initialize token watcher
