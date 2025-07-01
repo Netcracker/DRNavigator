@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"fmt"
@@ -62,6 +62,17 @@ func init() {
 	rootCmd.PersistentFlags().String("keyfile", "", "SSL key file name")
 	rootCmd.PersistentFlags().String("tokenfile", "", "file with token, that is used to connect with services (default is \"\")")
 	rootCmd.PersistentFlags().Bool("dev-mode", false, "Runs in dev mode, that does not enable leader election in sm controller")
+}
+
+//go:generate swag init --outputTypes go
+
+// @title           site-manager
+// @version         1.0
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+func main() {
+	Execute()
 }
 
 // ServeApp is serves the app
