@@ -22,6 +22,7 @@ func SetupCRReconciler(crClient cr_client.CRClient, mgr ctrl.Manager) error {
 	reconciler := crReconciler{crClient: crClient}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&crv3.CR{}).
+		Named("sitemanager-legacy").
 		Complete(&reconciler)
 }
 
