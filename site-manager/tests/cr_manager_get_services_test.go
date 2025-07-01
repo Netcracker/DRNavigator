@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"
 	"github.com/netcracker/drnavigator/site-manager/pkg/service"

@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"testing"
 
-	crv1 "github.com/netcracker/drnavigator/site-manager/api/v1"
-	crv2 "github.com/netcracker/drnavigator/site-manager/api/v2"
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	crv1 "github.com/netcracker/drnavigator/site-manager/api/legacy/v1"
+	crv2 "github.com/netcracker/drnavigator/site-manager/api/legacy/v2"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	"github.com/netcracker/drnavigator/site-manager/config"
 	"github.com/netcracker/drnavigator/site-manager/internal/controller"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"

@@ -8,9 +8,9 @@ import (
 
 	"path/filepath"
 
-	crv1 "github.com/netcracker/drnavigator/site-manager/api/v1"
-	crv2 "github.com/netcracker/drnavigator/site-manager/api/v2"
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	crv1 "github.com/netcracker/drnavigator/site-manager/api/legacy/v1"
+	crv2 "github.com/netcracker/drnavigator/site-manager/api/legacy/v2"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
 	"github.com/netcracker/drnavigator/site-manager/config/kube_config"
 	"github.com/netcracker/drnavigator/site-manager/internal/controller"
@@ -27,6 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+	// +kubebuilder:scaffold:imports
 )
 
 var (
@@ -49,6 +50,8 @@ func init() {
 	utilruntime.Must(crv1.AddToScheme(scheme))
 	utilruntime.Must(crv2.AddToScheme(scheme))
 	utilruntime.Must(crv3.AddToScheme(scheme))
+
+	// +kubebuilder:scaffold:scheme
 
 	rootCmd.PersistentFlags().StringP("bind", "b", ":8443", "The socket to bind main app (default is \":8443\")")
 	rootCmd.PersistentFlags().StringP("bind-webhook", "w", "", "The socket to bind webhook controller. If it's empty, no webhook api will be added (default is \"\")")
@@ -202,6 +205,8 @@ func ServeApp(cmd *cobra.Command, args []string) {
 			os.Exit(1)
 		}
 
+		// +kubebuilder:scaffold:builder
+
 		// Initialize token watcher
 		if tokenWatcher, err = service.NewTokenWatcher(smConfig, mgr.GetClient(), tokenPath); err != nil {
 			setupLog.Error(err, "unable to initialize token watcher")
@@ -247,7 +252,7 @@ func ServeApp(cmd *cobra.Command, args []string) {
 
 	// handle token if authorization is enabled in separate gorutine
 	if !smConfig.Testing.Enabled && envconfig.EnvConfig.BackHttpAuth {
-		go func () {
+		go func() {
 			errorChannel <- tokenWatcher.Start()
 		}()
 	}

@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	crv1 "github.com/netcracker/drnavigator/site-manager/api/v1"
-	crv2 "github.com/netcracker/drnavigator/site-manager/api/v2"
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	crv1 "github.com/netcracker/drnavigator/site-manager/api/legacy/v1"
+	crv2 "github.com/netcracker/drnavigator/site-manager/api/legacy/v2"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	"github.com/netcracker/drnavigator/site-manager/pkg/service"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"

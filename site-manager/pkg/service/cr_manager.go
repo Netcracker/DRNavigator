@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
 	http_client "github.com/netcracker/drnavigator/site-manager/pkg/client/http"
@@ -211,8 +211,8 @@ func (crm *CRManagerImpl) getServiceStatus(smObj *model.SMObject) (model.SMStatu
 
 	_, err := http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.ServiceEndpoint, crm.TokenWatcher.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, serviceSMResponse)
 	if err != nil {
-		return model.SMStatus{Message: "", Mode:    "--", Status:  "--", Health:  "--"}, 
-		&model.SMError{Message: fmt.Sprintf("Service request failed, error: %s", err), Service: &smObj.Name}
+		return model.SMStatus{Message: "", Mode: "--", Status: "--", Health: "--"},
+			&model.SMError{Message: fmt.Sprintf("Service request failed, error: %s", err), Service: &smObj.Name}
 	}
 
 	serviceHealthResponse := &model.ServiceHealthzResponse{
@@ -220,8 +220,8 @@ func (crm *CRManagerImpl) getServiceStatus(smObj *model.SMObject) (model.SMStatu
 	}
 	_, err = http_client.DoGetRequest(crm.GetHttpClient, smObj.Parameters.HealthzEndpoint, crm.TokenWatcher.GetToken(), envconfig.EnvConfig.BackHttpAuth, 3, serviceHealthResponse)
 	if err != nil {
-		return model.SMStatus{Message: "", Mode:    "--", Status:  "--", Health:  "--"}, 
-		&model.SMError{Message: fmt.Sprintf("Service request failed, error: %s", err), Service: &smObj.Name}
+		return model.SMStatus{Message: "", Mode: "--", Status: "--", Health: "--"},
+			&model.SMError{Message: fmt.Sprintf("Service request failed, error: %s", err), Service: &smObj.Name}
 	}
 
 	return model.SMStatus{

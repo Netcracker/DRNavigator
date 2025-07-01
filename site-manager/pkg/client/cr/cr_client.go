@@ -3,7 +3,7 @@ package cr_client
 import (
 	"context"
 
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"

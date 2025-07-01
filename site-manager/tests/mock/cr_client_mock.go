@@ -3,7 +3,7 @@ package mock
 import (
 	"context"
 
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
