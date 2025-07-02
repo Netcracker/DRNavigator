@@ -18,7 +18,9 @@ package controller
 
 import (
 	"context"
+	"reflect"
 
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -37,20 +39,30 @@ type SiteManagerReconciler struct {
 // +kubebuilder:rbac:groups=qubership.org,resources=sitemanagers/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=qubership.org,resources=sitemanagers/finalizers,verbs=update
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the SiteManager object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.21.0/pkg/reconcile
 func (r *SiteManagerReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	_ = logf.FromContext(ctx)
+	logger := logf.FromContext(ctx)
+	sm := &qubershiporgv3.SiteManager{}
+	err := r.Client.Get(ctx, req.NamespacedName, sm, &client.GetOptions{})
+	if err != nil && errors.IsNotFound(err) {
+		// Object is removed
+		logger.V(1).Info("SM CR is not found. Ignoring since object must be deleted")
+		return ctrl.Result{}, nil
+	} else if err != nil {
+		// Error getting object
+		logger.Error(err, "Failed to get SM CR")
+		return ctrl.Result{}, err
+	}
 
-	// TODO(user): your logic here
-
+	// Update status
+	newStatus := qubershiporgv3.SiteManagerStatus{Summary: "Accepted", ServiceName: sm.GetServiceName()}
+	if !reflect.DeepEqual(sm.Status, newStatus) {
+		sm.Status = newStatus
+		if err := r.Client.Status().Update(ctx, sm, &client.SubResourceUpdateOptions{}); err != nil {
+			logger.Error(err, "Failed update status for CR")
+			return ctrl.Result{}, err
+		}
+		logger.V(1).Info("Status updated")
+	}
 	return ctrl.Result{}, nil
 }
 

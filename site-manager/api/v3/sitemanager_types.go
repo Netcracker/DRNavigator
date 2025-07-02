@@ -17,6 +17,8 @@ limitations under the License.
 package v3
 
 import (
+	"fmt"
+
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -66,4 +68,12 @@ type SiteManagerList struct {
 
 func init() {
 	SchemeBuilder.Register(&SiteManager{}, &SiteManagerList{})
+}
+
+// GetServiceName function calculates service name for CR
+func (sm *SiteManager) GetServiceName() string {
+	if sm.Spec.Alias != nil {
+		return *sm.Spec.Alias
+	}
+	return fmt.Sprintf("%s.%s", sm.GetName(), sm.GetNamespace())
 }
