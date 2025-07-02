@@ -20,22 +20,27 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
 // SiteManagerSpec defines the desired state of SiteManager.
 type SiteManagerSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Module                  string     `json:"module"`
+	Alias                   *string    `json:"alias,omitempty"`
+	After                   []string   `json:"after,omitempty"`
+	Before                  []string   `json:"before,omitempty"`
+	Sequence                []string   `json:"sequence,omitempty"`
+	AllowedStandbyStateList []string   `json:"allowedStandbyStateList,omitempty"`
+	Timeout                 *int64     `json:"timeout,omitempty"`
+	Parameters              Parameters `json:"parameters,omitempty"`
+}
 
-	// Foo is an example field of SiteManager. Edit sitemanager_types.go to remove/update
-	Foo string `json:"foo,omitempty"`
+type Parameters struct {
+	ServiceEndpoint string `json:"serviceEndpoint,omitempty"`
+	HealthzEndpoint string `json:"healthzEndpoint,omitempty"`
 }
 
 // SiteManagerStatus defines the observed state of SiteManager.
 type SiteManagerStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
+	Summary     string `json:"summary,omitempty"`
+	ServiceName string `json:"serviceName,omitempty"`
 }
 
 // +kubebuilder:object:root=true

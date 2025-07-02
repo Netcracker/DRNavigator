@@ -39,13 +39,46 @@ spec:
           spec:
             description: SiteManagerSpec defines the desired state of SiteManager.
             properties:
-              foo:
-                description: Foo is an example field of SiteManager. Edit sitemanager_types.go
-                  to remove/update
+              after:
+                items:
+                  type: string
+                type: array
+              alias:
                 type: string
+              allowedStandbyStateList:
+                items:
+                  type: string
+                type: array
+              before:
+                items:
+                  type: string
+                type: array
+              module:
+                type: string
+              parameters:
+                properties:
+                  healthzEndpoint:
+                    type: string
+                  serviceEndpoint:
+                    type: string
+                type: object
+              sequence:
+                items:
+                  type: string
+                type: array
+              timeout:
+                format: int64
+                type: integer
+            required:
+            - module
             type: object
           status:
             description: SiteManagerStatus defines the observed state of SiteManager.
+            properties:
+              serviceName:
+                type: string
+              summary:
+                type: string
             type: object
         type: object
     served: true
