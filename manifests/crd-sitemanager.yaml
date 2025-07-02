@@ -271,7 +271,7 @@ webhooks:
     service:
       namespace: site-manager
       name: site-manager
-      path: /validate-netcracker-com-v3-sitemanager
+      path: /validate-legacy-qubership-org-v3-sitemanager
       port: 442
     caBundle: "<base-64-encoded-ca-bundle>"
   rules:
@@ -287,7 +287,7 @@ webhooks:
     service:
       namespace: site-manager
       name: site-manager
-      path: /validate-netcracker-com-v2-sitemanager
+      path: /validate-legacy-qubership-org-v2-sitemanager
       port: 442
     caBundle: "<base-64-encoded-ca-bundle>"
   rules:
@@ -303,7 +303,7 @@ webhooks:
     service:
       namespace: site-manager
       name: site-manager
-      path: /validate-netcracker-com-v1-sitemanager
+      path: /validate-legacy-qubership-org-v1-sitemanager
       port: 442
     caBundle: "<base-64-encoded-ca-bundle>"
   rules:
