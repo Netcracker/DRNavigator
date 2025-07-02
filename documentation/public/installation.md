@@ -1,19 +1,19 @@
 # DR Navigator Installation Procedure
 
 <!-- TOC -->
-* [DR Navigator Installation Procedure](#dr-navigator-installation-procedure)
-  * [Site-manager](#site-manager)
-    * [Requirements](#requirements)
-    * [Prerequisites](#prerequisites)
-    * [Installation](#installation)
-    * [Certificate Renewal Procedure](#certificate-renewal-procedure)
-  * [Paas-Geo-Monitor](#paas-geo-monitor)
-    * [Installation Procedure](#installation-procedure)
-    * [Configuration](#configuration)
-  * [sm-client](#sm-client)
-    * [Prepare Environment](#prepare-environment)
-    * [Running From CLI](#running-from-cli)
-    * [Running From Docker](#running-from-docker)
+- [DR Navigator Installation Procedure](#dr-navigator-installation-procedure)
+  - [Site-manager](#site-manager)
+    - [Requirements](#requirements)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+    - [Certificate Renewal Procedure](#certificate-renewal-procedure)
+  - [Paas-Geo-Monitor](#paas-geo-monitor)
+    - [Installation Procedure](#installation-procedure)
+    - [Configuration](#configuration)
+  - [sm-client](#sm-client)
+    - [Prepare Environment](#prepare-environment)
+    - [Running From CLI](#running-from-cli)
+    - [Running From Docker](#running-from-docker)
 <!-- TOC -->
 
 ## Site-manager
@@ -92,94 +92,14 @@ To support the ability of services to be managed by `site-manager`, implement th
     openssl req -new -key site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config server.conf | \
     openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
     ```
-
-3. Create CustomResourceDefinition `sitemanagers.legacy.qubership.org` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` from [file](../../manifests/crd-sitemanager.yaml) as it will be described below.
-
-    **Important**: You can skip this part, if you add `crd.install=true` to helm installation.
-
-    3.1. In case of integration with cert-manager, add the following annotation in CustomResourceDefinition and ValidatingWebhookConfiguration templates, which helps to update caBundle in theirs webhook:
-
-    ```yaml
-    apiVersion: apiextensions.k8s.io/v1
-    kind: CustomResourceDefinition
-    metadata:
-        name: sitemanagers.legacy.qubership.org
-        annotations:
-            cert-manager.io/inject-ca-from: <NAMESPACE>/site-manager-tls-certificate
-    ```
-
-    ```yaml
-    apiVersion: admissionregistration.k8s.io/v1
-    kind: ValidatingWebhookConfiguration
-    metadata:
-        name: "site-manager-crd-validating-webhook-configuration"
-        annotations:
-            cert-manager.io/inject-ca-from: <NAMESPACE>/site-manager-tls-certificate
-    ```
-
-     Create CustomResourceDefinition `sitemanagers.legacy.qubership.org` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` without caBundle field:
-
-    ```bash
-    cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
-    ```
-
-    If you already had site-manager CRD or ValidatingWebhookConfiguration in your cloud and want to migrate to cert-manager integration, it is enough to annotate it:
-
-    ```bash
-    kubectl annotate crds sitemanagers.legacy.qubership.org cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
-    kubectl annotate validatingwebhookconfigurations site-manager-crd-validating-webhook-configuration cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
-    ```
-
-    3.2. In case of integration with OpenShift service serving certificates mechanism, add the following annotations in CustomResourceDefinition and ValidatingWebhookConfiguration templates, which helps to update caBundle in theirs webhook:
-
-    ```yaml
-    apiVersion: apiextensions.k8s.io/v1
-    kind: CustomResourceDefinition
-    metadata:
-        name: sitemanagers.legacy.qubership.org
-        annotations:
-            service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
-            service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
-    ```
-
-    ```yaml
-    apiVersion: admissionregistration.k8s.io/v1
-    kind: ValidatingWebhookConfiguration
-    metadata:
-        name: "site-manager-crd-validating-webhook-configuration"
-        annotations:
-            service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
-            service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
-    ```
-
-     Create CustomResourceDefinition `sitemanagers.legacy.qubership.org` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` without caBundle field:
-
-    ```bash
-    cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
-    ```
-
-    If you already had site-manager CRD or ValidatingWebhookConfiguration in your cloud and want to migrate to integration with OpenShift service serving certificates mechanism, it is enough to annotate it (choose *alpha* or *beta* according your OpenShift version):
-
-    ```bash
-    kubectl annotate crds sitemanagers.legacy.qubership.org service.alpha.openshift.io/inject-cabundle=true
-    kubectl annotate validatingwebhookconfigurations service.alpha.openshift.io/inject-cabundle=true
-    kubectl annotate crds sitemanagers.legacy.qubership.org service.beta.openshift.io/inject-cabundle=true
-    kubectl annotate validatingwebhookconfigurations service.beta.openshift.io/inject-cabundle=true
-    ```
-
-    3.3. In other case, generate base64 string from ca.crt certificate:
-
-    ```bash
-    CA_BUNDLE=$(cat ca.crt | base64 - | tr -d '\n')
-    ```
-
-    Create CRD `sitemanagers.legacy.qubership.org` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration`:
-
-    ```bash
-    cat manifests/crd-sitemanager.yaml | sed "s/<base-64-encoded-ca-bundle>/${CA_BUNDLE}/" | kubectl apply -f -
-    ```
-
-    **Important**: Do not forget to specify manually generated certificates `tls.ca`, `tls.crt` and `tls.key`
+    2.5. Specify data from generated files in site-manager `tls.crt`, `tls.key` and `tls.ca` sections. 
+3. Make sure deployment user have permission to create CRD resources, i.e. it should have ClusterRole with following permissions
+  ```yaml
+    rules:
+      - apiGroups: ["apiextensions.k8s.io"]
+        resources: ["customresourcedefinitions"]
+        verbs: ["get", "create", "patch"]
+  ```
 
 ### Installation
 
