@@ -36,7 +36,7 @@ var (
 	}
 	ServiceV1 = crv1.CR{
 		TypeMeta: v1.TypeMeta{
-			APIVersion: "netcracker.com/v1",
+			APIVersion: "legacy.qubership.org/v1",
 			Kind:       "SiteManager",
 		},
 		ObjectMeta: v1.ObjectMeta{
@@ -87,7 +87,7 @@ var (
 	}
 	ServiceV2 = crv2.CR{
 		TypeMeta: v1.TypeMeta{
-			APIVersion: "netcracker.com/v2",
+			APIVersion: "legacy.qubership.org/v2",
 			Kind:       "SiteManager",
 		},
 		ObjectMeta: v1.ObjectMeta{
@@ -139,7 +139,7 @@ var (
 	}
 	ServiceV3 = crv3.CR{
 		TypeMeta: v1.TypeMeta{
-			APIVersion: "netcracker.com/v3",
+			APIVersion: "legacy.qubership.org/v3",
 			Kind:       "SiteManager",
 		},
 		ObjectMeta: v1.ObjectMeta{

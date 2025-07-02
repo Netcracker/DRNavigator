@@ -75,7 +75,7 @@ Suppose we have two services `serviceA` and `serviceB`, dependent from `serviceA
 
 In services helms:
 ```yaml
-apiVersion: netcracker.com/v2
+apiVersion: legacy.qubership.org/v2
 kind: SiteManager
 metadata:
   name: {{ .Values.namespace }}-serviceA
@@ -84,7 +84,7 @@ spec:
     after: []
     before: []
 ---
-apiVersion: netcracker.com/v2
+apiVersion: legacy.qubership.org/v2
 kind: SiteManager
 metadata:
   name: {{ .Values.namespace }}-serviceB
@@ -97,7 +97,7 @@ spec:
 
 In cluster:
 ```yaml
-apiVersion: netcracker.com/v2
+apiVersion: legacy.qubership.org/v2
 kind: SiteManager
 metadata:
   name: ns1-serviceA
@@ -107,7 +107,7 @@ spec:
     after: []
     before: []
 ---
-apiVersion: netcracker.com/v2
+apiVersion: legacy.qubership.org/v2
 kind: SiteManager
 metadata:
   name: ns2-serviceB
@@ -123,7 +123,7 @@ spec:
 In services helms nothing changes;  
 In cluster:
 ```yaml
-apiVersion: netcracker.com/v3
+apiVersion: legacy.qubership.org/v3
 kind: SiteManager
 metadata:
   name: ns1-serviceA
@@ -133,7 +133,7 @@ spec:
     after: []
     before: []
 ---
-apiVersion: netcracker.com/v3
+apiVersion: legacy.qubership.org/v3
 kind: SiteManager
 metadata:
   name: ns2-serviceB
@@ -148,7 +148,7 @@ spec:
 #### 2. After changing CR names in services helms and redeploy
 In services helms:
 ```yaml
-apiVersion: netcracker.com/v3
+apiVersion: legacy.qubership.org/v3
 kind: SiteManager
 metadata:
   name: serviceA
@@ -157,7 +157,7 @@ spec:
     after: []
     before: []
 ---
-apiVersion: netcracker.com/v3
+apiVersion: legacy.qubership.org/v3
 kind: SiteManager
 metadata:
   name: serviceB
@@ -169,7 +169,7 @@ spec:
 ```
 In cluster:
 ```yaml
-apiVersion: netcracker.com/v3
+apiVersion: legacy.qubership.org/v3
 kind: SiteManager
 metadata:
   name: serviceA
@@ -179,7 +179,7 @@ spec:
     after: []
     before: []
 ---
-apiVersion: netcracker.com/v3
+apiVersion: legacy.qubership.org/v3
 kind: SiteManager
 metadata:
   name: serviceB
@@ -268,7 +268,7 @@ on different sites:
 
 We can add special optional field to define service name for opponent site, e.g. for `site-1`:
 ```yaml
-apiVersion: netcracker.com/v3
+apiVersion: legacy.qubership.org/v3
 kind: SiteManager
 metadata:
   name: sm-dummy
@@ -297,7 +297,7 @@ In sm-client this field can be used to make links between services with differen
 
 We can add special optional field to override service name, e.g. for `site-1`:
 ```yaml
-apiVersion: netcracker.com/v3
+apiVersion: legacy.qubership.org/v3
 kind: SiteManager
 metadata:
   name: sm-dummy
@@ -335,7 +335,7 @@ spec:
 
 We can add special optional field to turn on/off adding namespace to service name (`isUniqueOnCluster`, default is false):
 ```yaml
-apiVersion: netcracker.com/v3
+apiVersion: legacy.qubership.org/v3
 kind: SiteManager
 metadata:
   name: sm-dummy
@@ -374,7 +374,7 @@ is `<cr-name>` like now:
 We can add namespaces only for services with specific volumes (e.g. not stateful). As result, services with 
 another module will have the same name:
 ```yaml
-apiVersion: netcracker.com/v3
+apiVersion: legacy.qubership.org/v3
 kind: SiteManager
 metadata:
   name: sm-dummy

@@ -205,7 +205,7 @@ func ServeApp(cmd *cobra.Command, args []string) {
 			},
 			WebhookServer:           webhookServer,
 			LeaderElection:          !devMode,
-			LeaderElectionID:        "sitemanagers.netcracker.com",
+			LeaderElectionID:        "sitemanagers.legacy.qubership.org",
 			LeaderElectionNamespace: envconfig.EnvConfig.PodNamespace,
 		}); err != nil {
 			setupLog.Error(err, "unable to start manager")

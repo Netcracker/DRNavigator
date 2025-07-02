@@ -62,7 +62,7 @@ func createCRFromTemplate(name string, namespace string, uid types.UID, alias *s
 	case crv1.CRVersion:
 		return &crv1.CR{
 			TypeMeta: v1.TypeMeta{
-				APIVersion: "netcracker.com/v1",
+				APIVersion: "legacy.qubership.org/v1",
 				Kind:       "SiteManager",
 			},
 			ObjectMeta: v1.ObjectMeta{
@@ -74,7 +74,7 @@ func createCRFromTemplate(name string, namespace string, uid types.UID, alias *s
 	case crv2.CRVersion:
 		return &crv2.CR{
 			TypeMeta: v1.TypeMeta{
-				APIVersion: "netcracker.com/v2",
+				APIVersion: "legacy.qubership.org/v2",
 				Kind:       "SiteManager",
 			},
 			ObjectMeta: v1.ObjectMeta{
@@ -86,7 +86,7 @@ func createCRFromTemplate(name string, namespace string, uid types.UID, alias *s
 	case crv3.CRVersion:
 		return &crv3.CR{
 			TypeMeta: v1.TypeMeta{
-				APIVersion: "netcracker.com/v3",
+				APIVersion: "legacy.qubership.org/v3",
 				Kind:       "SiteManager",
 			},
 			ObjectMeta: v1.ObjectMeta{

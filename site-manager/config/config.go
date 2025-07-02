@@ -19,7 +19,7 @@ type Config struct {
 	SMCaCert      string `envconfig:"SM_CACERT" default:"True"`
 
 	// cr configuration
-	CRGroup    string `envconfig:"SM_GROUP" default:"netcracker.com"`
+	CRGroup    string `envconfig:"SM_GROUP" default:"legacy.qubership.org"`
 	CRKind     string `envconfig:"SM_KIND" default:"SiteManager"`
 	CRKindList string `envconfig:"SM_KIND_LIST" default:"SiteManagerList"`
 
