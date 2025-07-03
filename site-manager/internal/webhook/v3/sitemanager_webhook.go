@@ -73,7 +73,7 @@ func (v *SiteManagerCustomValidator) ValidateCreate(ctx context.Context, obj run
 	if err := v.validateServiceName(ctx, sitemanager.GetServiceName(), sitemanager.GetUID(), sitemanager.Spec.Alias != nil); err != nil {
 		return nil, err
 	}
-	
+
 	return nil, nil
 }
 

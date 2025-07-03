@@ -51,7 +51,7 @@ func ServeMainServer(bindAddress string, certDir string, certFile string, keyFil
 				}
 				if err.Error() != "invalid key" {
 					return &echo.HTTPError{
-						Code:    http.StatusInternalServerError,
+						Code: http.StatusInternalServerError,
 					}
 				}
 				return &echo.HTTPError{

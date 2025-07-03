@@ -2,7 +2,7 @@ package model
 
 // SMConfig represents the debug configuration, that is used in SM_CONFIG_FILE
 type SMConfig struct {
-	Testing      SMConfigTesting `yaml:"testing"`
+	Testing SMConfigTesting `yaml:"testing"`
 }
 
 // SMConfigTesting represents the testing field from SMConfig
