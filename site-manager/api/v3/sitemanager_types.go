@@ -24,6 +24,11 @@ import (
 
 // SiteManagerSpec defines the desired state of SiteManager.
 type SiteManagerSpec struct {
+	SiteManager SiteManagerOptions `json:"sitemanager"`
+}
+
+// This additional "options" struct is introduced to keep backward compatibility
+type SiteManagerOptions struct {
 	Module                  string     `json:"module"`
 	Alias                   *string    `json:"alias,omitempty"`
 	After                   []string   `json:"after,omitempty"`
@@ -55,7 +60,7 @@ type SiteManager struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   SiteManagerSpec   `json:"spec,omitempty"`
+	Spec   SiteManagerSpec   `json:"spec"`
 	Status SiteManagerStatus `json:"status,omitempty"`
 }
 
@@ -74,8 +79,8 @@ func init() {
 
 // GetServiceName function calculates service name for CR
 func (sm *SiteManager) GetServiceName() string {
-	if sm.Spec.Alias != nil {
-		return *sm.Spec.Alias
+	if sm.Spec.SiteManager.Alias != nil {
+		return *sm.Spec.SiteManager.Alias
 	}
 	return fmt.Sprintf("%s.%s", sm.GetName(), sm.GetNamespace())
 }

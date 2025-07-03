@@ -48,38 +48,45 @@ spec:
           spec:
             description: SiteManagerSpec defines the desired state of SiteManager.
             properties:
-              after:
-                items:
-                  type: string
-                type: array
-              alias:
-                type: string
-              allowedStandbyStateList:
-                items:
-                  type: string
-                type: array
-              before:
-                items:
-                  type: string
-                type: array
-              module:
-                type: string
-              parameters:
+              sitemanager:
+                description: This additional "options" struct is introduced to keep
+                  backward compatibility
                 properties:
-                  healthzEndpoint:
+                  after:
+                    items:
+                      type: string
+                    type: array
+                  alias:
                     type: string
-                  serviceEndpoint:
+                  allowedStandbyStateList:
+                    items:
+                      type: string
+                    type: array
+                  before:
+                    items:
+                      type: string
+                    type: array
+                  module:
                     type: string
+                  parameters:
+                    properties:
+                      healthzEndpoint:
+                        type: string
+                      serviceEndpoint:
+                        type: string
+                    type: object
+                  sequence:
+                    items:
+                      type: string
+                    type: array
+                  timeout:
+                    format: int64
+                    type: integer
+                required:
+                - module
                 type: object
-              sequence:
-                items:
-                  type: string
-                type: array
-              timeout:
-                format: int64
-                type: integer
             required:
-            - module
+            - sitemanager
             type: object
           status:
             description: SiteManagerStatus defines the observed state of SiteManager.
@@ -89,6 +96,8 @@ spec:
               summary:
                 type: string
             type: object
+        required:
+        - spec
         type: object
     served: true
     storage: true

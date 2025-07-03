@@ -23,12 +23,12 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	qubershiporgv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
-	"github.com/netcracker/drnavigator/site-manager/pkg/service"
 )
 
 const (
@@ -42,7 +42,7 @@ var sitemanagerlog = logf.Log.WithName("sitemanager-resource")
 // SetupSiteManagerWebhookWithManager registers the webhook for SiteManager in the manager.
 func SetupSiteManagerWebhookWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewWebhookManagedBy(mgr).For(&qubershiporgv3.SiteManager{}).
-		WithValidator(&SiteManagerCustomValidator{}).
+		WithValidator(&SiteManagerCustomValidator{Client: mgr.GetClient()}).
 		Complete()
 }
 
@@ -57,7 +57,7 @@ func SetupSiteManagerWebhookWithManager(mgr ctrl.Manager) error {
 // NOTE: The +kubebuilder:object:generate=false marker prevents controller-gen from generating DeepCopy methods,
 // as this struct is used only for temporary operations and does not need to be deeply copied.
 type SiteManagerCustomValidator struct {
-	CRManager service.CRManager
+	Client client.Client
 }
 
 var _ webhook.CustomValidator = &SiteManagerCustomValidator{}
@@ -70,7 +70,7 @@ func (v *SiteManagerCustomValidator) ValidateCreate(ctx context.Context, obj run
 	}
 	sitemanagerlog.Info("Validation for SiteManager upon creation", "name", sitemanager.GetName())
 
-	if err := v.validateServiceName(ctx, sitemanager.GetServiceName(), sitemanager.GetUID(), sitemanager.Spec.Alias != nil); err != nil {
+	if err := v.validateServiceName(ctx, sitemanager.GetServiceName(), sitemanager.GetUID(), sitemanager.Spec.SiteManager.Alias != nil); err != nil {
 		return nil, err
 	}
 
@@ -85,7 +85,7 @@ func (v *SiteManagerCustomValidator) ValidateUpdate(ctx context.Context, oldObj,
 	}
 	sitemanagerlog.Info("Validation for SiteManager upon update", "name", sitemanager.GetName())
 
-	if err := v.validateServiceName(ctx, sitemanager.GetServiceName(), sitemanager.GetUID(), sitemanager.Spec.Alias != nil); err != nil {
+	if err := v.validateServiceName(ctx, sitemanager.GetServiceName(), sitemanager.GetUID(), sitemanager.Spec.SiteManager.Alias != nil); err != nil {
 		return nil, err
 	}
 
@@ -101,15 +101,21 @@ func (v *SiteManagerCustomValidator) ValidateDelete(ctx context.Context, obj run
 // validateServiceName validates, that given service name is not used yet for another object
 func (v *SiteManagerCustomValidator) validateServiceName(ctx context.Context, name string, uid types.UID, isAlias bool) error {
 	sitemanagerlog.V(1).Info("Validate, if service with name already exists", "service-name", name)
-	smDict, err := v.CRManager.GetAllServices(ctx)
+
+	smResources := &qubershiporgv3.SiteManagerList{}
+	err := v.Client.List(ctx, smResources)
 	if err != nil {
 		return err
 	}
-	if value, found := smDict.Services[name]; found && value.UID != uid {
-		sitemanagerlog.V(1).Info("Found service, that already uses service name", "name", value.CRName, "namespace", value.Namespace, "service-name", name)
-		err := getServiceNameExistsMessage(name, isAlias)
-		return fmt.Errorf("%s", err)
+
+	for _, smRes := range smResources.Items {
+		if smRes.GetServiceName() == name && smRes.UID != uid {
+			sitemanagerlog.V(1).Info("Found service, that already uses service name", "name", smRes.Name, "namespace", smRes.Namespace, "service-name", name)
+			err := getServiceNameExistsMessage(name, isAlias)
+			return fmt.Errorf("%s", err)
+		}
 	}
+
 	sitemanagerlog.V(1).Info("Service name is not used", "service-name", name)
 	return nil
 }

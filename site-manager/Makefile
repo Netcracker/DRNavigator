@@ -44,11 +44,8 @@ help: ## Display this help.
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration and CustomResourceDefinition objects.
 	rm ../charts/site-manager/templates/crd-sitemanager.yaml
-	$(CONTROLLER_GEN) crd paths="./api/v3" output:stdout >> ../charts/site-manager/templates/crd-sitemanager.yaml
-	$(CONTROLLER_GEN) webhook paths="./..." output:stdout >> ../charts/site-manager/templates/crd-sitemanager.yaml
-	
-	$(CONTROLLER_GEN) crd paths="./api/v3" output:stdout >> internal/controller/testdata/crd-sitemanager.yaml
-
+	$(CONTROLLER_GEN) crd paths="./api/v3" output:stdout | tee ../charts/site-manager/templates/crd-sitemanager.yaml > internal/controller/testdata/crd-sitemanager.yaml
+	$(CONTROLLER_GEN) webhook paths="./..." output:stdout | tee -a ../charts/site-manager/templates/crd-sitemanager.yaml > internal/webhook/v3/testdata/webhook.yaml
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.
