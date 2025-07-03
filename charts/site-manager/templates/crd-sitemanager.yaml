@@ -4,6 +4,14 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.18.0
+  {{- if .Values.tls.generateCerts.enabled }}
+    {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
+    {{- else if eq .Values.tls.generateCerts.executor "openshift" }}
+    service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
+    service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
+    {{- end }}
+  {{- end }}
   name: sitemanagers.qubership.org
 spec:
   group: qubership.org
@@ -90,6 +98,15 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: validating-webhook-configuration
+  {{- if .Values.tls.generateCerts.enabled }}
+  annotations:
+    {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
+    {{- else if eq .Values.tls.generateCerts.executor "openshift" }}
+    service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
+    service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
+    {{- end }}
+  {{- end }}
 webhooks:
 - admissionReviewVersions:
   - v1
@@ -98,6 +115,9 @@ webhooks:
       name: webhook-service
       namespace: system
       path: /validate-qubership-org-v3-sitemanager
+    {{- if .Values.tls.ca }}
+    caBundle: "{{ .Values.tls.ca | b64enc }}"
+    {{- end }}
   failurePolicy: Fail
   name: vsitemanager-v3.kb.io
   rules:
