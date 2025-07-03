@@ -1,19 +1,12 @@
-{{ if eq .Values.crd.install true }}
+---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: sitemanagers.{{ .Values.env.SM_GROUP }}
-  {{- if .Values.tls.generateCerts.enabled }}
   annotations:
-    {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
-    {{- else if eq .Values.tls.generateCerts.executor "openshift" }}
-    service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
-    service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
-    {{- end }}
-  {{- end }}
+    controller-gen.kubebuilder.io/version: v0.18.0
+  name: sitemanagers.qubership.org
 spec:
-  group: {{ .Values.env.SM_GROUP }}
+  group: qubership.org
   names:
     kind: SiteManager
     listKind: SiteManagerList
@@ -22,322 +15,99 @@ spec:
   scope: Namespaced
   versions:
   - name: v3
+    schema:
+      openAPIV3Schema:
+        description: SiteManager is the Schema for the sitemanagers API.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: SiteManagerSpec defines the desired state of SiteManager.
+            properties:
+              after:
+                items:
+                  type: string
+                type: array
+              alias:
+                type: string
+              allowedStandbyStateList:
+                items:
+                  type: string
+                type: array
+              before:
+                items:
+                  type: string
+                type: array
+              module:
+                type: string
+              parameters:
+                properties:
+                  healthzEndpoint:
+                    type: string
+                  serviceEndpoint:
+                    type: string
+                type: object
+              sequence:
+                items:
+                  type: string
+                type: array
+              timeout:
+                format: int64
+                type: integer
+            required:
+            - module
+            type: object
+          status:
+            description: SiteManagerStatus defines the observed state of SiteManager.
+            properties:
+              serviceName:
+                type: string
+              summary:
+                type: string
+            type: object
+        type: object
     served: true
     storage: true
     subresources:
       status: {}
-    schema:
-      openAPIV3Schema:
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            properties:
-              sitemanager:
-                properties:
-                  module:
-                    type: string
-                  alias:
-                    type: string
-                  after:
-                    items:
-                      type: string
-                    type: array
-                    default: []
-                  before:
-                    items:
-                      type: string
-                    type: array
-                    default: []
-                  sequence:
-                    items:
-                      type: string
-                    type: array
-                    default: []
-                  allowedStandbyStateList:
-                    items:
-                      type: string
-                    type: array
-                    default: ["up"]
-                  timeout:
-                    type: integer
-                    minimum: 10
-                    maximum: 1000
-                  parameters:
-                    type: object
-                    properties:
-                      serviceEndpoint:
-                        type: string
-                      healthzEndpoint:
-                        type: string
-                required:
-                - module
-                type: object
-            type: object
-          status:
-            properties:
-              summary:
-                type: string
-              serviceName:
-                type: string
-            type: object
-        type: object
-    additionalPrinterColumns:
-    - name: SERVICE NAME
-      type: string
-      description: Service name in site-manager
-      jsonPath: .status.serviceName
-    - name: STATUS
-      type: string
-      description: The summary status of service
-      jsonPath: .status.summary
-  - name: v2
-    served: true
-    storage: false
-    deprecated: true
-    deprecationWarning: "{{ .Values.env.SM_GROUP }}/v2 SiteManager is deprecated; use v3 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
-    subresources:
-      status: {}
-    schema:
-      openAPIV3Schema:
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            properties:
-              sitemanager:
-                properties:
-                  module:
-                    type: string
-                  after:
-                    items:
-                      type: string
-                    type: array
-                    default: []
-                  before:
-                    items:
-                      type: string
-                    type: array
-                    default: []
-                  sequence:
-                    items:
-                      type: string
-                    type: array
-                    default: []
-                  allowedStandbyStateList:
-                    items:
-                      type: string
-                    type: array
-                    default: ["up"]
-                  timeout:
-                    type: integer
-                    minimum: 10
-                    maximum: 1000
-                  parameters:
-                    type: object
-                    properties:
-                      serviceEndpoint:
-                        type: string
-                      ingressEndpoint:
-                        type: string
-                      healthzEndpoint:
-                        type: string
-                required:
-                - module
-                type: object
-            type: object
-          status:
-            properties:
-              summary:
-                type: string
-              serviceName:
-                type: string
-            type: object
-        type: object
-    additionalPrinterColumns:
-    - name: SERVICE NAME
-      type: string
-      description: Service name in site-manager
-      jsonPath: .status.serviceName
-    - name: STATUS
-      type: string
-      description: The summary status of service
-      jsonPath: .status.summary
-  - name: v1
-    served: false
-    storage: false
-    deprecated: true
-    deprecationWarning: "{{ .Values.env.SM_GROUP }}/v1 SiteManager is deprecated; use v2 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
-    subresources:
-      status: {}
-    schema:
-      openAPIV3Schema:
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            properties:
-              sitemanager:
-                properties:
-                  after:
-                    items:
-                      type: string
-                    type: array
-                    default: []
-                  before:
-                    items:
-                      type: string
-                    type: array
-                    default: []
-                  sequence:
-                    items:
-                      type: string
-                    type: array
-                    default: []
-                  allowedStandbyStateList:
-                    items:
-                      type: string
-                    type: array
-                    default: ["up"]
-                  timeout:
-                    type: integer
-                    minimum: 10
-                    maximum: 1000
-                  serviceEndpoint:
-                    type: string
-                  ingressEndpoint:
-                    type: string
-                  healthzEndpoint:
-                    type: string
-                type: object
-            type: object
-          status:
-            properties:
-              summary:
-                type: string
-              serviceName:
-                type: string
-            type: object
-        type: object
-    additionalPrinterColumns:
-    - name: SERVICE NAME
-      type: string
-      description: Service name in site-manager
-      jsonPath: .status.serviceName
-    - name: STATUS
-      type: string
-      description: The summary status of service
-      jsonPath: .status.summary
-  conversion:
-    strategy: Webhook
-    webhook:
-      conversionReviewVersions: ["v1"]
-      clientConfig:
-        service:
-          namespace: {{ .Release.Namespace }}
-          name: {{ .Chart.Name }}
-          path: /convert
-          port: 442
-        {{- if .Values.tls.ca }}
-        caBundle: "{{ .Values.tls.ca | b64enc }}"
-        {{- end }}
 ---
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: "site-manager-crd-validating-webhook-configuration"
-  {{- if .Values.tls.generateCerts.enabled }}
-  annotations:
-    {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
-    {{- else if eq .Values.tls.generateCerts.executor "openshift" }}
-    service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
-    service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
-    {{- end }}
-  {{- end }}
+  name: validating-webhook-configuration
 webhooks:
-- name: "site-manager-crd-validating-webhook-v3.{{ .Values.env.SM_GROUP }}"
-  admissionReviewVersions: ["v1"]
+- admissionReviewVersions:
+  - v1
   clientConfig:
     service:
-      namespace: {{ .Release.Namespace }}
-      name: {{ .Chart.Name }}
-      path: /validate-{{ .Values.env.SM_GROUP | replace "." "-" }}-v3-sitemanager
-      port: 442
-    {{- if .Values.tls.ca }}
-    caBundle: "{{ .Values.tls.ca | b64enc }}"
-    {{- end }}
+      name: webhook-service
+      namespace: system
+      path: /validate-qubership-org-v3-sitemanager
+  failurePolicy: Fail
+  name: vsitemanager-v3.kb.io
   rules:
-  - apiGroups:   ["{{ .Values.env.SM_GROUP }}"]
-    apiVersions: ["v3"]
-    operations:  ["CREATE", "UPDATE"]
-    resources:   ["sitemanagers"]
-    scope:       "Namespaced"
+  - apiGroups:
+    - qubership.org
+    apiVersions:
+    - v3
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - sitemanagers
   sideEffects: None
-- name: "site-manager-crd-validating-webhook-v2.{{ .Values.env.SM_GROUP }}"
-  admissionReviewVersions: ["v1"]
-  clientConfig:
-    service:
-      namespace: {{ .Release.Namespace }}
-      name: {{ .Chart.Name }}
-      path: /validate-{{ .Values.env.SM_GROUP | replace "." "-" }}-v2-sitemanager
-      port: 442
-    {{- if .Values.tls.ca }}
-    caBundle: "{{ .Values.tls.ca | b64enc }}"
-    {{- end }}
-  rules:
-  - apiGroups:   ["{{ .Values.env.SM_GROUP }}"]
-    apiVersions: ["v2"]
-    operations:  ["CREATE", "UPDATE"]
-    resources:   ["sitemanagers"]
-    scope:       "Namespaced"
-  sideEffects: None
-- name: "site-manager-crd-validating-webhook-v1.{{ .Values.env.SM_GROUP }}"
-  admissionReviewVersions: ["v1"]
-  clientConfig:
-    service:
-      namespace: {{ .Release.Namespace }}
-      name: {{ .Chart.Name }}
-      path: /validate-{{ .Values.env.SM_GROUP | replace "." "-" }}-v1-sitemanager
-      port: 442
-    {{- if .Values.tls.ca }}
-    caBundle: "{{ .Values.tls.ca | b64enc }}"
-    {{- end }}
-  rules:
-  - apiGroups:   ["{{ .Values.env.SM_GROUP }}"]
-    apiVersions: ["v1"]
-    operations:  ["CREATE", "UPDATE"]
-    resources:   ["sitemanagers"]
-    scope:       "Namespaced"
-  sideEffects: None
-{{ end }}

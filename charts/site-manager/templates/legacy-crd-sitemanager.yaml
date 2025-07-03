@@ -1,0 +1,343 @@
+{{ if eq .Values.crd.install true }}
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: sitemanagers.{{ .Values.env.SM_GROUP }}
+  {{- if .Values.tls.generateCerts.enabled }}
+  annotations:
+    {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
+    {{- else if eq .Values.tls.generateCerts.executor "openshift" }}
+    service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
+    service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
+    {{- end }}
+  {{- end }}
+spec:
+  group: {{ .Values.env.SM_GROUP }}
+  names:
+    kind: SiteManager
+    listKind: SiteManagerList
+    plural: sitemanagers
+    singular: sitemanager
+  scope: Namespaced
+  versions:
+  - name: v3
+    served: true
+    storage: true
+    subresources:
+      status: {}
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              sitemanager:
+                properties:
+                  module:
+                    type: string
+                  alias:
+                    type: string
+                  after:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  before:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  sequence:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  allowedStandbyStateList:
+                    items:
+                      type: string
+                    type: array
+                    default: ["up"]
+                  timeout:
+                    type: integer
+                    minimum: 10
+                    maximum: 1000
+                  parameters:
+                    type: object
+                    properties:
+                      serviceEndpoint:
+                        type: string
+                      healthzEndpoint:
+                        type: string
+                required:
+                - module
+                type: object
+            type: object
+          status:
+            properties:
+              summary:
+                type: string
+              serviceName:
+                type: string
+            type: object
+        type: object
+    additionalPrinterColumns:
+    - name: SERVICE NAME
+      type: string
+      description: Service name in site-manager
+      jsonPath: .status.serviceName
+    - name: STATUS
+      type: string
+      description: The summary status of service
+      jsonPath: .status.summary
+  - name: v2
+    served: true
+    storage: false
+    deprecated: true
+    deprecationWarning: "{{ .Values.env.SM_GROUP }}/v2 SiteManager is deprecated; use v3 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
+    subresources:
+      status: {}
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              sitemanager:
+                properties:
+                  module:
+                    type: string
+                  after:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  before:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  sequence:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  allowedStandbyStateList:
+                    items:
+                      type: string
+                    type: array
+                    default: ["up"]
+                  timeout:
+                    type: integer
+                    minimum: 10
+                    maximum: 1000
+                  parameters:
+                    type: object
+                    properties:
+                      serviceEndpoint:
+                        type: string
+                      ingressEndpoint:
+                        type: string
+                      healthzEndpoint:
+                        type: string
+                required:
+                - module
+                type: object
+            type: object
+          status:
+            properties:
+              summary:
+                type: string
+              serviceName:
+                type: string
+            type: object
+        type: object
+    additionalPrinterColumns:
+    - name: SERVICE NAME
+      type: string
+      description: Service name in site-manager
+      jsonPath: .status.serviceName
+    - name: STATUS
+      type: string
+      description: The summary status of service
+      jsonPath: .status.summary
+  - name: v1
+    served: false
+    storage: false
+    deprecated: true
+    deprecationWarning: "{{ .Values.env.SM_GROUP }}/v1 SiteManager is deprecated; use v2 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
+    subresources:
+      status: {}
+    schema:
+      openAPIV3Schema:
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            properties:
+              sitemanager:
+                properties:
+                  after:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  before:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  sequence:
+                    items:
+                      type: string
+                    type: array
+                    default: []
+                  allowedStandbyStateList:
+                    items:
+                      type: string
+                    type: array
+                    default: ["up"]
+                  timeout:
+                    type: integer
+                    minimum: 10
+                    maximum: 1000
+                  serviceEndpoint:
+                    type: string
+                  ingressEndpoint:
+                    type: string
+                  healthzEndpoint:
+                    type: string
+                type: object
+            type: object
+          status:
+            properties:
+              summary:
+                type: string
+              serviceName:
+                type: string
+            type: object
+        type: object
+    additionalPrinterColumns:
+    - name: SERVICE NAME
+      type: string
+      description: Service name in site-manager
+      jsonPath: .status.serviceName
+    - name: STATUS
+      type: string
+      description: The summary status of service
+      jsonPath: .status.summary
+  conversion:
+    strategy: Webhook
+    webhook:
+      conversionReviewVersions: ["v1"]
+      clientConfig:
+        service:
+          namespace: {{ .Release.Namespace }}
+          name: {{ .Chart.Name }}
+          path: /convert
+          port: 442
+        {{- if .Values.tls.ca }}
+        caBundle: "{{ .Values.tls.ca | b64enc }}"
+        {{- end }}
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: "site-manager-crd-validating-webhook-configuration"
+  {{- if .Values.tls.generateCerts.enabled }}
+  annotations:
+    {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
+    {{- else if eq .Values.tls.generateCerts.executor "openshift" }}
+    service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
+    service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
+    {{- end }}
+  {{- end }}
+webhooks:
+- name: "site-manager-crd-validating-webhook-v3.{{ .Values.env.SM_GROUP }}"
+  admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      namespace: {{ .Release.Namespace }}
+      name: {{ .Chart.Name }}
+      path: /validate-{{ .Values.env.SM_GROUP | replace "." "-" }}-v3-sitemanager
+      port: 442
+    {{- if .Values.tls.ca }}
+    caBundle: "{{ .Values.tls.ca | b64enc }}"
+    {{- end }}
+  rules:
+  - apiGroups:   ["{{ .Values.env.SM_GROUP }}"]
+    apiVersions: ["v3"]
+    operations:  ["CREATE", "UPDATE"]
+    resources:   ["sitemanagers"]
+    scope:       "Namespaced"
+  sideEffects: None
+- name: "site-manager-crd-validating-webhook-v2.{{ .Values.env.SM_GROUP }}"
+  admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      namespace: {{ .Release.Namespace }}
+      name: {{ .Chart.Name }}
+      path: /validate-{{ .Values.env.SM_GROUP | replace "." "-" }}-v2-sitemanager
+      port: 442
+    {{- if .Values.tls.ca }}
+    caBundle: "{{ .Values.tls.ca | b64enc }}"
+    {{- end }}
+  rules:
+  - apiGroups:   ["{{ .Values.env.SM_GROUP }}"]
+    apiVersions: ["v2"]
+    operations:  ["CREATE", "UPDATE"]
+    resources:   ["sitemanagers"]
+    scope:       "Namespaced"
+  sideEffects: None
+- name: "site-manager-crd-validating-webhook-v1.{{ .Values.env.SM_GROUP }}"
+  admissionReviewVersions: ["v1"]
+  clientConfig:
+    service:
+      namespace: {{ .Release.Namespace }}
+      name: {{ .Chart.Name }}
+      path: /validate-{{ .Values.env.SM_GROUP | replace "." "-" }}-v1-sitemanager
+      port: 442
+    {{- if .Values.tls.ca }}
+    caBundle: "{{ .Values.tls.ca | b64enc }}"
+    {{- end }}
+  rules:
+  - apiGroups:   ["{{ .Values.env.SM_GROUP }}"]
+    apiVersions: ["v1"]
+    operations:  ["CREATE", "UPDATE"]
+    resources:   ["sitemanagers"]
+    scope:       "Namespaced"
+  sideEffects: None
+{{ end }}

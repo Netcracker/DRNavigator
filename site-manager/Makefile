@@ -43,7 +43,9 @@ help: ## Display this help.
 
 .PHONY: manifests
 manifests: controller-gen ## Generate WebhookConfiguration, ClusterRole and CustomResourceDefinition objects.
-	$(CONTROLLER_GEN) crd webhook paths="./..." output:crd:artifacts:config="../charts/site-manager/templates/"
+	rm ../charts/site-manager/templates/crd-sitemanager.yaml
+	$(CONTROLLER_GEN) crd paths="./api/v3" output:stdout >> ../charts/site-manager/templates/crd-sitemanager.yaml
+	$(CONTROLLER_GEN) webhook paths="./..." output:stdout >> ../charts/site-manager/templates/crd-sitemanager.yaml
 
 .PHONY: generate
 generate: controller-gen ## Generate code containing DeepCopy, DeepCopyInto, and DeepCopyObject method implementations.

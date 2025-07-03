@@ -24,6 +24,7 @@ import (
 	"github.com/netcracker/drnavigator/site-manager/config/kube_config"
 	"github.com/netcracker/drnavigator/site-manager/internal/controller"
 	"github.com/netcracker/drnavigator/site-manager/internal/controller/legacy"
+	webhookv3 "github.com/netcracker/drnavigator/site-manager/internal/webhook/v3"
 	"github.com/netcracker/drnavigator/site-manager/logger"
 	"github.com/netcracker/drnavigator/site-manager/pkg/app"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
@@ -226,6 +227,13 @@ func ServeApp(cmd *cobra.Command, args []string) {
 		}).SetupWithManager(mgr); err != nil {
 			setupLog.Error(err, "unable to create controller", "controller", "SiteManager")
 			os.Exit(1)
+		}
+		// nolint:goconst
+		if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+			if err := webhookv3.SetupSiteManagerWebhookWithManager(mgr); err != nil {
+				setupLog.Error(err, "unable to create webhook", "webhook", "SiteManager")
+				os.Exit(1)
+			}
 		}
 		// +kubebuilder:scaffold:builder
 

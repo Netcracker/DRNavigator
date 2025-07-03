@@ -17,4 +17,7 @@ resources:
   kind: SiteManager
   path: github.com/netcracker/drnavigator/site-manager/api/v3
   version: v3
+  webhooks:
+    validation: true
+    webhookVersion: v1
 version: "3"
