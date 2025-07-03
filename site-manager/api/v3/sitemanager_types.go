@@ -47,6 +47,8 @@ type SiteManagerStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="SERVICE NAME",type=string,JSONPath=`.status.serviceName`,description="Service name in site-manager"
+// +kubebuilder:printcolumn:name="STATUS",type=string,JSONPath=`.status.summary`,description="The summary status of service"
 
 // SiteManager is the Schema for the sitemanagers API.
 type SiteManager struct {

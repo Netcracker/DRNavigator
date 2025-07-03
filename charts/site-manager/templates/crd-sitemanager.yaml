@@ -22,7 +22,16 @@ spec:
     singular: sitemanager
   scope: Namespaced
   versions:
-  - name: v3
+  - additionalPrinterColumns:
+    - description: Service name in site-manager
+      jsonPath: .status.serviceName
+      name: SERVICE NAME
+      type: string
+    - description: The summary status of service
+      jsonPath: .status.summary
+      name: STATUS
+      type: string
+    name: v3
     schema:
       openAPIV3Schema:
         description: SiteManager is the Schema for the sitemanagers API.
@@ -115,9 +124,7 @@ webhooks:
       name: webhook-service
       namespace: system
       path: /validate-qubership-org-v3-sitemanager
-    {{- if .Values.tls.ca }}
-    caBundle: "{{ .Values.tls.ca | b64enc }}"
-    {{- end }}
+      port: 442
   failurePolicy: Fail
   name: vsitemanager-v3.kb.io
   rules:
