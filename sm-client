@@ -1,16 +1,4 @@
 #!/usr/bin/env python3
-"""
-Company:     NetCracker 
-Author:      Core PaaS Group
-Version:     0.7
-Date:        2021-11-19
-Description: Client util to communicate with site-manager in kubernetes based clusters
-@todo[3]
-    split current single source into modules,classes ; share common code with sm
-    make smclient delivery as single binary, using pyinstaller ???
-    cli json output
-    SM specific data structures : sm_dict; service response: 50%
-"""
 
 import argparse
 import logging
