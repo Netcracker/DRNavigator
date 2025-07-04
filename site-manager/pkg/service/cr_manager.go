@@ -12,6 +12,7 @@ import (
 	"time"
 
 	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
+	qubershiporgv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
 	http_client "github.com/netcracker/drnavigator/site-manager/pkg/client/http"
@@ -96,14 +97,21 @@ func (crm *CRManagerImpl) GetAllServices(ctx context.Context) (*model.SMDictiona
 		return &crm.SMConfig.Testing.SMDict, nil
 	}
 
-	crs, err := crm.CRClient.List(ctx, &client.ListOptions{})
+	legacyCRs, err := crm.CRClient.ListLegacy(ctx, &client.ListOptions{})
 	if err != nil {
-		crManagerLog.Error(err, fmt.Sprintf("can't get sitemanager objects group=%s, version=%s, kind=%s",
+		crManagerLog.Error(err, fmt.Sprintf("can't get sitemanager legacy objects group=%s, version=%s, kind=%s",
 			envconfig.EnvConfig.CRGroup, crv3.CRVersion, envconfig.EnvConfig.CRKindList))
 		return nil, &model.SMError{Message: err.Error(), IsInternalServerError: true}
 	}
 
-	return crm.convertToDict(crs), nil
+	crs := &qubershiporgv3.SiteManagerList{}
+	err = crm.CRClient.List(ctx, crs)
+	if err != nil {
+		crManagerLog.Error(err, "can't list SiteManager resources")
+		return nil, &model.SMError{Message: err.Error(), IsInternalServerError: true}
+	}
+
+	return crm.convertToDict(legacyCRs, crs), nil
 }
 
 // GetServicesList returns the list of available services
@@ -247,11 +255,11 @@ func (crm *CRManagerImpl) getServiceObject(serviceName *string, smDict *model.SM
 }
 
 // convertToDict converts the list of CRs t SMDict objects
-func (crm *CRManagerImpl) convertToDict(objList *crv3.CRList) *model.SMDictionary {
+func (crm *CRManagerImpl) convertToDict(legacyList *crv3.CRList, list *qubershiporgv3.SiteManagerList) *model.SMDictionary {
 	result := &model.SMDictionary{
 		Services: map[string]model.SMObject{},
 	}
-	for _, obj := range objList.Items {
+	for _, obj := range legacyList.Items {
 		smObj := model.SMObject{
 			CRName:                  obj.GetName(),
 			Namespace:               obj.GetNamespace(),
@@ -270,6 +278,36 @@ func (crm *CRManagerImpl) convertToDict(objList *crv3.CRList) *model.SMDictionar
 			Alias:   obj.Spec.SiteManager.Alias,
 		}
 		applyDefaults(&smObj)
+		result.Services[obj.GetServiceName()] = smObj
+	}
+
+	for _, obj := range list.Items {
+		smObj := model.SMObject{
+			CRName:                  obj.GetName(),
+			Namespace:               obj.GetNamespace(),
+			UID:                     obj.GetUID(),
+			Name:                    obj.GetServiceName(),
+			Module:                  obj.Spec.SiteManager.Module,
+			After:                   obj.Spec.SiteManager.After,
+			Before:                  obj.Spec.SiteManager.Before,
+			Sequence:                obj.Spec.SiteManager.Sequence,
+			AllowedStandbyStateList: obj.Spec.SiteManager.AllowedStandbyStateList,
+			Parameters: model.SMObjectParameters{
+				ServiceEndpoint: obj.Spec.SiteManager.Parameters.ServiceEndpoint,
+				HealthzEndpoint: obj.Spec.SiteManager.Parameters.HealthzEndpoint,
+			},
+			Timeout: obj.Spec.SiteManager.Timeout,
+			Alias:   obj.Spec.SiteManager.Alias,
+		}
+		applyDefaults(&smObj)
+		if prev, ok := result.Services[obj.GetServiceName()]; ok {
+			crManagerLog.Info(
+				"Legacy resource is shadowed by new resource",
+				"service-name", obj.GetServiceName(),
+				"legacy-resource", fmt.Sprintf("%s/%s", prev.Namespace, prev.CRName),
+				"new-resource", fmt.Sprintf("%s/%s", smObj.Namespace, smObj.CRName),
+			)
+		}
 		result.Services[obj.GetServiceName()] = smObj
 	}
 	return result

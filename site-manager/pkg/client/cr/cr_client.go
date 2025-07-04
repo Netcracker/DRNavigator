@@ -13,12 +13,15 @@ var crClientLog = ctrl.Log.WithName("cr-client")
 
 // CRClient is the kube client for sitemanagers CRs
 type CRClient interface {
-	// List returns the list ob ustructured CR objects from the cluster
-	List(ctx context.Context, opts *client.ListOptions) (*crv3.CRList, error)
+	// ListLegacy returns the list of structured legacy CR objects from the cluster
+	ListLegacy(ctx context.Context, opts *client.ListOptions) (*crv3.CRList, error)
 	// Get returns CR object with specified name and namespace
 	Get(ctx context.Context, namespace string, name string, opts *client.GetOptions) (*crv3.CR, error)
 	// UpdateStatus updates the status for given CR
 	UpdateStatus(ctx context.Context, obj *crv3.CR, opts *client.SubResourceUpdateOptions) error
+
+	// List returns the list of structured CR objects from the cluster
+	List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error
 }
 
 // crClient is implementation of CRClient
@@ -34,8 +37,8 @@ func NewCRClient(kubeClient client.Client) CRClient {
 	return crc
 }
 
-// List returns the list ob ustructured CR objects from the cluster
-func (crc *crClient) List(ctx context.Context, opts *client.ListOptions) (*crv3.CRList, error) {
+// List returns the list ob structured legacy CR objects from the cluster
+func (crc *crClient) ListLegacy(ctx context.Context, opts *client.ListOptions) (*crv3.CRList, error) {
 	obj := &crv3.CRList{}
 	err := crc.kubeClient.List(ctx, obj, opts)
 	return obj, err
@@ -51,4 +54,8 @@ func (crc *crClient) Get(ctx context.Context, namespace string, name string, opt
 // UpdateStatus updates the status for given CR
 func (crc *crClient) UpdateStatus(ctx context.Context, obj *crv3.CR, opts *client.SubResourceUpdateOptions) error {
 	return crc.kubeClient.Status().Update(ctx, obj, opts)
+}
+
+func (crc *crClient) List(ctx context.Context, list client.ObjectList, opts ...client.ListOption) error {
+	return crc.kubeClient.List(ctx, list, opts...)
 }
