@@ -18,7 +18,7 @@ type Config struct {
 	BackHttpAuth  bool   `envconfig:"BACK_HTTP_AUTH" default:"false"`
 	SMCaCert      string `envconfig:"SM_CACERT" default:"True"`
 
-	// cr configuration
+	// cr configuration (for legacy only)
 	CRGroup    string `envconfig:"SM_GROUP" default:"legacy.qubership.org"`
 	CRKind     string `envconfig:"SM_KIND" default:"SiteManager"`
 	CRKindList string `envconfig:"SM_KIND_LIST" default:"SiteManagerList"`

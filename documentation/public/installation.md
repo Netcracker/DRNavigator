@@ -93,7 +93,8 @@ To support the ability of services to be managed by `site-manager`, implement th
     openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
     ```
     2.5. Specify data from generated files in site-manager chart under `tls.crt`, `tls.key` and `tls.ca` sections respectively. 
-3. Make sure deployment user have permission to create CRD resources, i.e. it should have ClusterRole with following permissions
+3. Make sure to specify `crd.install: true` in the helm chart, so that it actually creates CRD.
+ Deployment user have permission to create CRD resources, i.e. it should have ClusterRole with following permissions
   ```yaml
     rules:
       - apiGroups: ["apiextensions.k8s.io"]

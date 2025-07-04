@@ -9,7 +9,7 @@ env:
   # set logging verbosity
   SM_DEBUG: "False"
 
-  # set CRD parameters
+  # set CRD parameters (for legacy API group only)
   SM_GROUP: "legacy.qubership.org"
   SM_KIND: "SiteManager"
   SM_KIND_LIST: "SiteManagerList"

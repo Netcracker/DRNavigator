@@ -2,7 +2,7 @@
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
-  name: sitemanagers.{{ .Values.env.SM_GROUP }}
+  name: {{ printf "%ss" (lower .Values.env.SM_KIND) }}.{{ .Values.env.SM_GROUP }}
   {{- if .Values.tls.generateCerts.enabled }}
   annotations:
     {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
@@ -15,10 +15,10 @@ metadata:
 spec:
   group: {{ .Values.env.SM_GROUP }}
   names:
-    kind: SiteManager
-    listKind: SiteManagerList
-    plural: sitemanagers
-    singular: sitemanager
+    kind: {{ .Values.env.SM_KIND }}
+    listKind: {{ .Values.env.SM_KIND_LIST }}
+    plural: {{ printf "%ss" (lower .Values.env.SM_KIND) }}
+    singular: {{ lower .Values.env.SM_KIND }}
   scope: Namespaced
   versions:
   - name: v3
@@ -105,7 +105,7 @@ spec:
     served: true
     storage: false
     deprecated: true
-    deprecationWarning: "{{ .Values.env.SM_GROUP }}/v2 SiteManager is deprecated; use v3 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
+    deprecationWarning: "{{ .Values.env.SM_GROUP }}/v2 {{ .Values.env.SM_KIND }} is deprecated; use v3 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
     subresources:
       status: {}
     schema:
@@ -187,7 +187,7 @@ spec:
     served: false
     storage: false
     deprecated: true
-    deprecationWarning: "{{ .Values.env.SM_GROUP }}/v1 SiteManager is deprecated; use v2 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
+    deprecationWarning: "{{ .Values.env.SM_GROUP }}/v1 {{ .Values.env.SM_KIND }} is deprecated; use v2 and see actual version on https://github.com/Netcracker/DRNavigator#custom-resource-for-stateful"
     subresources:
       status: {}
     schema:
@@ -292,7 +292,7 @@ webhooks:
     service:
       namespace: {{ .Release.Namespace }}
       name: {{ .Chart.Name }}
-      path: /validate-{{ .Values.env.SM_GROUP | replace "." "-" }}-v3-sitemanager
+      path: /validate-{{ .Values.env.SM_GROUP | replace "." "-" }}-v3-{{ lower .Values.env.SM_KIND }}
       port: 442
     {{- if .Values.tls.ca }}
     caBundle: "{{ .Values.tls.ca | b64enc }}"
@@ -301,7 +301,7 @@ webhooks:
   - apiGroups:   ["{{ .Values.env.SM_GROUP }}"]
     apiVersions: ["v3"]
     operations:  ["CREATE", "UPDATE"]
-    resources:   ["sitemanagers"]
+    resources:   [{{ printf "%ss" (lower .Values.env.SM_KIND) }}]
     scope:       "Namespaced"
   sideEffects: None
 - name: "site-manager-crd-validating-webhook-v2.{{ .Values.env.SM_GROUP }}"
@@ -310,7 +310,7 @@ webhooks:
     service:
       namespace: {{ .Release.Namespace }}
       name: {{ .Chart.Name }}
-      path: /validate-{{ .Values.env.SM_GROUP | replace "." "-" }}-v2-sitemanager
+      path: /validate-{{ .Values.env.SM_GROUP | replace "." "-" }}-v2-{{ lower .Values.env.SM_KIND }}
       port: 442
     {{- if .Values.tls.ca }}
     caBundle: "{{ .Values.tls.ca | b64enc }}"
@@ -319,7 +319,7 @@ webhooks:
   - apiGroups:   ["{{ .Values.env.SM_GROUP }}"]
     apiVersions: ["v2"]
     operations:  ["CREATE", "UPDATE"]
-    resources:   ["sitemanagers"]
+    resources:   [{{ printf "%ss" (lower .Values.env.SM_KIND) }}]
     scope:       "Namespaced"
   sideEffects: None
 - name: "site-manager-crd-validating-webhook-v1.{{ .Values.env.SM_GROUP }}"
@@ -328,7 +328,7 @@ webhooks:
     service:
       namespace: {{ .Release.Namespace }}
       name: {{ .Chart.Name }}
-      path: /validate-{{ .Values.env.SM_GROUP | replace "." "-" }}-v1-sitemanager
+      path: /validate-{{ .Values.env.SM_GROUP | replace "." "-" }}-v1-{{ lower .Values.env.SM_KIND }}
       port: 442
     {{- if .Values.tls.ca }}
     caBundle: "{{ .Values.tls.ca | b64enc }}"
@@ -337,7 +337,7 @@ webhooks:
   - apiGroups:   ["{{ .Values.env.SM_GROUP }}"]
     apiVersions: ["v1"]
     operations:  ["CREATE", "UPDATE"]
-    resources:   ["sitemanagers"]
+    resources:   [{{ printf "%ss" (lower .Values.env.SM_KIND) }}]
     scope:       "Namespaced"
   sideEffects: None
 {{ end }}
