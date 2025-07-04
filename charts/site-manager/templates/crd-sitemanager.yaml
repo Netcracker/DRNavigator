@@ -130,8 +130,8 @@ webhooks:
   - v1
   clientConfig:
     service:
-      name: webhook-service
-      namespace: system
+      name: {{ .Chart.Name }}
+      namespace: {{ .Release.Namespace }}
       path: /validate-qubership-org-v3-sitemanager
       port: 442
     {{- if .Values.tls.ca }}
