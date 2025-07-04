@@ -1,6 +1,6 @@
 {{- if .Values.siteManager.installCR }}
 ---
-apiVersion: {{ .Values.SM_GROUP }}/v3
+apiVersion: {{ .Values.env.SM_GROUP }}/v3
 kind: SiteManager
 metadata:
   name: {{ .Values.name }}
