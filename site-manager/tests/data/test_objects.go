@@ -3,9 +3,9 @@ package test_objects
 import (
 	"fmt"
 
-	crv1 "github.com/netcracker/drnavigator/site-manager/api/legacy/v1"
-	crv2 "github.com/netcracker/drnavigator/site-manager/api/legacy/v2"
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
+	legacyv1 "github.com/netcracker/drnavigator/site-manager/api/legacy/v1"
+	legacyv2 "github.com/netcracker/drnavigator/site-manager/api/legacy/v2"
+	legacyv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
@@ -34,7 +34,7 @@ var (
 			HealthzEndpoint: ServiceV1HealthzEndpoint,
 		},
 	}
-	ServiceV1 = crv1.CR{
+	ServiceV1 = legacyv1.CR{
 		TypeMeta: v1.TypeMeta{
 			APIVersion: "legacy.qubership.org/v1",
 			Kind:       "SiteManager",
@@ -44,8 +44,8 @@ var (
 			Namespace: ServiceV1Obj.Namespace,
 			UID:       ServiceV1Obj.UID,
 		},
-		Spec: crv1.CRSpec{
-			SiteManager: crv1.CRSpecSiteManager{
+		Spec: legacyv1.CRSpec{
+			SiteManager: legacyv1.CRSpecSiteManager{
 				After:                   ServiceV1Obj.After,
 				Before:                  ServiceV1Obj.Before,
 				Sequence:                ServiceV1Obj.Sequence,
@@ -56,7 +56,7 @@ var (
 				HealthzEndpoint:         ServiceV1HealthzEndpoint,
 			},
 		},
-		Status: crv1.CRStatus{
+		Status: legacyv1.CRStatus{
 			Summary:     "Accepted",
 			ServiceName: ServiceV1Obj.Name,
 		},
@@ -85,7 +85,7 @@ var (
 			HealthzEndpoint: ServiceV2HealthzEndpoint,
 		},
 	}
-	ServiceV2 = crv2.CR{
+	ServiceV2 = legacyv2.CR{
 		TypeMeta: v1.TypeMeta{
 			APIVersion: "legacy.qubership.org/v2",
 			Kind:       "SiteManager",
@@ -95,22 +95,22 @@ var (
 			Namespace: ServiceV2Obj.Namespace,
 			UID:       ServiceV2Obj.UID,
 		},
-		Spec: crv2.CRSpec{
-			SiteManager: crv2.CRSpecSiteManager{
+		Spec: legacyv2.CRSpec{
+			SiteManager: legacyv2.CRSpecSiteManager{
 				Module:                  ServiceV2Obj.Module,
 				After:                   ServiceV2Obj.After,
 				Before:                  ServiceV2Obj.Before,
 				Sequence:                ServiceV2Obj.Sequence,
 				AllowedStandbyStateList: ServiceV2Obj.AllowedStandbyStateList,
 				Timeout:                 ServiceV2Obj.Timeout,
-				Parameters: crv2.CRSpecParameters{
+				Parameters: legacyv2.CRSpecParameters{
 					ServiceEndpoint: ServiceV2ServiceEndpoint,
 					IngressEndpoint: ServiceV2IngressEndpoint,
 					HealthzEndpoint: ServiceV2HealthzEndpoint,
 				},
 			},
 		},
-		Status: crv2.CRStatus{
+		Status: legacyv2.CRStatus{
 			Summary:     "Accepted",
 			ServiceName: ServiceV2Obj.Name,
 		},
@@ -137,7 +137,7 @@ var (
 			HealthzEndpoint: ServiceV3HealthzEndpoint,
 		},
 	}
-	ServiceV3 = crv3.CR{
+	ServiceV3 = legacyv3.CR{
 		TypeMeta: v1.TypeMeta{
 			APIVersion: "legacy.qubership.org/v3",
 			Kind:       "SiteManager",
@@ -147,8 +147,8 @@ var (
 			Namespace: ServiceV3Obj.Namespace,
 			UID:       ServiceV3Obj.UID,
 		},
-		Spec: crv3.CRSpec{
-			SiteManager: crv3.CRSpecSiteManager{
+		Spec: legacyv3.CRSpec{
+			SiteManager: legacyv3.CRSpecSiteManager{
 				Module:                  ServiceV3Obj.Module,
 				Alias:                   ServiceV3Obj.Alias,
 				After:                   ServiceV3Obj.After,
@@ -156,13 +156,13 @@ var (
 				Sequence:                ServiceV3Obj.Sequence,
 				AllowedStandbyStateList: ServiceV3Obj.AllowedStandbyStateList,
 				Timeout:                 ServiceV3Obj.Timeout,
-				Parameters: crv3.CRSpecParameters{
+				Parameters: legacyv3.CRSpecParameters{
 					ServiceEndpoint: ServiceV3ServiceEndpoint,
 					HealthzEndpoint: ServiceV3HealthzEndpoint,
 				},
 			},
 		},
-		Status: crv3.CRStatus{
+		Status: legacyv3.CRStatus{
 			Summary:     "Accepted",
 			ServiceName: ServiceV3Obj.Name,
 		},

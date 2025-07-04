@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
+	legacyv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	qubershiporgv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -12,11 +12,11 @@ import (
 
 type CRClientMock struct {
 	cr_client.CRClient
-	LegacyCRList    crv3.CRList
+	LegacyCRList    legacyv3.CRList
 	QubershipCRList qubershiporgv3.SiteManagerList
 }
 
-func (crcm *CRClientMock) ListLegacy(ctx context.Context, opts *client.ListOptions) (*crv3.CRList, error) {
+func (crcm *CRClientMock) ListLegacy(ctx context.Context, opts *client.ListOptions) (*legacyv3.CRList, error) {
 	return &crcm.LegacyCRList, nil
 }
 

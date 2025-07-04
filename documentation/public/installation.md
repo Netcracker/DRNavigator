@@ -1,19 +1,19 @@
 # DR Navigator Installation Procedure
 
 <!-- TOC -->
-- [DR Navigator Installation Procedure](#dr-navigator-installation-procedure)
-  - [Site-manager](#site-manager)
-    - [Requirements](#requirements)
-    - [Prerequisites](#prerequisites)
-    - [Installation](#installation)
-    - [Certificate Renewal Procedure](#certificate-renewal-procedure)
-  - [Paas-Geo-Monitor](#paas-geo-monitor)
-    - [Installation Procedure](#installation-procedure)
-    - [Configuration](#configuration)
-  - [sm-client](#sm-client)
-    - [Prepare Environment](#prepare-environment)
-    - [Running From CLI](#running-from-cli)
-    - [Running From Docker](#running-from-docker)
+* [DR Navigator Installation Procedure](#dr-navigator-installation-procedure)
+  * [Site-manager](#site-manager)
+    * [Requirements](#requirements)
+    * [Prerequisites](#prerequisites)
+    * [Installation](#installation)
+    * [Certificate Renewal Procedure](#certificate-renewal-procedure)
+  * [Paas-Geo-Monitor](#paas-geo-monitor)
+    * [Installation Procedure](#installation-procedure)
+    * [Configuration](#configuration)
+  * [sm-client](#sm-client)
+    * [Prepare Environment](#prepare-environment)
+    * [Running From CLI](#running-from-cli)
+    * [Running From Docker](#running-from-docker)
 <!-- TOC -->
 
 ## Site-manager
@@ -270,11 +270,11 @@ peers.
     sites:
       - name: k8s-1
         token: <BEARER TOKEN>
-        site-manager: http://site-manager.k8s-1.legacy.qubership.org/sitemanager
+        site-manager: http://site-manager.example.com/sitemanager
         cacert: <path-to-ca-certificate>
       - name: k8s-2
         token: <BEARER TOKEN>
-        site-manager: http://site-manager.k8s-2.legacy.qubership.org/sitemanager
+        site-manager: http://site-manager.example.com/sitemanager
         cacert: <path-to-ca-certificate>
     
     sm-client:

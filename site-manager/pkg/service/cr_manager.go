@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
+	legacyv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	qubershiporgv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
@@ -100,7 +100,7 @@ func (crm *CRManagerImpl) GetAllServices(ctx context.Context) (*model.SMDictiona
 	legacyCRs, err := crm.CRClient.ListLegacy(ctx, &client.ListOptions{})
 	if err != nil {
 		crManagerLog.Error(err, fmt.Sprintf("can't get sitemanager legacy objects group=%s, version=%s, kind=%s",
-			envconfig.EnvConfig.CRGroup, crv3.CRVersion, envconfig.EnvConfig.CRKindList))
+			envconfig.EnvConfig.CRGroup, legacyv3.CRVersion, envconfig.EnvConfig.CRKindList))
 		return nil, &model.SMError{Message: err.Error(), IsInternalServerError: true}
 	}
 
@@ -255,7 +255,7 @@ func (crm *CRManagerImpl) getServiceObject(serviceName *string, smDict *model.SM
 }
 
 // convertToDict converts the list of CRs t SMDict objects
-func (crm *CRManagerImpl) convertToDict(legacyList *crv3.CRList, list *qubershiporgv3.SiteManagerList) *model.SMDictionary {
+func (crm *CRManagerImpl) convertToDict(legacyList *legacyv3.CRList, list *qubershiporgv3.SiteManagerList) *model.SMDictionary {
 	result := &model.SMDictionary{
 		Services: map[string]model.SMObject{},
 	}

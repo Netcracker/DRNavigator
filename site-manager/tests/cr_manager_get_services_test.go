@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	"github.com/go-logr/logr"
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
+	legacyv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	qubershiporgv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"
@@ -27,12 +27,12 @@ func TestQubershipOverridesLegacy(t *testing.T) {
 	assert := require.New(t)
 	log.SetLogger(logr.FromSlogHandler(slog.NewTextHandler(os.Stdout, nil)))
 
-	legacyCR1 := crv3.CR{}
-	legacyCR2 := crv3.CR{}
+	legacyCR1 := legacyv3.CR{}
+	legacyCR2 := legacyv3.CR{}
 	_ = test_objects.ServiceV1.ConvertTo(&legacyCR1)
 	_ = test_objects.ServiceV2.ConvertTo(&legacyCR2)
-	legacyCRList := crv3.CRList{
-		Items: []crv3.CR{legacyCR1, legacyCR2},
+	legacyCRList := legacyv3.CRList{
+		Items: []legacyv3.CR{legacyCR1, legacyCR2},
 	}
 
 	// create qubership CR with the same service as one of the legacy CR, but different
@@ -89,8 +89,8 @@ func TestCRManager_MappingV3ToSMDictionary(t *testing.T) {
 	_ = envconfig.InitConfig()
 	assert := require.New(t)
 	// Test, that v3 object is mapped corectly to SM Dictionary object
-	crList := crv3.CRList{
-		Items: []crv3.CR{test_objects.ServiceV3},
+	crList := legacyv3.CRList{
+		Items: []legacyv3.CR{test_objects.ServiceV3},
 	}
 	clientMock := &mock.CRClientMock{LegacyCRList: crList}
 	crManager := &service.CRManagerImpl{CRClient: clientMock}
@@ -126,7 +126,7 @@ func TestCRManager_MappingDefaults(t *testing.T) {
 		Timeout: nil,
 		Alias:   nil,
 	}
-	emptyCR := crv3.CR{
+	emptyCR := legacyv3.CR{
 		TypeMeta: v1.TypeMeta{
 			APIVersion: "legacy.qubership.org/v3",
 			Kind:       "SiteManager",
@@ -138,8 +138,8 @@ func TestCRManager_MappingDefaults(t *testing.T) {
 		},
 	}
 
-	crList := crv3.CRList{
-		Items: []crv3.CR{emptyCR},
+	crList := legacyv3.CRList{
+		Items: []legacyv3.CR{emptyCR},
 	}
 	clientMock := &mock.CRClientMock{LegacyCRList: crList}
 	crManager := &service.CRManagerImpl{CRClient: clientMock}
@@ -156,12 +156,12 @@ func TestCRManager_DisabledTestingInSMConfig(t *testing.T) {
 	_ = envconfig.InitConfig()
 	assert := require.New(t)
 	// Test, that if testing is disabled in SM config, CRs will be got from kube client
-	cr1 := crv3.CR{}
-	cr2 := crv3.CR{}
+	cr1 := legacyv3.CR{}
+	cr2 := legacyv3.CR{}
 	_ = test_objects.ServiceV1.ConvertTo(&cr1)
 	_ = test_objects.ServiceV2.ConvertTo(&cr2)
-	crList := crv3.CRList{
-		Items: []crv3.CR{cr1, cr2},
+	crList := legacyv3.CRList{
+		Items: []legacyv3.CR{cr1, cr2},
 	}
 	smConfig := model.SMConfig{
 		Testing: model.SMConfigTesting{
