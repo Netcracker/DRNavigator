@@ -30,7 +30,7 @@ import (
 var _ = Describe("SiteManager Webhook", func() {
 	Context("When creating or updating SiteManager under Validating Webhook", func() {
 		It("Should deny creation if service name is duplicated", func() {
-			By("simulating an invalid creation scenario")
+			By("creating first object normally")
 			obj1 := &qubershiporgv3.SiteManager{
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "service-1",
@@ -39,6 +39,7 @@ var _ = Describe("SiteManager Webhook", func() {
 			}
 			Expect(k8sClient.Create(context.Background(), obj1)).To(Succeed())
 
+			By("creating second object with alias to the same service name")
 			obj2 := &qubershiporgv3.SiteManager{
 				ObjectMeta: v1.ObjectMeta{
 					Name:      "service-2",
@@ -50,9 +51,22 @@ var _ = Describe("SiteManager Webhook", func() {
 					},
 				},
 			}
-			err := k8sClient.Create(context.Background(), obj2)
-			Expect(err).To(Not(BeNil()))
-			Expect(err.Error()).To(ContainSubstring("this name is used for another service"))
+			Expect(k8sClient.Create(context.Background(), obj2)).
+				To(MatchError(ContainSubstring("this name is used for another service")))
+
+			By("creating third object with different service name")
+			obj3 := &qubershiporgv3.SiteManager{
+				ObjectMeta: v1.ObjectMeta{
+					Name:      "service-3",
+					Namespace: "default",
+				},
+			}
+			Expect(k8sClient.Create(context.Background(), obj3)).To(Succeed())
+
+			By("updating third object to the same service name")
+			obj3.Spec.SiteManager.Alias = ptr.To("service-1.default")
+			Expect(k8sClient.Update(context.Background(), obj3)).
+				To(MatchError(ContainSubstring("this name is used for another service")))
 		})
 	})
 })

@@ -18,6 +18,7 @@ package controller
 
 import (
 	"context"
+	"fmt"
 
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
@@ -32,13 +33,11 @@ import (
 
 var _ = Describe("SiteManager Controller", func() {
 	Context("When reconciling a resource", func() {
-		const resourceName = "test-resource"
-
 		ctx := context.Background()
 
 		typeNamespacedName := types.NamespacedName{
-			Name:      resourceName,
-			Namespace: "default", // TODO(user):Modify as needed
+			Name:      "test-resource",
+			Namespace: "default",
 		}
 		sitemanager := &qubershiporgv3.SiteManager{}
 
@@ -48,17 +47,15 @@ var _ = Describe("SiteManager Controller", func() {
 			if err != nil && errors.IsNotFound(err) {
 				resource := &qubershiporgv3.SiteManager{
 					ObjectMeta: metav1.ObjectMeta{
-						Name:      resourceName,
-						Namespace: "default",
+						Name:      typeNamespacedName.Name,
+						Namespace: typeNamespacedName.Namespace,
 					},
-					// TODO(user): Specify other spec details if needed.
 				}
 				Expect(k8sClient.Create(ctx, resource)).To(Succeed())
 			}
 		})
 
 		AfterEach(func() {
-			// TODO(user): Cleanup logic after each test, like removing the resource instance.
 			resource := &qubershiporgv3.SiteManager{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
@@ -66,6 +63,7 @@ var _ = Describe("SiteManager Controller", func() {
 			By("Cleanup the specific resource instance SiteManager")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
+
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
 			controllerReconciler := &SiteManagerReconciler{
@@ -77,8 +75,14 @@ var _ = Describe("SiteManager Controller", func() {
 				NamespacedName: typeNamespacedName,
 			})
 			Expect(err).NotTo(HaveOccurred())
-			// TODO(user): Add more specific assertions depending on your controller's reconciliation logic.
-			// Example: If you expect a certain status condition after reconciliation, verify it here.
+
+			resource := &qubershiporgv3.SiteManager{}
+			expectedStatus := qubershiporgv3.SiteManagerStatus{
+				Summary:     "Accepted",
+				ServiceName: fmt.Sprintf("%s.%s", typeNamespacedName.Name, typeNamespacedName.Namespace),
+			}
+			Expect(k8sClient.Get(ctx, typeNamespacedName, resource)).To(Succeed())
+			Expect(resource.Status).To(Equal(expectedStatus))
 		})
 	})
 })
