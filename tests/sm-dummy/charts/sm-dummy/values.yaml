@@ -5,7 +5,7 @@ PAAS_PLATFORM: KUBERNETES
 smSecureAuth: false
 
 env:
-  SM_GROUP: "quberhsip.org"
+  SM_GROUP: "qubership.org"
   SMA_TIMEOUT: 15
   SMA_INIT_MODE: active
   SMA_DEBUG: True
