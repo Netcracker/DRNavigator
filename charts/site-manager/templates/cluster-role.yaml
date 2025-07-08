@@ -14,7 +14,7 @@ rules:
     resources: [sitemanagers]
     verbs: ["get", "list", "watch"]
   - apiGroups: ["qubership.org"]
-    resources: [sitemanager]
+    resources: [sitemanagers/status]
     verbs: ["get", "list", "watch", "update"]
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]
