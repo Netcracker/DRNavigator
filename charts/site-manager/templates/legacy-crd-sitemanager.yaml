@@ -3,8 +3,9 @@ apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
 metadata:
   name: {{ printf "%ss" (lower .Values.env.SM_KIND) }}.{{ .Values.env.SM_GROUP }}
-  {{- if .Values.tls.generateCerts.enabled }}
   annotations:
+    helm.sh/resource-policy: keep
+  {{- if .Values.tls.generateCerts.enabled }}
     {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
     {{- else if eq .Values.tls.generateCerts.executor "openshift" }}
