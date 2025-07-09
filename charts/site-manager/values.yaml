@@ -95,7 +95,7 @@ tls:
 PAAS_PLATFORM: KUBERNETES
 
 crd:
-  install: false
+  install: true
 
 paasGeoMonitor:
   image: ghcr.io/netcracker/paas-geo-monitor:0.9.0
