@@ -117,7 +117,7 @@ spec:
 apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
-  name: validating-webhook-configuration
+  name: site-manager-qubership-validating-webhook-configuration
   {{- if .Values.tls.generateCerts.enabled }}
   annotations:
     {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
