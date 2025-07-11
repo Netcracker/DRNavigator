@@ -15,9 +15,10 @@ import (
 )
 
 const (
-	serviceNameExistsTemplate = "Can't use service %s %s, this name is used for another service"
+	serviceNameExistsTemplate = "Can't use service %s %s, this name is used for another service, " +
+		"make sure to also check for preferred sitemanagers.qubership.org resources"
 )
-
+ 
 // Validator provides the set of functions for CR validation
 type Validator interface {
 	admission.CustomValidator
