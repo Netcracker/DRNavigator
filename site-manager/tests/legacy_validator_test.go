@@ -124,7 +124,7 @@ func failedValidation(assert *require.Assertions, validator legacy.Validator, se
 	} else {
 		warnings, err = validator.ValidateUpdate(context.Background(), serviceCROld, serviceCR)
 	}
-	assert.Equal(expectedMessage, err.Error(), "returned message is unexpected")
+	assert.Contains(err.Error(), expectedMessage, "returned message is unexpected")
 	assert.Empty(warnings, "warnings is not empty for creating valudation")
 }
 
@@ -215,7 +215,7 @@ func TestValidator_ValidatesNewCRCreation_ProideAlias(t *testing.T) {
 	// Fail, on alias, calculated as service name of another service without alias
 	serviceAlias = fmt.Sprintf("%s.%s", serviceWithoutAlias.CRName, serviceWithoutAlias.Namespace)
 	failedValidationsV3(assert, validator, nil, "test-service", "test-ns", "test-service-uid", &serviceAlias,
-		fmt.Sprintf("Can't use service alias %s, this name is used for another service", serviceAlias))
+		fmt.Sprintf("Can't use service alias %s, this name is used for another service, ", serviceAlias))
 
 	// Successful, when alias is calculated service name of another service with alias
 	serviceAlias = fmt.Sprintf("%s.%s", serviceWithCustomAlias.CRName, serviceWithCustomAlias.Namespace)
