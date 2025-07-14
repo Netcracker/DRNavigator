@@ -19,6 +19,9 @@ spec:
     allowedStandbyStateList:
 {{ toYaml .Values.siteManager.allowedStandbyStateList | indent 6 }}
     timeout: {{ .Values.siteManager.timeout }}
+    {{- if .Values.siteManager.alias }}
+    alias: {{ .Values.siteManager.alias }}
+    {{- end }}
     parameters:
       {{- if .Values.siteManager.useDefaultParams }}
       serviceEndpoint: {{ .Values.name }}.{{ .Release.Namespace }}:80/sitemanager

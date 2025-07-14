@@ -46,6 +46,7 @@ siteManager:
   timeout: 180
   useDefaultParams: true
   additionalParams:
+  alias: ""
 
 image: ""
 ingressName: ""
