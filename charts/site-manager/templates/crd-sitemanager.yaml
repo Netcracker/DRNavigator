@@ -63,16 +63,20 @@ spec:
                   backward compatibility
                 properties:
                   after:
+                    default: []
                     items:
                       type: string
                     type: array
                   alias:
                     type: string
                   allowedStandbyStateList:
+                    default:
+                    - up
                     items:
                       type: string
                     type: array
                   before:
+                    default: []
                     items:
                       type: string
                     type: array
@@ -86,11 +90,14 @@ spec:
                         type: string
                     type: object
                   sequence:
+                    default: []
                     items:
                       type: string
                     type: array
                   timeout:
                     format: int64
+                    maximum: 1000
+                    minimum: 10
                     type: integer
                 required:
                 - module

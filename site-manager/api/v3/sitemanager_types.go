@@ -31,10 +31,16 @@ type SiteManagerSpec struct {
 type SiteManagerOptions struct {
 	Module                  string     `json:"module"`
 	Alias                   *string    `json:"alias,omitempty"`
+	//+kubebuilder:default:={}
 	After                   []string   `json:"after,omitempty"`
+	//+kubebuilder:default:={}
 	Before                  []string   `json:"before,omitempty"`
+	//+kubebuilder:default:={}
 	Sequence                []string   `json:"sequence,omitempty"`
+	//+kubebuilder:default:={"up"}
 	AllowedStandbyStateList []string   `json:"allowedStandbyStateList,omitempty"`
+	//+kubebuilder:validation:Minimum:=10
+	//+kubebuilder:validation:Maximum:=1000
 	Timeout                 *int64     `json:"timeout,omitempty"`
 	Parameters              Parameters `json:"parameters,omitempty"`
 }
