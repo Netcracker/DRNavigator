@@ -1,4 +1,4 @@
-package cmd
+package main
 
 import (
 	"fmt"
@@ -8,18 +8,6 @@ import (
 
 	"path/filepath"
 
-	crv1 "github.com/netcracker/drnavigator/site-manager/api/v1"
-	crv2 "github.com/netcracker/drnavigator/site-manager/api/v2"
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
-	envconfig "github.com/netcracker/drnavigator/site-manager/config"
-	"github.com/netcracker/drnavigator/site-manager/config/kube_config"
-	"github.com/netcracker/drnavigator/site-manager/internal/controller"
-	"github.com/netcracker/drnavigator/site-manager/logger"
-	"github.com/netcracker/drnavigator/site-manager/pkg/app"
-	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
-	"github.com/netcracker/drnavigator/site-manager/pkg/model"
-	"github.com/netcracker/drnavigator/site-manager/pkg/service"
-	"github.com/netcracker/drnavigator/site-manager/pkg/utils"
 	"github.com/spf13/cobra"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -27,6 +15,23 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
+
+	legacyv1 "github.com/netcracker/drnavigator/site-manager/api/legacy/v1"
+	legacyv2 "github.com/netcracker/drnavigator/site-manager/api/legacy/v2"
+	legacyv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
+	qubershiporgv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	envconfig "github.com/netcracker/drnavigator/site-manager/config"
+	"github.com/netcracker/drnavigator/site-manager/config/kube_config"
+	"github.com/netcracker/drnavigator/site-manager/internal/controller"
+	"github.com/netcracker/drnavigator/site-manager/internal/controller/legacy"
+	webhookv3 "github.com/netcracker/drnavigator/site-manager/internal/webhook/v3"
+	"github.com/netcracker/drnavigator/site-manager/logger"
+	"github.com/netcracker/drnavigator/site-manager/pkg/app"
+	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
+	"github.com/netcracker/drnavigator/site-manager/pkg/model"
+	"github.com/netcracker/drnavigator/site-manager/pkg/service"
+	"github.com/netcracker/drnavigator/site-manager/pkg/utils"
+	// +kubebuilder:scaffold:imports
 )
 
 var (
@@ -46,9 +51,12 @@ func init() {
 
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
-	utilruntime.Must(crv1.AddToScheme(scheme))
-	utilruntime.Must(crv2.AddToScheme(scheme))
-	utilruntime.Must(crv3.AddToScheme(scheme))
+	utilruntime.Must(legacyv1.AddToScheme(scheme))
+	utilruntime.Must(legacyv2.AddToScheme(scheme))
+	utilruntime.Must(legacyv3.AddToScheme(scheme))
+
+	utilruntime.Must(qubershiporgv3.AddToScheme(scheme))
+	// +kubebuilder:scaffold:scheme
 
 	rootCmd.PersistentFlags().StringP("bind", "b", ":8443", "The socket to bind main app (default is \":8443\")")
 	rootCmd.PersistentFlags().StringP("bind-webhook", "w", "", "The socket to bind webhook controller. If it's empty, no webhook api will be added (default is \"\")")
@@ -59,6 +67,17 @@ func init() {
 	rootCmd.PersistentFlags().String("keyfile", "", "SSL key file name")
 	rootCmd.PersistentFlags().String("tokenfile", "", "file with token, that is used to connect with services (default is \"\")")
 	rootCmd.PersistentFlags().Bool("dev-mode", false, "Runs in dev mode, that does not enable leader election in sm controller")
+}
+
+//go:generate swag init --outputTypes go
+
+// @title           site-manager
+// @version         1.0
+// @securityDefinitions.apikey BearerAuth
+// @in header
+// @name Authorization
+func main() {
+	Execute()
 }
 
 // ServeApp is serves the app
@@ -187,7 +206,7 @@ func ServeApp(cmd *cobra.Command, args []string) {
 			},
 			WebhookServer:           webhookServer,
 			LeaderElection:          !devMode,
-			LeaderElectionID:        "sitemanagers.netcracker.com",
+			LeaderElectionID:        "sitemanagers.legacy.qubership.org",
 			LeaderElectionNamespace: envconfig.EnvConfig.PodNamespace,
 		}); err != nil {
 			setupLog.Error(err, "unable to start manager")
@@ -197,10 +216,26 @@ func ServeApp(cmd *cobra.Command, args []string) {
 		crClient := cr_client.NewCRClient(mgr.GetClient())
 
 		// Initialize CR reconciller
-		if err := controller.SetupCRReconciler(crClient, mgr); err != nil {
+		if err := legacy.SetupCRReconciler(crClient, mgr); err != nil {
 			setupLog.Error(err, "unable to create controller")
 			os.Exit(1)
 		}
+
+		if err := (&controller.SiteManagerReconciler{
+			Client: mgr.GetClient(),
+			Scheme: mgr.GetScheme(),
+		}).SetupWithManager(mgr); err != nil {
+			setupLog.Error(err, "unable to create controller", "controller", "SiteManager")
+			os.Exit(1)
+		}
+		// nolint:goconst
+		if os.Getenv("ENABLE_WEBHOOKS") != "false" {
+			if err := webhookv3.SetupSiteManagerWebhookWithManager(mgr); err != nil {
+				setupLog.Error(err, "unable to create webhook", "webhook", "SiteManager")
+				os.Exit(1)
+			}
+		}
+		// +kubebuilder:scaffold:builder
 
 		// Initialize token watcher
 		if tokenWatcher, err = service.NewTokenWatcher(smConfig, mgr.GetClient(), tokenPath); err != nil {
@@ -215,16 +250,16 @@ func ServeApp(cmd *cobra.Command, args []string) {
 		}
 
 		// Initialize webhooks
-		validator := controller.NewValidator(crManager)
-		if err := crv1.SetupWebhookWithManager(mgr, validator); err != nil {
+		validator := legacy.NewValidator(crManager)
+		if err := legacyv1.SetupWebhookWithManager(mgr, validator); err != nil {
 			setupLog.Error(err, "unable to initialize validator")
 			os.Exit(1)
 		}
-		if err := crv2.SetupWebhookWithManager(mgr, validator); err != nil {
+		if err := legacyv2.SetupWebhookWithManager(mgr, validator); err != nil {
 			setupLog.Error(err, "unable to initialize validator")
 			os.Exit(1)
 		}
-		if err := crv3.SetupWebhookWithManager(mgr, validator); err != nil {
+		if err := legacyv3.SetupWebhookWithManager(mgr, validator); err != nil {
 			setupLog.Error(err, "unable to initialize validator")
 			os.Exit(1)
 		}
@@ -247,7 +282,7 @@ func ServeApp(cmd *cobra.Command, args []string) {
 
 	// handle token if authorization is enabled in separate gorutine
 	if !smConfig.Testing.Enabled && envconfig.EnvConfig.BackHttpAuth {
-		go func () {
+		go func() {
 			errorChannel <- tokenWatcher.Start()
 		}()
 	}

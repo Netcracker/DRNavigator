@@ -1,11 +1,11 @@
 sites:
   - name: k8s-1
     token: XXX
-    site-manager: https://site-manager.k8s-1.netcracker.com/sitemanager
+    site-manager: https://site-manager.k8s-1.legacy.qubership.org/sitemanager
   - name: k8s-2
     token:
       from_env_wrong: SM_TEST_TOKEN
-    site-manager: https://site-manager.k8s-2.netcracker.com/sitemanager
+    site-manager: https://site-manager.k8s-2.legacy.qubership.org/sitemanager
 sm-client:
   http_auth: True
   service_default_timeout: 400

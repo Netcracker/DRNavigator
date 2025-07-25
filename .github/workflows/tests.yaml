@@ -82,7 +82,7 @@ jobs:
       - name: Run tests
         run: |
           cd site-manager
-          go test -vet=all -shuffle=on -v ./tests/
+          make test
 
 
   paas-geo-monitor-unittest:

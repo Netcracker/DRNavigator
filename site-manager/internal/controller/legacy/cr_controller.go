@@ -1,10 +1,10 @@
-package controller
+package legacy
 
 import (
 	"context"
 	"reflect"
 
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	crv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
 	cr_client "github.com/netcracker/drnavigator/site-manager/pkg/client/cr"
 	"k8s.io/apimachinery/pkg/api/errors"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -22,6 +22,7 @@ func SetupCRReconciler(crClient cr_client.CRClient, mgr ctrl.Manager) error {
 	reconciler := crReconciler{crClient: crClient}
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&crv3.CR{}).
+		Named("sitemanager-legacy").
 		Complete(&reconciler)
 }
 

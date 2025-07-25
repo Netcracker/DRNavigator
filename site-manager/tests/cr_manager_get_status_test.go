@@ -108,7 +108,7 @@ func TestCRManager_StatusWithDeps(t *testing.T) {
 	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
-		TokenWatcher: tokenWatcher,
+		TokenWatcher:  tokenWatcher,
 	}
 
 	serviceAStatus, err := crManager.GetServiceStatus(context.Background(), &serviceA, true)
@@ -163,7 +163,7 @@ func TestCRManager_StatusWithoutDeps(t *testing.T) {
 	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
-		TokenWatcher: tokenWatcher,
+		TokenWatcher:  tokenWatcher,
 	}
 
 	serviceAStatus, err := crManager.GetServiceStatus(context.Background(), &serviceA, false)
@@ -205,7 +205,7 @@ func TestCRManager_NotExistDeps(t *testing.T) {
 	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
-		TokenWatcher: tokenWatcher,
+		TokenWatcher:  tokenWatcher,
 	}
 
 	// Add service with wrong dependency
@@ -271,7 +271,7 @@ func TestCRManager_CRCycles(t *testing.T) {
 	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
-		TokenWatcher: tokenWatcher,
+		TokenWatcher:  tokenWatcher,
 	}
 
 	// Add services with CR cycles
@@ -333,7 +333,7 @@ func TestCRManager_DepsCycles(t *testing.T) {
 	crManager := service.CRManagerImpl{
 		SMConfig:      &smConfig,
 		GetHttpClient: &httpClientMock,
-		TokenWatcher: tokenWatcher,
+		TokenWatcher:  tokenWatcher,
 	}
 
 	// Add services with deps cycles

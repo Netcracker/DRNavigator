@@ -118,6 +118,8 @@ plugins:
               name: service-b
               siteManager:
                 after: ["service-a.test-services"]
+              env:
+                SM_GROUP: "legacy.qubership.org"
             namespace: test-services
             release: service-b
         - expect:

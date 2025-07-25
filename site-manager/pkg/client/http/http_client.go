@@ -53,7 +53,7 @@ func DoGetRequest[V any](client HttpClientInterface, url string, token string, u
 		if response.StatusCode < 200 || response.StatusCode >= 300 {
 			httpLog.Error(err, "Unexpected status code", "url", url, "type", "GET", "status_code", response.StatusCode)
 			return response.StatusCode, fmt.Errorf("unexpected status code %d, response: %s", response.StatusCode, textData)
-		} 
+		}
 		decoder := json.NewDecoder(bytes.NewReader(textData))
 		//decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&obj); err != nil {
@@ -107,7 +107,7 @@ func DoPostRequest[V any, T any](client HttpClientInterface, url string, bodyObj
 		if response.StatusCode < 200 || response.StatusCode >= 300 {
 			httpLog.Error(err, "Unexpected status code", "url", url, "type", "GET", "status_code", response.StatusCode)
 			return response.StatusCode, fmt.Errorf("unexpected status code %d, response: %s", response.StatusCode, textData)
-		} 
+		}
 		decoder := json.NewDecoder(bytes.NewReader(textData))
 		//decoder.DisallowUnknownFields()
 		if err := decoder.Decode(&obj); err != nil {

@@ -27,3 +27,4 @@ self-signed-fake.pem
 pytest.log
 output.log
 .mypy_cache/*
+bin

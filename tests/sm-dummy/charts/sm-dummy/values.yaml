@@ -5,6 +5,7 @@ PAAS_PLATFORM: KUBERNETES
 smSecureAuth: false
 
 env:
+  SM_GROUP: "qubership.org"
   SMA_TIMEOUT: 15
   SMA_INIT_MODE: active
   SMA_DEBUG: True
@@ -45,6 +46,7 @@ siteManager:
   timeout: 180
   useDefaultParams: true
   additionalParams:
+  alias: ""
 
 image: ""
 ingressName: ""

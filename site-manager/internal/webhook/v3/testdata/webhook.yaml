@@ -1,0 +1,27 @@
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: validating-webhook-configuration
+webhooks:
+- admissionReviewVersions:
+  - v1
+  clientConfig:
+    service:
+      name: webhook-service
+      namespace: system
+      path: /validate-qubership-org-v3-sitemanager
+      port: 442
+  failurePolicy: Fail
+  name: vsitemanager-v3.kb.io
+  rules:
+  - apiGroups:
+    - qubership.org
+    apiVersions:
+    - v3
+    operations:
+    - CREATE
+    - UPDATE
+    resources:
+    - sitemanagers
+  sideEffects: None

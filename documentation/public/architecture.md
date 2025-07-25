@@ -126,7 +126,7 @@ services of the standby Kubernetes cluster.
 CR SiteManager description:
 
 ```yaml
-apiVersion: netcracker.com/v3
+apiVersion: qubership.org/v3
 kind: SiteManager
 metadata:
   name: <SERVICE>
@@ -170,7 +170,7 @@ for details;
 Example for `postgres` service:
 
 ```yaml
-apiVersion: netcracker.com/v3
+apiVersion: qubership.org/v3
 kind: SiteManager
 metadata:
   annotations:
@@ -732,7 +732,7 @@ Example:
 ```bash
 curl -XPOST --header "Content-Type: application/json" \
        -d '{"procedure":"list"}' \
-       http://site-manager.k8s-1.openshift.sdntest.netcracker.com/sitemanager
+       http://site-manager.example.com/sitemanager
 ```
 
 Output:

@@ -9,8 +9,8 @@ env:
   # set logging verbosity
   SM_DEBUG: "False"
 
-  # set CRD parameters
-  SM_GROUP: "netcracker.com"
+  # set CRD parameters (for legacy API group only)
+  SM_GROUP: "legacy.qubership.org"
   SM_KIND: "SiteManager"
   SM_KIND_LIST: "SiteManagerList"
   # set HTTP scheme for microservices
@@ -95,7 +95,7 @@ tls:
 PAAS_PLATFORM: KUBERNETES
 
 crd:
-  install: false
+  install: true
 
 paasGeoMonitor:
   image: ghcr.io/netcracker/paas-geo-monitor:main

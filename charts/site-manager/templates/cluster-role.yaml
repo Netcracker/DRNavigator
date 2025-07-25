@@ -4,11 +4,17 @@ kind: ClusterRole
 metadata:
   name: {{ .Values.serviceAccount.name }}
 rules:
-  - apiGroups: ["netcracker.com"]
-    resources: ["sitemanagers"]
+  - apiGroups: ["{{ .Values.env.SM_GROUP }}"]
+    resources: [{{ printf "%ss" (lower .Values.env.SM_KIND) }}]
     verbs: ["get", "list", "watch"]
-  - apiGroups: ["netcracker.com"]
-    resources: ["sitemanagers/status"]
+  - apiGroups: ["{{ .Values.env.SM_GROUP }}"]
+    resources: [{{ printf "%ss/status" (lower .Values.env.SM_KIND) }}]
+    verbs: ["get", "list", "watch", "update"]
+  - apiGroups: ["qubership.org"]
+    resources: [sitemanagers]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["qubership.org"]
+    resources: [sitemanagers/status]
     verbs: ["get", "list", "watch", "update"]
   - apiGroups: ["coordination.k8s.io"]
     resources: ["leases"]

@@ -33,7 +33,7 @@ type SMStatusResponse struct {
 	Services map[string]SMStatus `json:"services"`
 }
 
-//SMStatus collects the status only for specific service
+// SMStatus collects the status only for specific service
 type SMStatus struct {
 	Mode    string        `json:"mode"`
 	Status  string        `json:"status"`
@@ -42,7 +42,7 @@ type SMStatus struct {
 	Deps    *SMStatusDeps `json:"deps,omitempty"`
 }
 
-//SMStatusDeps collects information about dependencies in service status
+// SMStatusDeps collects information about dependencies in service status
 type SMStatusDeps struct {
 	After  []string `json:"after"`
 	Before []string `json:"before"`

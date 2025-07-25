@@ -17,10 +17,10 @@ RUN go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
 COPY api/ api/
 COPY cmd/ cmd/
 COPY pkg/ pkg/
+COPY docs/ docs/
 COPY internal/ internal/
 COPY logger/ logger/
 COPY config/ config/
-COPY main.go ./
 
 # Generate code
 RUN go generate ./...
@@ -28,7 +28,7 @@ RUN go generate ./...
 # Build
 ARG TARGETOS
 ARG TARGETARCH
-RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GO111MODULE=on go build -a -o site-manager ./main.go
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GO111MODULE=on go build -a -o site-manager ./cmd/main.go
 
 
 FROM --platform=$BUILDPLATFORM alpine:3.20.6

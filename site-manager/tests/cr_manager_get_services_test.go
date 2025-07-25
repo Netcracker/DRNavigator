@@ -3,9 +3,13 @@ package test
 import (
 	"context"
 	"fmt"
+	"log/slog"
+	"os"
 	"testing"
 
-	crv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
+	"github.com/go-logr/logr"
+	legacyv3 "github.com/netcracker/drnavigator/site-manager/api/legacy/v3"
+	qubershiporgv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
 	envconfig "github.com/netcracker/drnavigator/site-manager/config"
 	"github.com/netcracker/drnavigator/site-manager/pkg/model"
 	"github.com/netcracker/drnavigator/site-manager/pkg/service"
@@ -14,16 +18,81 @@ import (
 	"github.com/stretchr/testify/require"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
+	"sigs.k8s.io/controller-runtime/pkg/log"
 )
+
+func TestQubershipOverridesLegacy(t *testing.T) {
+	_ = envconfig.InitConfig()
+	assert := require.New(t)
+	log.SetLogger(logr.FromSlogHandler(slog.NewTextHandler(os.Stdout, nil)))
+
+	legacyCR1 := legacyv3.CR{}
+	legacyCR2 := legacyv3.CR{}
+	_ = test_objects.ServiceV1.ConvertTo(&legacyCR1)
+	_ = test_objects.ServiceV2.ConvertTo(&legacyCR2)
+	legacyCRList := legacyv3.CRList{
+		Items: []legacyv3.CR{legacyCR1, legacyCR2},
+	}
+
+	// create qubership CR with the same service as one of the legacy CR, but different
+	qubershipCR := qubershiporgv3.SiteManager{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+		},
+		Spec: qubershiporgv3.SiteManagerSpec{
+			SiteManager: qubershiporgv3.SiteManagerOptions{
+				Alias:  ptr.To("service-v1.ns-1"),
+				Module: "test-override",
+			},
+		},
+	}
+	qubershipCRList := qubershiporgv3.SiteManagerList{
+		Items: []qubershiporgv3.SiteManager{qubershipCR},
+	}
+
+	clientMock := &mock.CRClientMock{QubershipCRList: qubershipCRList, LegacyCRList: legacyCRList}
+	crManager := &service.CRManagerImpl{CRClient: clientMock}
+
+	smDict, err := crManager.GetAllServices(context.Background())
+	assert.Nil(err, "Returned error during getting SM dictionary")
+	assert.Contains(smDict.Services, "service-v1.ns-1")
+	assert.Equal(smDict.Services["service-v1.ns-1"].Module, "test-override")
+	assert.Contains(smDict.Services, "service-v2")
+	assert.Equal(smDict.Services["service-v2"].Module, "custom-module")
+}
+
+func TesQubershipMappingToSMDictionary(t *testing.T) {
+	_ = envconfig.InitConfig()
+	assert := require.New(t)
+
+	qubershipCR := qubershiporgv3.SiteManager{
+		ObjectMeta: v1.ObjectMeta{
+			Name:      "test",
+			Namespace: "default",
+		},
+	}
+	qubershipCRList := qubershiporgv3.SiteManagerList{
+		Items: []qubershiporgv3.SiteManager{qubershipCR},
+	}
+	clientMock := &mock.CRClientMock{QubershipCRList: qubershipCRList}
+	crManager := &service.CRManagerImpl{CRClient: clientMock}
+
+	smDict, err := crManager.GetAllServices(context.Background())
+	assert.Nil(err, "Returned error during getting SM dictionary")
+	assert.Contains(smDict.Services, "test.default")
+	assert.Equal(smDict.Services["test.default"].Module, "stateful")
+}
 
 func TestCRManager_MappingV3ToSMDictionary(t *testing.T) {
 	_ = envconfig.InitConfig()
 	assert := require.New(t)
 	// Test, that v3 object is mapped corectly to SM Dictionary object
-	crList := crv3.CRList{
-		Items: []crv3.CR{test_objects.ServiceV3},
+	crList := legacyv3.CRList{
+		Items: []legacyv3.CR{test_objects.ServiceV3},
 	}
-	clientMock := &mock.CRClientMock{CRList: crList}
+	clientMock := &mock.CRClientMock{LegacyCRList: crList}
 	crManager := &service.CRManagerImpl{CRClient: clientMock}
 
 	smDict, err := crManager.GetAllServices(context.Background())
@@ -57,9 +126,9 @@ func TestCRManager_MappingDefaults(t *testing.T) {
 		Timeout: nil,
 		Alias:   nil,
 	}
-	emptyCR := crv3.CR{
+	emptyCR := legacyv3.CR{
 		TypeMeta: v1.TypeMeta{
-			APIVersion: "netcracker.com/v3",
+			APIVersion: "legacy.qubership.org/v3",
 			Kind:       "SiteManager",
 		},
 		ObjectMeta: v1.ObjectMeta{
@@ -69,10 +138,10 @@ func TestCRManager_MappingDefaults(t *testing.T) {
 		},
 	}
 
-	crList := crv3.CRList{
-		Items: []crv3.CR{emptyCR},
+	crList := legacyv3.CRList{
+		Items: []legacyv3.CR{emptyCR},
 	}
-	clientMock := &mock.CRClientMock{CRList: crList}
+	clientMock := &mock.CRClientMock{LegacyCRList: crList}
 	crManager := &service.CRManagerImpl{CRClient: clientMock}
 
 	smDict, err := crManager.GetAllServices(context.Background())
@@ -87,12 +156,12 @@ func TestCRManager_DisabledTestingInSMConfig(t *testing.T) {
 	_ = envconfig.InitConfig()
 	assert := require.New(t)
 	// Test, that if testing is disabled in SM config, CRs will be got from kube client
-	cr1 := crv3.CR{}
-	cr2 := crv3.CR{}
+	cr1 := legacyv3.CR{}
+	cr2 := legacyv3.CR{}
 	_ = test_objects.ServiceV1.ConvertTo(&cr1)
 	_ = test_objects.ServiceV2.ConvertTo(&cr2)
-	crList := crv3.CRList{
-		Items: []crv3.CR{cr1, cr2},
+	crList := legacyv3.CRList{
+		Items: []legacyv3.CR{cr1, cr2},
 	}
 	smConfig := model.SMConfig{
 		Testing: model.SMConfigTesting{
@@ -102,7 +171,7 @@ func TestCRManager_DisabledTestingInSMConfig(t *testing.T) {
 			}},
 		},
 	}
-	clientMock := &mock.CRClientMock{CRList: crList}
+	clientMock := &mock.CRClientMock{LegacyCRList: crList}
 	crManager := &service.CRManagerImpl{SMConfig: &smConfig, CRClient: clientMock}
 
 	smDict, err := crManager.GetAllServices(context.Background())
