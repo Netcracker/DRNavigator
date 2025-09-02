@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.24.4-alpine3.22 as builder
+FROM --platform=$BUILDPLATFORM golang:1.24-alpine3.22 as builder
 
 WORKDIR /workspace
 
