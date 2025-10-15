@@ -1,0 +1,13 @@
+{
+  "name": "Qubership NPM Publish",
+  "description": "NPM Publish workflow template. It can be used to publish NPM packages to GitHub Packages or NPM registry.",
+  "categories": [
+      "JavaScript",
+      "Node.js",
+      "Automation",
+      "NPM"
+  ],
+  "filePatterns": [
+      "^package.json"
+  ]
+}

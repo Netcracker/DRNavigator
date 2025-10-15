@@ -1,0 +1,8 @@
+{
+  "name": "Qubership Lint PR Title",
+  "description": "Lint PR Title workflow template. It can be used to automatically check if PR title follow the conventional commits starategy.",
+  "categories": [
+      "Automation"
+  ],
+  "labels": [ "preview"]
+}

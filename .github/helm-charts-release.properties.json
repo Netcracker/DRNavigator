@@ -1,0 +1,11 @@
+{
+  "name": "Qubership Helm charts release.",
+  "description": "Release and upload Helm charts to GitHub release as assets. It builds docker images and updates versions in values.yaml files.",
+  "categories": [
+      "Automation"
+  ],
+  "filePatterns": [
+      "**/Chart.yaml"
+  ],
+  "labels": [ "helm"]
+}

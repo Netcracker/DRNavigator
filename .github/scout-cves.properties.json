@@ -1,0 +1,8 @@
+{
+  "name": "Qubership Docker Scout CVE Scan",
+  "description": "Scan public Docker images for CVEs with Docker Scout and upload results in SARIF format.",
+  "categories": [
+    "Security",
+    "Automation"
+  ]
+}

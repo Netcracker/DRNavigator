@@ -1,0 +1,12 @@
+{
+    "name": "Qubership Dev Docker Build Workflow",
+    "description": "A workflow template for building and publishing Docker images. It dynamically generates artifact names, prepares tags, and supports a dry-run mode for testing. The workflow is triggered manually and allows customization of artifact names and tags.",
+    "categories": [
+        "CI/CD",
+        "Automation"
+    ],
+    "labels": [
+        "dev",
+        "docker"
+    ]
+}

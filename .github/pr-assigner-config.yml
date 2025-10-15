@@ -1,0 +1,7 @@
+# List of users who can be assigned to a pull request
+assignees:
+  - user_name1
+  - user_name2
+  - user_name3
+# How many users from the assigneeslist should be assigned
+count: 2

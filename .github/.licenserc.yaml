@@ -1,0 +1,15 @@
+header:
+  license:
+    spdx-id: Apache-2.0
+    copyright-owner: Netcracker Technology Corporation
+    copyright-year: '2024-2025'
+
+  paths-ignore:
+    - 'dist'
+    - 'licenses'
+    - '**/*.md'
+    - 'LICENSE'
+    - 'NOTICE'
+    - '.github'
+
+  comment: on-failure

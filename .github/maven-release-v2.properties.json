@@ -1,0 +1,12 @@
+{
+  "name": "Qubership Release And Upload to Maven Central or GitHub Packages",
+  "description": "Release And Upload to Maven Central or GitHub packages workflow template. It uses power of maven-release-plugin.",
+  "categories": [
+      "Java",
+      "Automation",
+      "Maven"
+  ],
+  "filePatterns": [
+      "^pom.xml"
+  ]
+}

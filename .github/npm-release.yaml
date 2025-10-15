@@ -1,0 +1,147 @@
+---
+
+# This GitHub Actions workflow is triggered manually via workflow_dispatch with configurable parameters.
+#
+# The workflow performs a comprehensive npm package release process including:
+# 1. Tag validation (prevents duplicate releases)
+# 2. Test execution (dry-run mode for validation)
+# 3. Git tag creation
+# 4. Package publishing to npm registry
+# 5. GitHub release creation
+#
+# The workflow delegates the actual npm publishing process to the re-npm-publish.yml workflow
+# from the qubership-workflow-hub repository, which performs the following tasks:
+# 1. Checks out the repository.
+# 2. Sets up Node.js environment.
+# 3. Installs dependencies.
+# 4. Detects if the project is a Lerna monorepo.
+# 5. Updates dependencies if required.
+# 6. Updates package version in package.json or lerna.json.
+# 7. Builds the project.
+# 8. Runs tests.
+# 9. Commits and pushes changes.
+# 10. Publishes the package to npm registry.
+
+# To make it work for your project, you need to adjust the package.json and add configuration file for GitHub release.
+# Please find detailed instructions:
+# https://github.com/netcracker/qubership-workflow-hub?tab=readme-ov-file#npm-project-release-workflow
+#
+# Note: This workflow is designed for production releases and should be triggered manually
+# when you're ready to publish a new version.
+
+name: Release NPM package
+
+run-name: Release NPM Package${{ (inputs.dry-run && ' - test') || ' - release' }}${{ (!inputs.dry-run && inputs.version) && format(' {0}', inputs.version) || '' }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version for npm (e.g., 1.0.0)'
+        required: false
+        type: string
+      scope:
+        description: 'npm scope for the package'
+        required: false
+        type: string
+        default: '@netcracker'
+      node-version:
+        required: false
+        type: string
+        default: "22.x"
+      registry-url:
+        required: false
+        type: string
+        default: "https://npm.pkg.github.com"
+      update-nc-dependency:
+        required: false
+        type: boolean
+        default: false
+      dry-run:
+        description: 'Run in dry-run mode (no actual publishing)'
+        required: false
+        type: boolean
+        default: false
+      npm-dist-tag:
+        description: 'npm distribution tag'
+        required: false
+        type: string
+        default: 'latest'
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+    check-tag:
+      if: ${{ !inputs.dry-run }}
+      runs-on: ubuntu-latest
+      steps:
+        - name: Input parameters
+          run: |
+            echo "Version: ${{ github.event.inputs.version }}" >> $GITHUB_STEP_SUMMARY
+
+        - name: Checkout code
+          uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+          with:
+            fetch-depth: 0
+            persist-credentials: false
+
+        - name: Check if tag exists
+          id: check_tag
+          uses: netcracker/qubership-workflow-hub/actions/tag-checker@v2.0.0
+          with:
+            tag: 'v${{ github.event.inputs.version }}'
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+        - name: Output result
+          run: |
+            echo "Tag exists: ${{ steps.check_tag.outputs.exists }}"
+            echo "Tag name: v${{ github.event.inputs.version }}"
+
+        - name: Fail if tag exists
+          if: steps.check_tag.outputs.exists == 'true'
+          run: |
+            echo "Tag already exists: v${{ github.event.inputs.version }}" >> $GITHUB_STEP_SUMMARY
+            echo "Tag already exists: v${{ github.event.inputs.version }}"
+            exit 1
+
+    npm-test:
+      needs: [check-tag]
+      if: always()
+      uses: Netcracker/qubership-workflow-hub/.github/workflows/re-npm-publish.yml@main
+      with:
+        version: ''
+        dry-run: true
+      secrets: inherit
+
+    npm-publish:
+      if: ${{ !inputs.dry-run }}
+      needs: [npm-test]
+      uses: Netcracker/qubership-workflow-hub/.github/workflows/re-npm-publish.yml@main
+      with:
+        version: ${{ inputs.version }}
+        scope: ${{ inputs.scope }}
+        node-version: ${{ inputs.node-version }}
+        registry-url: ${{ inputs.registry-url }}
+        update-nc-dependency: ${{ inputs.update-nc-dependency }}
+        dry-run: ${{ inputs.dry-run }}
+        dist-tag: ${{ inputs.npm-dist-tag }}
+        ref: ${{ github.ref_name }}
+      secrets: inherit
+
+    tag:
+      if: ${{ !inputs.dry-run }}
+      needs: [npm-publish]
+      uses: netcracker/qubership-workflow-hub/.github/workflows/tag-creator.yml@v2.0.0
+      with:
+        tag-name: "v${{ github.event.inputs.version }}"
+
+    github-release:
+      if: ${{ !inputs.dry-run }}
+      needs: [tag]
+      uses: netcracker/qubership-workflow-hub/.github/workflows/release-drafter.yml@v2.0.0
+      with:
+        version: ${{ github.event.inputs.version }}
+        publish: false

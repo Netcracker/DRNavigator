@@ -1,0 +1,12 @@
+{
+  "name": "Auto-Assign Project to Issue",
+  "description": "automatically assigns a project to an issue based on the issue's labels. This workflow template can be used to streamline project management by ensuring that issues are categorized and tracked in the appropriate projects.",
+  "categories": [
+    "Automation"
+  ],
+  "labels": [
+    "issues",
+    "projects",
+    "preview"
+  ]
+}

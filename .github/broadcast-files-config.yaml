@@ -1,0 +1,124 @@
+common_files:
+  bot_branch_name: broadcast-common-files
+  patterns_to_include: >
+    .gitattributes, .editorconfig
+  destination: .
+  commit_message: 'chore: update of common files'
+common_config_files:
+  bot_branch_name: broadcast-config-files
+  patterns_to_include: >
+    config/examples/auto-labeler-config.yaml,
+    config/examples/release-drafter-config.yml
+  destination: .github/
+  repos_to_ignore: >
+    KubeMarine, k8s-conformance, gatekeeper-library,
+    cassandra-exporter, pg_hint_plan
+  commit_message: 'chore: update of common config files'
+common_workflows:
+  patterns_to_include: >
+    workflow-templates/cla.yaml,
+    workflow-templates/super-linter.yaml,
+    workflow-templates/automatic-pr-labeler.yaml,
+    workflow-templates/pr-conventional-commits.yaml,
+    workflow-templates/pr-lint-title.yaml,
+    workflow-templates/link-checker.yaml
+    workflow-templates/ossf-scorecard.yaml
+  destination: .github/workflows
+  repos_to_ignore: >
+    KubeMarine, k8s-conformance, gatekeeper-library,
+    cassandra-exporter, pg_hint_plan
+  bot_branch_name: broadcast-workflows
+  topics_to_include: qubership-tp
+  commit_message: 'chore: update of common workflows'
+ossf_workflow:
+  patterns_to_include: >
+    workflow-templates/ossf-scorecard.yaml
+  topics_to_include: qubership-ossf-request
+  destination: .github/workflows
+  bot_branch_name: broadcast-ossf-workflow
+  commit_message: 'chore: update of common workflows'
+cloud_core_dependabot:
+  patterns_to_include: 'config/dependabot/cloud-core/dependabot.yml'
+  destination: .github/
+  topics_to_include: core
+  committer_username: NetcrackerCLPLCI
+  bot_branch_name: broadcast-dependabot-configs
+  commit_message: 'chore: update cloud-core dependabot config file'
+obsoleted_workflow_cleanup:
+  patterns_to_remove:  >
+    pr-collect-commit-messages.yaml
+    prettier.yaml
+    profanity-filter.yaml
+  repos_to_ignore: >
+    KubeMarine, k8s-conformance, gatekeeper-library,
+    cassandra-exporter, pg_hint_plan
+  bot_branch_name: broadcast-workflows-cleanup
+  commit_message: 'chore: cleanup of obsoleted workflows'
+maven_release_workflow:
+  patterns_to_include: workflow-templates/maven-release.yaml
+  destination: .github/workflows
+  bot_branch_name: broadcast-maven-release
+  commit_message: |
+    fix(ci): update of maven-release workflow
+    Related issue: https://github.com/Netcracker/.github/issues/89
+link_checker:
+  patterns_to_include: workflow-templates/link-checker.yaml
+  destination: .github/workflows
+  repos_to_ignore: >
+    KubeMarine, k8s-conformance, gatekeeper-library,
+    cassandra-exporter, pg_hint_plan
+  bot_branch_name: broadcast-link-checker-fix
+  commit_message: |
+    fix(ci): fix for link-checker workflow
+    Related issue: https://github.com/Netcracker/.github/issues/104
+cla_workflow:
+  patterns_to_include: >
+    workflow-templates/cla.yaml
+  destination: .github/workflows
+  bot_branch_name: broadcast-cla-workflow
+  commit_message: |
+    chore(ci): update of CLA workflow
+    Pinned `contributor-assistant/github-action` version to v2.6.1 SHA
+maven_release_workflow_v2:
+  patterns_to_include: workflow-templates/maven-release-v2.yaml
+  destination: .github/workflows
+  bot_branch_name: broadcast-maven-release-v2
+  commit_message: |
+    feat(ci): Broadcast maven-release-v2 workflow to QIP repos
+    Related issue: https://github.com/Netcracker/.github/issues/136
+pr_auto_assigner:
+  patterns_to_include: workflow-templates/pr-assigner.yml
+  destination: .github/workflows
+  bot_branch_name: broadcast-pr-auto-assigner
+  repos_to_ignore: >
+      qubership-profiler-agent
+  commit_message: |
+    fix(ci): update PR auto-assignment workflow to use pull_request event and improve fork handling
+    Related issue: pull_request_target vulnerability  (https://nx.dev/blog/s1ngularity-postmortem)
+secutiry_scan:
+  patterns_to_include: workflow-templates/security-scan.yml
+  destination: .github/workflows
+  bot_branch_name: broadcast-security-scan
+  commit_message: |
+    feat(ci): add security-scan workflow to scan for vulnerabilities in dependencies
+    Related issue: https://github.com/Netcracker/qubership-workflow-hub/issues/434
+conventional-commits:
+  patterns_to_include: workflow-templates/pr-conventional-commits.yaml
+  destination: .github/workflows
+  bot_branch_name: broadcast-conventional-commits
+  commit_message: |
+    feat(ci): enforce conventional commits in PR titles
+    Related issue: https://github.com/Netcracker/qubership-workflow-hub/issues/432
+common_config_files_autolabler:
+  bot_branch_name: broadcast-autolabler-config-files
+  patterns_to_include: >
+    config/examples/auto-labeler-config.yaml,
+  destination: .github/
+  repos_to_ignore: >
+    KubeMarine, k8s-conformance, gatekeeper-library,
+    cassandra-exporter, pg_hint_plan
+  commit_message: >
+    chore: update of common autolabler config files
+    Related issue: https://github.com/Netcracker/qubership-workflow-hub/issues/433
+
+

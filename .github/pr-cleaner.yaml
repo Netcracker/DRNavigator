@@ -1,0 +1,102 @@
+name: Pull Request Cleaner
+
+on:
+  workflow_dispatch: # Allows manual triggering of the workflow
+    inputs:
+      org_name:
+        description: >-
+          Name of GitHub organization.
+        required: true
+        default: "Netcracker"
+      branch_name_prefix:
+        description: >-
+          Prefix of the branch name to be deleted.
+        required: true
+        default: "bot/"
+      branch_delete:
+        description: >-
+          Whether to delete the branch after closing the PR.
+          If true, the branch will be deleted.
+        required: false
+        default: "true"
+      remove_orphant_branches:
+        description: >-
+          Whether to remove orphan branches.
+          If true, the branches not related to PRs will be removed.
+        required: false
+        default: "false"
+      target_repo:
+        description: >-
+          Name of the target repository.
+          If empty all organization repos will be updated.
+        required: false
+      comment:
+        description: >-
+          Comment to be added when closing the PR.
+        required: true
+        default: "This PR is closed as part of the cleanup process."
+permissions:
+  contents: read
+jobs:
+  pull_request_cleanup:
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      # Step 2 Setup Pull Request Cleaner
+      - name: Setup Pull Request Cleaner
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+          ORG_NAME: ${{ github.event.inputs.org_name }}
+          TARGET_REPO: ${{ github.event.inputs.target_repo }}
+          BRANCH_NAME_PREFIX: ${{ github.event.inputs.branch_name_prefix }}
+          BRANCH_DELETE: ${{ github.event.inputs.branch_delete }}
+          COMMENT: ${{ github.event.inputs.comment }}
+          REMOVE_ORPHANT_BRANCHES: ${{ github.event.inputs.remove_orphant_branches }}
+        run: |
+          if [ -n "$TARGET_REPO" ]; then
+            repos="$TARGET_REPO"
+          else
+            repos=$(gh repo list "$ORG_NAME" --visibility public --limit 1000 --json name --jq '.[].name')
+          fi
+
+          for repo in $repos; do
+            echo "Processing repository: $repo"
+
+            # Get open pull requests with branch names containing the specified prefix
+            prs=$(gh pr list --repo "$ORG_NAME/$repo" --state open --json number,headRefName \
+                  --jq ".[] | select(.headRefName | contains(\"$BRANCH_NAME_PREFIX\")) | .number")
+
+            for pr in $prs; do
+              echo "Closing PR #$pr in $repo"
+
+              # Close the pull request with a comment
+              if [ "$BRANCH_DELETE" = "true" ]; then
+                gh pr close "$pr" --repo "$ORG_NAME/$repo" \
+                  --delete-branch --comment "$COMMENT"
+              else
+                gh pr close "$pr" --repo "$ORG_NAME/$repo" \
+                  --comment "$COMMENT"
+              fi
+            done
+
+            # Remove orphan branches if specified
+            if [ "$REMOVE_ORPHANT_BRANCHES" = "true" ] && [ -n "$BRANCH_NAME_PREFIX" ]; then
+              echo "Removing orphan branches in $repo with prefix '$BRANCH_NAME_PREFIX'"
+              orphan_branches=$(gh api repos/$ORG_NAME/$repo/branches \
+                  --jq ".[] | select(.name | startswith(\"$BRANCH_NAME_PREFIX\")) | .name")
+
+              for branch in $orphan_branches; do
+                echo "Deleting orphan branch: $branch"
+                gh api -X DELETE repos/$ORG_NAME/$repo/git/refs/heads/$branch
+                sleep 3s
+              done
+            fi
+          done
+
+          echo "Pull request cleanup completed."

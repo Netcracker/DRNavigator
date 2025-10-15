@@ -1,0 +1,14 @@
+branches-template:
+  - main: "v{{major}}.{{minor}}.{{patch}}-{{date}}"
+  - "feature/*": "feature-{{ref-name}}-{{timestamp}}.{{github.context.sha}}"
+  - "release/*": "release-{{ref-name}}-{{timestamp}}.{{github.context.sha}}"
+  - tag: "v{{major}}.{{minor}}.{{patch}}-{{short-sha}}"
+
+distribution-tag:
+  - main: "latest"
+  - "release/*": "next"
+  - "feature/*": "beta"
+  - tag: "stable"
+
+default-template: "{{ref-name}}-{{timestamp}}-{{runNumber}}"
+default-tag: "latest"

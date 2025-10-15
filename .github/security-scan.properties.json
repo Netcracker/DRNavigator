@@ -1,0 +1,8 @@
+{
+  "name": "Qubership Security Scan",
+  "description": "Scan public Docker images or repository source code by Trivy and/or Grype and upload results in SARIF format.",
+  "categories": [
+    "Security",
+    "Automation"
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "Qubership Automatic PR Labeler",
+  "description": "Automatic PR Labeler workflow template. It can be used to automatically label PRs based on the conventional commits messages.",
+  "categories": [
+      "Automation",
+      "utilities"
+  ]
+}

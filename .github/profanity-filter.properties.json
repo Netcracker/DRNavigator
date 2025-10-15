@@ -1,0 +1,9 @@
+{
+  "name": "Qubership Profanity filter",
+  "description": "Profanity filter workflow template. It can be used to automatically check for profanity in the PR, issues, issue comments.",
+
+  "categories": [
+      "Automation"
+  ],
+  "labels": [ "preview"]
+}

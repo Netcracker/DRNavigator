@@ -1,0 +1,7 @@
+{
+    "name": "Qubership Go build",
+    "description": "Build a golang project and upload coverage report to SonarCloud",
+    "categories": [
+        "Go"
+    ]
+}

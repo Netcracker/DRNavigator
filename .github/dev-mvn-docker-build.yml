@@ -1,0 +1,105 @@
+name: Dev Mvn Docker Build
+run-name: "Dev build repository: ${{ github.ref_name }} #${{ github.run_number }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      maven-command:
+        description: 'Maven command'
+        required: false
+        type: string
+        default: "--batch-mode package -Dgpg.skip=true"
+      custom-image-name:
+        description: 'Custom image name'
+        required: false
+        default: ''
+      tags:
+        description: 'Tags'
+        required: false
+        type: string
+        default: ''
+      java-version:
+        description: 'Java version (e.g., 21)'
+        required: false
+        type: string
+        default: "21"
+      dry-run:
+        description: 'Dry run'
+        required: false
+        type: boolean
+        default: false
+  push:
+    branches:
+    - '**'
+    paths-ignore:
+    - '.github/**'
+    - 'docs/**'
+    - 'CODE-OF-CONDUCT.md'
+    - 'CONTRIBUTING.md'
+    - 'LICENSE'
+    - 'README.md'
+    - 'SECURITY.md'
+  pull_request:
+    branches:
+    - '**'
+    paths-ignore:
+    - '.github/**'
+    - 'docs/**'
+    - 'CODE-OF-CONDUCT.md'
+    - 'CONTRIBUTING.md'
+    - 'LICENSE'
+    - 'README.md'
+    - 'SECURITY.md'
+
+permissions:
+  contents: read
+
+jobs:
+  dev-build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Maven build artifact
+        uses: netcracker/qubership-workflow-hub/actions/maven-snapshot-deploy@9319676b7d20b423a2e0943a0ac08da07d615998 #v1.0.6
+        with:
+          maven-command: "${{ github.event.inputs.maven-command || '--batch-mode clean install -Dgpg.skip=true' }}"
+          java-version: ${{ github.event.inputs.java-version || '21' }}
+
+      - name: Create name
+        uses: netcracker/qubership-workflow-hub/actions/metadata-action@main
+        id: metadata
+
+      - name: Prepare tags
+        id: prepare_tags
+        run: |
+          BASE_TAG="${{ steps.metadata.outputs.result }}"
+          EXTRA_TAG="${{ github.event.inputs.tags }}"
+          if [ -n "$EXTRA_TAG" ]; then
+            TAGS="${BASE_TAG}, ${EXTRA_TAG}"
+          else
+            TAGS="${BASE_TAG}"
+          fi
+          echo "tags=${TAGS}" >> $GITHUB_OUTPUT
+
+      - name: Summary step
+        run: |
+          echo "**Metadata:** ${{ steps.metadata.outputs.result }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tags:** ${{ steps.prepare_tags.outputs.tags }}" >> $GITHUB_STEP_SUMMARY
+
+      - name: Build and Publish Docker Image
+        uses: netcracker/qubership-workflow-hub/actions/docker-action@9319676b7d20b423a2e0943a0ac08da07d615998 #v1.0.6
+        with:
+          custom-image-name: ${{ github.event.inputs.custom-image-name || '' }}
+          platforms: ${{ env.PLATFORMS }}
+          checkout: "false"
+          tags: ${{ steps.prepare_tags.outputs.tags }}
+          dry-run: ${{ github.event.inputs.dry-run || 'false' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

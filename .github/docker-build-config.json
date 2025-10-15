@@ -1,0 +1,20 @@
+{
+    "components": [
+        {
+            "name": "qubership-zookeeper-integration-tests",
+            "file": "integration-tests/docker/Dockerfile",
+            "context": "integration-tests"
+        },
+        {
+            "name": "qubership-zookeeper-operator",
+            "file": "Dockerfile",
+            "context": "."
+        },
+        {
+            "name": "qubership-zookeeper-transfer",
+            "file": "docker-transfer/Dockerfile",
+            "context": "."
+        }
+    ],
+    "platforms": "linux/amd64,linux/arm64"
+}

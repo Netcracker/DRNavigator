@@ -1,0 +1,8 @@
+{
+  "name": "Qubership Conventional Commits PR Check",
+  "description": "Conventional Commits PR Check workflow template. It can be used to automatically check if the commits in PR have followed the conventional commits messages.",
+  "categories": [
+      "Automation"
+  ],
+  "labels": [ "preview"]
+}

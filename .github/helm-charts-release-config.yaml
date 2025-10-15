@@ -1,0 +1,12 @@
+---
+
+charts:
+  - name: qubership-zookeeper
+    chart_file: charts/helm/zookeeper-service/Chart.yaml
+    values_file: charts/helm/zookeeper-service/values.yaml
+    image:
+      - ghcr.io/netcracker/qubership-zookeeper-operator:${release}
+      - ghcr.io/netcracker/qubership-docker-zookeeper:${release}-${ZOO_VERSION}
+      - ghcr.io/netcracker/qubership-zookeeper-monitoring:${release}
+      - ghcr.io/netcracker/qubership-zookeeper-backup-daemon:${release}
+      - ghcr.io/netcracker/qubership-zookeeper-integration-tests:${release}

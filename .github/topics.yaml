@@ -1,0 +1,118 @@
+name: Update Repository Topics
+
+on:
+  workflow_dispatch:
+    inputs:
+      org_name:
+        description: "Name of GitHub organization (leave empty to use default)"
+        required: true
+        default: "Netcracker"
+      repo_names:
+        description: "Specific repository to update (leave empty to update all)"
+        required: false
+        default: ""
+      replace:
+        description: "Replace existing topics (leave empty to add topics)"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  update-topics:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          persist-credentials: false
+
+      - name: Validate and Update Topics
+        run: |
+          set -euo pipefail
+          JSON_FILE="./config/topics.json"
+
+          if [ ! -f "$JSON_FILE" ]; then
+            echo "::error ::topics.json file not found!"
+            exit 1
+          fi
+
+          # Validate repositoryName fields
+          INVALID_ENTRIES=$(jq -r '.[] | select(.repositoryName | contains(",")) | .repositoryName' "$JSON_FILE")
+          if [ -n "$INVALID_ENTRIES" ]; then
+            echo "::error ::Invalid repositoryName entries detected:"
+            echo "$INVALID_ENTRIES"
+            exit 1
+          else
+            echo "All repositoryName fields are valid."
+          fi
+
+          # Check if a specific repository is provided
+          if [ -n "$REPO_NAMES" ]; then
+            echo "Run for repositories: $REPO_NAMES"
+
+            IFS=',' read -ra REPOS <<< "$REPO_NAMES"
+
+            for REPO_NAME in "${REPOS[@]}"; do
+              REPO_NAME=$(echo "$REPO_NAME" | xargs)  # trim пробелы
+
+              REPO_ENTRY=$(jq -c '.[] | select(.repositoryName=="'"$REPO_NAME"'")' "$JSON_FILE")
+              if [ -z "$REPO_ENTRY" ]; then
+                echo "::warning ::Repository $REPO_NAME not found in topics.json. Skipping."
+                continue
+              fi
+
+              TOPICS=$(echo "$REPO_ENTRY" | jq -r '.repositoryTopics[].name' | paste -sd "," -)
+
+              if [ -z "$TOPICS" ]; then
+                echo "::warning ::No topics found for $REPO_NAME. Skipping."
+                continue
+              fi
+
+              echo "Updating topics for $REPO_NAME: $TOPICS"
+
+              if [ "$REPLACE" = "true" ]; then
+                CURRENT=$(gh api repos/$GH_ORG/$REPO_NAME/topics -q '.names[]')
+                for t in $CURRENT; do
+                  gh repo edit "$GH_ORG/$REPO_NAME" --remove-topic "$t" || \
+                    echo "::warning ::Error removing topic $t from $REPO_NAME"
+                done
+              fi
+
+              gh repo edit "$GH_ORG/$REPO_NAME" --add-topic "$TOPICS" || \
+                echo "::warning ::Error updating $REPO_NAME. Skipping."
+            done
+          else
+            # Process all repositories
+            jq -c '.[]' "$JSON_FILE" | while read -r repo; do
+              REPO_NAME=$(echo "$repo" | jq -r '.repositoryName')
+              TOPICS=$(echo "$repo" | jq -r '.repositoryTopics[].name' | paste -sd "," -)
+
+              if [ -z "$TOPICS" ]; then
+                echo "No topics found for $REPO_NAME. Skipping."
+                continue
+              fi
+
+              echo "Updating topics for $REPO_NAME: $TOPICS"
+
+              if [ "$REPLACE" = "true" ]; then
+                echo "Replacing topics for $REPO_NAME"
+                CURRENT=$(gh api repos/$GH_ORG/$REPO_NAME/topics -q '.names[]')
+                for t in $CURRENT; do
+                  gh repo edit "$GH_ORG/$REPO_NAME" --remove-topic "$t" || \
+                    echo "::warning ::Error removing topic $t from $REPO_NAME"
+                done
+              fi
+
+              gh repo edit "$GH_ORG/$REPO_NAME" --add-topic "$TOPICS" || \
+                echo "::warning ::Error updating $REPO_NAME. Skipping."
+            done
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_ACCESS_TOKEN }}
+          GH_ORG: ${{ github.event.inputs.org_name }}
+          REPO_NAMES: ${{ github.event.inputs.repo_names }}
+          REPLACE: ${{ github.event.inputs.replace }}

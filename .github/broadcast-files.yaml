@@ -1,0 +1,125 @@
+---
+name: Broadcast files to organization
+run-name: "${{ inputs.config-file }}. ${{ inputs.section }} files broadcast to ${{ inputs.repos || 'all repositories' }}"
+on:
+  workflow_dispatch:
+    inputs:
+      repos:
+        description: |
+          Target repositorys names. Comma-separated
+          If not provided, the action will be triggered for all repositories in the organization.
+        required: false
+        type: string
+      config-file:
+        description: "Config file relative path"
+        required: true
+        type: string
+        default: ".github/broadcast-files-config.yaml"
+      section:
+        description: "Name of the dict in config file"
+        required: true
+        type: string
+      repo-file:
+        default: ".github/repo-list.txt"
+        description: |
+          File with repository names. One per line.
+          If not provided, the action will be triggered for all repositories in the organization.
+        required: false
+        type: string
+permissions:
+  contents: read
+  statuses: read
+jobs:
+  setup_jobs:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.setup_matrix.outputs.matrix }}
+      config: ${{ steps.setup_matrix.outputs.config }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Set up jobs
+        id: setup_matrix
+        env:
+          REPO_NAMES: ${{ inputs.repos }}
+          CONFIG_FILE: ${{ inputs.config-file }}
+          SECTION: ${{ inputs.section }}
+          REPO_FILE: ${{ inputs.repo-file }}
+        run: |
+          set -euo pipefail
+
+          # if [[ -n "$REPO_FILE" && -f "$REPO_FILE" ]]; then
+          #   FILE_REPOS=$(grep -vE '^\s*#' "$REPO_FILE" | tr '\n' ',' | sed 's/,$//')
+          #   if [[ -n "$REPO_NAMES" ]]; then
+          #     REPO_NAMES="$REPO_NAMES,$FILE_REPOS"
+          #   else
+          #     REPO_NAMES="$FILE_REPOS"
+          #   fi
+          # fi
+
+          if [[ -n "$REPO_NAMES" ]]; then
+            JSON_MATRIX=$(jq -c -n --arg in_str "$REPO_NAMES" '$in_str | split(",")')
+            echo "matrix=$JSON_MATRIX"
+            echo "matrix=$JSON_MATRIX" >> $GITHUB_OUTPUT
+          else
+            echo "matrix=[\"\"]"
+            echo "matrix=[\"\"]" >> $GITHUB_OUTPUT
+          fi
+
+          if [[ -f "$CONFIG_FILE" ]]; then
+            wget -q https://github.com/mikefarah/yq/releases/download/v4.34.1/yq_linux_amd64 -O yq
+            chmod +x yq
+            sudo mv yq /usr/local/bin/yq
+
+            if [[ -n "$SECTION" ]]; then
+              settings=$(yq eval ".$SECTION" "$CONFIG_FILE" -o=json | jq -c '{settings: .}')
+            else
+              echo "::error::Config file section not specified!"
+              echo "[ERROR]: Config file section not specified!" >> $GITHUB_STEP_SUMMARY
+              exit 1
+            fi
+
+            echo "config=$settings" >> $GITHUB_OUTPUT
+          else
+            echo "::error::Config file '$CONFIG_FILE' not found."
+            echo "[ERROR]: Config file '$CONFIG_FILE' not found." >> $GITHUB_STEP_SUMMARY
+            exit 1
+          fi
+
+  replicate_files:
+    needs: setup_jobs
+    permissions:
+      pull-requests: write
+
+    name: Replicating files
+    strategy:
+      fail-fast: false
+      matrix:
+        repo: ${{ fromJson(needs.setup_jobs.outputs.matrix) }}
+      max-parallel: 10
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 #v5.0.0
+        with:
+          persist-credentials: false
+
+      - name: Replicating files
+        uses: borislavr/manage-files-in-multiple-repositories@1a30789fb0ff451240b9497fc92f4ea8e969ce03 #v2.2.1
+        with:
+          github_token: "${{ secrets.GH_ACCESS_TOKEN }}"
+          exclude_private: true
+          exclude_forked: false
+          committer_username: borislavr
+          bot_branch_name: ${{ fromJson(needs.setup_jobs.outputs.config).settings.bot_branch_name || 'broadcast-files' }}
+          patterns_to_include: ${{ fromJson(needs.setup_jobs.outputs.config).settings.patterns_to_include || '' }}
+          topics_to_include: ${{ fromJson(needs.setup_jobs.outputs.config).settings.topics_to_include || '' }}
+          destination: ${{ fromJson(needs.setup_jobs.outputs.config).settings.destination || '.' }}
+          commit_message: ${{ fromJson(needs.setup_jobs.outputs.config).settings.commit_message || 'broadcasted files' }}
+          repo_name: ${{ matrix.repo }}
+          patterns_to_ignore: ${{ fromJson(needs.setup_jobs.outputs.config).settings.patterns_to_ignore || '' }}
+          patterns_to_remove: ${{ fromJson(needs.setup_jobs.outputs.config).settings.patterns_to_remove || '' }}
+          repos_to_ignore: ${{ fromJson(needs.setup_jobs.outputs.config).settings.repos_to_ignore || '' }}

@@ -1,0 +1,12 @@
+{
+    "name": "Qubership Dev Mvn Build Workflow",
+    "description": "A workflow template for development builds. It automatically builds Maven packages with Java configuration, generates artifacts with dynamic naming and tags, and publishes Docker images. Supports customizable Java version and dry-run mode.",
+    "categories": [
+        "CI/CD",
+        "Automation"
+    ],
+    "labels": [
+        "dev",
+        "docker"
+    ]
+}

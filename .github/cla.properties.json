@@ -1,0 +1,8 @@
+{
+  "name": "Qubership CLA Assistant",
+  "description": "CLA Assistant workflow template. It can be used to automatically check if the PR author has signed the CLA.",
+  "categories": [
+      "Automation"
+  ],
+  "labels": [ "preview"]
+}

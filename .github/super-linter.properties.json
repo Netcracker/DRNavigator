@@ -1,0 +1,8 @@
+{
+  "name": "Qubership Lint Code Base",
+  "description": "Lint Code Base workflow template. It can be used to lint code base using super-linter.",
+
+  "categories": [
+      "Automation"
+  ]
+}
