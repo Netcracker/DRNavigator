@@ -24,7 +24,7 @@ FROM --platform=$BUILDPLATFORM alpine:3.22.2
 
 ENV USER_UID=1001 USER_NAME=paas-geo-monitor GROUP_NAME=paas-geo-monitor
 
-RUN apk --no-cache add 'curl>=8.16.0-r0'
+RUN apk --no-cache add 'curl>=8.14.1-r2'
 
 WORKDIR /
 COPY --from=builder --chown=${USER_UID} workspace/paas-geo-monitor .
