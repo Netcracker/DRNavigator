@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.24-alpine3.22 as builder
+FROM --platform=$BUILDPLATFORM golang:1.24.6-alpine3.22 as builder
 
 WORKDIR /workspace
 
@@ -20,17 +20,17 @@ ARG TARGETOS
 ARG TARGETARCH
 RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH GO111MODULE=on go build -a -o paas-geo-monitor ./main.go
 
-FROM --platform=$BUILDPLATFORM alpine:3.22.1
+FROM --platform=$BUILDPLATFORM alpine:3.22.2
 
 ENV USER_UID=1001 USER_NAME=paas-geo-monitor GROUP_NAME=paas-geo-monitor
 
-RUN apk --no-cache add curl~=8
+RUN apk --no-cache add 'curl>=8.16.0-r0'
 
 WORKDIR /
 COPY --from=builder --chown=${USER_UID} workspace/paas-geo-monitor .
 RUN apk update && \
     apk upgrade && \
-    apk add bash && \
+    apk add --no-cache bash && \
     addgroup ${GROUP_NAME} && adduser -D -G ${GROUP_NAME} -u ${USER_UID} ${USER_NAME}
 USER ${USER_UID}
 
