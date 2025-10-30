@@ -49,7 +49,7 @@ customAudience: sm-services
 image:
   repository: ghcr.io/netcracker/site-manager
   pullPolicy: Always
-  tag: main
+  tag: v0.28.0
 
 ingress:
   create: true
@@ -98,7 +98,7 @@ crd:
   install: true
 
 paasGeoMonitor:
-  image: ghcr.io/netcracker/paas-geo-monitor:main
+  image: ghcr.io/netcracker/paas-geo-monitor:v0.28.0
   install: false
   env:
     PAAS_PING_PEERS: "true"
