@@ -7,7 +7,7 @@ metadata:
   labels:
     app: site-manager
   annotations:
-    {{- if and .Values.tls.generateCerts.enabled ( eq .Values.tls.generateCerts.executor "openshift" ) }}
+    {{- if and (not .Values.tls.ca) ( eq .Values.tls.generateCerts.executor "openshift" ) }}
     service.alpha.openshift.io/serving-cert-secret-name: "sm-certs" # for openshift 3.X
     service.beta.openshift.io/serving-cert-secret-name: "sm-certs"  # for openshift 4.X
     {{- end }}
