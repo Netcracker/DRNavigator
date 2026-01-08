@@ -6,14 +6,6 @@ metadata:
   annotations:
     helm.sh/resource-policy: keep
     controller-gen.kubebuilder.io/version: v0.18.0
-  {{- if .Values.tls.generateCerts.enabled }}
-    {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
-    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
-    {{- else if eq .Values.tls.generateCerts.executor "openshift" }}
-    service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
-    service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
-    {{- end }}
-  {{- end }}
   name: sitemanagers.qubership.org
 spec:
   group: qubership.org
@@ -125,7 +117,7 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: site-manager-qubership-validating-webhook-configuration
-  {{- if .Values.tls.generateCerts.enabled }}
+  {{- if not .Values.tls.ca }}
   annotations:
     {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate

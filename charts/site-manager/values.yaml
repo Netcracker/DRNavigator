@@ -78,13 +78,17 @@ requests:
 affinity: {}
 
 tls:
+  # This enables/disables HTTPS only for main site-manager endpoint.
+  # NOTE: setting "enabled: false" does not affect webhooks, they still require TLS, so certs are ALWAYS required.
   enabled: true
+  # Below fields allow to provide custom crt/key/ca certificates.
+  # If you decide to use custom certificates, all three must be provided.
+  # Otherwise, certificates will be generated using cert-manager (or openshift if you customize executor).
   crt: ""
   key: ""
   ca: ""
   defaultIngressTls: false
   generateCerts:
-    enabled: false
     executor: cert-manager
     clusterIssuerName: ""
     duration: 365

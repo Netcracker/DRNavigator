@@ -5,7 +5,7 @@ metadata:
   name: {{ printf "%ss" (lower .Values.env.SM_KIND) }}.{{ .Values.env.SM_GROUP }}
   annotations:
     helm.sh/resource-policy: keep
-  {{- if .Values.tls.generateCerts.enabled }}
+  {{- if not .Values.tls.ca }}
     {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
     {{- else if eq .Values.tls.generateCerts.executor "openshift" }}
@@ -277,7 +277,7 @@ apiVersion: admissionregistration.k8s.io/v1
 kind: ValidatingWebhookConfiguration
 metadata:
   name: "site-manager-crd-validating-webhook-configuration"
-  {{- if .Values.tls.generateCerts.enabled }}
+  {{- if not .Values.tls.ca }}
   annotations:
     {{- if eq .Values.tls.generateCerts.executor "cert-manager" }}
     cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/site-manager-tls-certificate
