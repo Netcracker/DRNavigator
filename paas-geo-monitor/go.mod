@@ -3,7 +3,7 @@ module github.com/netcracker/drnavigator/paas-geo-monitor
 go 1.25.5
 
 require (
-	github.com/labstack/echo-contrib v0.49.0
+	github.com/labstack/echo-contrib v0.17.4
 	github.com/labstack/echo/v4 v4.15.0
 	github.com/projectcalico/api v0.0.0-20250916150628-d4009e4d7c50
 	github.com/prometheus/client_golang v1.23.2
