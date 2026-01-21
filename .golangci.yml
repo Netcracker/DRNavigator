@@ -8,5 +8,7 @@ linters:
     staticcheck:
       checks:
         - all
-        - -ST1005   # error strings style
         - -SA1019   # deprecated APIs
+        - -ST1005   # error string formatting
+        - -ST1000   # package comments
+        - -ST1003   # naming conventions (IP, URL, HTTP, etc)
