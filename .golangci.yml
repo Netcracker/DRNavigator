@@ -1,0 +1,10 @@
+linters:
+  disable:
+    - errcheck
+
+linters-settings:
+  staticcheck:
+    checks:
+      - all
+      - -ST1005   # error string formatting
+      - -SA1019   # deprecated APIs
