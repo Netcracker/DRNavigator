@@ -1,3 +1,7 @@
+# NOTE:
+# This config is tuned for golangci-lint v2 + Go 1.25.
+# Several Staticcheck style rules are disabled to avoid
+# large-scale refactors in legacy and generated code.
 version: "2"
 
 linters:
