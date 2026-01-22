@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.24.6-alpine3.22 as builder
+FROM --platform=$BUILDPLATFORM golang:1.25.5-alpine3.22 as builder
 
 WORKDIR /workspace
 
@@ -11,7 +11,7 @@ RUN go mod download
 
 # Add code generators
 RUN go install github.com/swaggo/swag/cmd/swag@v1.16.3
-RUN go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.15.0
+RUN go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.5
 
 # Copy the go source
 COPY api/ api/

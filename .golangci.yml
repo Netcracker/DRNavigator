@@ -1,0 +1,22 @@
+# NOTE:
+# This config is tuned for golangci-lint v2 + Go 1.25.
+# Several Staticcheck style rules are disabled to avoid
+# large-scale refactors in legacy and generated code.
+version: "2"
+
+linters:
+  disable:
+    - errcheck
+
+  settings:
+    staticcheck:
+      checks:
+        - all
+        - -SA1019   # deprecated APIs
+        - -ST1005   # error string formatting
+        - -ST1000   # package comments
+        - -ST1003   # naming conventions (IP, URL, HTTP, etc)
+        - -ST1016   # receiver name consistency
+        - -ST1020   # exported function comments
+        - -ST1021   # exported type comments
+        - -QF1008   # micro-optimizations
