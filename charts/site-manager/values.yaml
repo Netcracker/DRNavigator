@@ -97,6 +97,7 @@ tls:
       additionalIpAddresses: []
 
 PAAS_PLATFORM: KUBERNETES
+CLOUD_PUBLIC_HOST: "example.com"
 
 crd:
   install: true

@@ -21,21 +21,17 @@ spec:
   {{- end }}
   {{- if .Values.tls.enabled }}
   tls:
-     {{- if and (.Values.ingress.name) (not .Values.tls.defaultIngressTls ) }}
+     {{- if not .Values.tls.defaultIngressTls }}
     - hosts:
-        - {{ .Values.ingress.name }}
+        - {{ include "site-manager.ingress.host" . }}
       secretName: sm-certs
     {{- else }}
     - {}
     {{- end }}
   {{- end }}
   rules:
-  {{- if .Values.ingress.name }}
-  - host: {{ .Values.ingress.name }}
+  - host: {{ include "site-manager.ingress.host" . }}
     http:
-  {{- else }}
-  - http:
-  {{- end }}
       paths:
       - pathType: ImplementationSpecific
         backend:
