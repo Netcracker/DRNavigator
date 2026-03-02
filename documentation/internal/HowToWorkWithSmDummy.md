@@ -56,7 +56,7 @@ The examples, how it can be run, can be found [here](../../ci/cloud-tests/cluste
 | env.SMA_SM_SA                       | site-manager service account name (for authorization checking)                          | "site-manager-sa" if `smSecureAuth` is enabled. Otherwise `sm-auth-sa` |
 | env.SMA_CUSTOM_AUDIENCE             | site-manager custom audience for rest API token. Used only is `smSecureAuth` is enabled | ""                                                                     |
 | image                               | sm-dummy image                                                                          |                                                                        |
-| ingressName                         | define URL for ingress                                                                  |                                                                        |
+| ingressName                         | define URL for ingress                                                                  | `site-manager-${.Release.Namespace}.${.Values.CLOUD_PUBLIC_HOST}`  |
 | serviceAccount.create               | enable/disable Service Account creation                                                 | true                                                                   |
 | serviceAccount.name                 | name of Service Account for sm-dummy                                                    | "sm-dummy-sa"                                                          |
 | siteManager.installCR               | enable sitemanager-cr                                                                   | True                                                                   |

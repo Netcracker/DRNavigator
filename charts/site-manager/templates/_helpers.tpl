@@ -1,4 +1,15 @@
 {{/*
+Return the appropriate host for ingress.
+*/}}
+{{- define "site-manager.ingress.host" -}}
+  {{- if .Values.ingress.name }}
+    {{- .Values.ingress.name }}
+  {{- else -}}
+    {{- printf "site-manager-%s.%s" .Release.Namespace .Values.CLOUD_PUBLIC_HOST }}
+  {{- end -}}
+{{- end -}}
+
+{{/*
 Return the appropriate apiVersion for ingress.
 */}}
 {{- define "site-manager.ingress.apiVersion" -}}
@@ -15,9 +26,7 @@ DNS names used to generate SSL certificate with "Subject Alternative Name" field
 */}}
 {{- define "site-manager.certDnsNames" -}}
   {{- $dnsNames := list "localhost" "site-manager" (printf "%s.%s" "site-manager" .Release.Namespace)  (printf "%s.%s.svc" "site-manager" .Release.Namespace) -}}
-  {{- if .Values.ingress.name -}}
-    {{- $dnsNames = append $dnsNames .Values.ingress.name -}}
-   {{- end -}}
+  {{- $dnsNames = append $dnsNames (include "site-manager.ingress.host" .) -}}
   {{- $dnsNames = concat $dnsNames .Values.tls.generateCerts.subjectAlternativeName.additionalDnsNames -}}
   {{- $dnsNames | toYaml -}}
 {{- end -}}
