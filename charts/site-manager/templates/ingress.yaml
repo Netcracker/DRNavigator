@@ -1,9 +1,13 @@
+{{- if .Values.ingress.create }}
 apiVersion: {{ include "site-manager.ingress.apiVersion" . }}
 kind: Ingress
 metadata:
   name: {{ .Chart.Name }}
   namespace: {{ .Release.Namespace }}
   annotations:
+    # Prevent gateway-api-converter from auto-converting this legacy Ingress
+    # when Gateway API resources (HTTPRoute, etc) are managed by chart.
+    gateway-api-converter.netcracker.com/ignore: "true"
     {{- if .Values.tls.enabled }}
     nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
     {{- if .Values.tls.defaultIngressTls }}
@@ -44,3 +48,4 @@ spec:
             port:
               number: 443
   {{- end }}
+{{- end }}

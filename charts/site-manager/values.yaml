@@ -56,6 +56,14 @@ ingress:
   name: ""
   className: ""
 
+# Gateway API (HTTPRoute) configuration.
+# Resources are created only when:
+# 1) gateway.networking.k8s.io/v1 CRDs are present
+# 2) PAAS_PLATFORM=KUBERNETES
+httpRoute:
+  gatewayName: default-external-gateway
+  gatewayNamespace: envoy-gateway
+
 limits:
   cpu: "20m"
   memory: "100Mi"
