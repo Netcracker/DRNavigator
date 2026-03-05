@@ -15,10 +15,8 @@ spec:
       kind: Gateway
       name: {{ .Values.httpRoute.gatewayName | quote }}
       namespace: {{ .Values.httpRoute.gatewayNamespace | quote }}
-  {{- if .Values.ingress.name }}
   hostnames:
-    - {{ .Values.ingress.name | quote }}
-  {{- end }}
+    - {{ include "site-manager.ingress.host" . | quote }}
   rules:
     - matches:
         - path:

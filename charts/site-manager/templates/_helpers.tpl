@@ -8,7 +8,6 @@ Return the appropriate host for ingress.
     {{- printf "site-manager-%s.%s" .Release.Namespace .Values.CLOUD_PUBLIC_HOST }}
   {{- end -}}
 {{- end -}}
-
 {{/*
 Return the appropriate apiVersion for ingress.
 */}}
@@ -50,4 +49,3 @@ IP addresses used to generate SSL certificate with "Subject Alternative Name" fi
 {{- define "paas-geo-monitor.port" -}}
   {{- print ( default 8080 .Values.paasGeoMonitor.config.port ) -}}
 {{- end -}}
-
