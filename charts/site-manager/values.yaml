@@ -60,9 +60,8 @@ ingress:
 # Resources are created only when:
 # 1) gateway.networking.k8s.io/v1 CRDs are present
 # 2) PAAS_PLATFORM=KUBERNETES
-httpRoute:
-  gatewayName: default-external-gateway
-  gatewayNamespace: envoy-gateway
+GATEWAY_SYSTEM_NAME: default-external-gateway
+GATEWAY_SYSTEM_NAMESPACE: gateway-system
 
 limits:
   cpu: "20m"

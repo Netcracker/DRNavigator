@@ -13,8 +13,8 @@ spec:
   parentRefs:
     - group: gateway.networking.k8s.io
       kind: Gateway
-      name: {{ .Values.httpRoute.gatewayName | quote }}
-      namespace: {{ .Values.httpRoute.gatewayNamespace | quote }}
+      name: {{ .Values.GATEWAY_SYSTEM_NAME  | quote }}
+      namespace: {{ .Values.GATEWAY_SYSTEM_NAMESPACE | quote }}
   hostnames:
     - {{ include "site-manager.ingress.host" . | quote }}
   rules:
