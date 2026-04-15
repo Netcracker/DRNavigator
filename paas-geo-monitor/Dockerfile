@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM golang:1.25.7-alpine3.22 as builder
+FROM --platform=$BUILDPLATFORM golang:1.26.2-alpine3.22 as builder
 
 WORKDIR /workspace
 
@@ -24,7 +24,7 @@ FROM --platform=$BUILDPLATFORM alpine:3.22.2
 
 ENV USER_UID=1001 USER_NAME=paas-geo-monitor GROUP_NAME=paas-geo-monitor
 
-RUN apk --no-cache add 'curl>=8.14.1-r2'
+RUN apk --no-cache add curl
 
 WORKDIR /
 COPY --from=builder --chown=${USER_UID} workspace/paas-geo-monitor .
