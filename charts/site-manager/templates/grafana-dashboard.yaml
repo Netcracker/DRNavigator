@@ -1,0 +1,25 @@
+{{- if .Values.MONITORING_ENABLED }}
+apiVersion: integreatly.org/v1alpha1
+kind: GrafanaDashboard
+metadata:
+  name: site-manager-grafana-dashboard
+  labels:
+    app: grafana
+spec:
+  name: dashboard-with-plugins.json
+  json: >
+{{ .Files.Get "monitoring/site-manager-grafana-dashboard.json" | indent 4 }}
+{{- if and (.Values.paasGeoMonitor.install) }}
+---
+apiVersion: integreatly.org/v1alpha1
+kind: GrafanaDashboard
+metadata:
+  name: paas-geo-monitor-grafana-dashboard
+  labels:
+    app: grafana
+spec:
+  name: dashboard-with-plugins.json
+  json: >
+{{ .Files.Get "monitoring/paas-geo-monitor-grafana-dashboard.json" | replace "__service_cidr_regex_placeholder__" .Values.paasGeoMonitor.monitoring.serviceCIDRRegex | indent 4 }}
+{{ end }}
+{{ end }}

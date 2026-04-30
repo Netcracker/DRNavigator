@@ -1,5 +1,6 @@
 createClusterAdminEntities: true
 priorityClassName: ""
+profile: small
 
 env:
   # set authentication mode
@@ -45,6 +46,8 @@ serviceAccount:
 
 smSecureAuth: false
 customAudience: sm-services
+
+MONITORING_ENABLED: false
 
 image:
   repository: ghcr.io/netcracker/site-manager
@@ -104,6 +107,7 @@ tls:
       additionalIpAddresses: []
 
 PAAS_PLATFORM: KUBERNETES
+DBAAS_ENABLED: false
 CLOUD_PUBLIC_HOST: "example.com"
 
 crd:
@@ -112,6 +116,10 @@ crd:
 paasGeoMonitor:
   image: ghcr.io/netcracker/paas-geo-monitor:main
   install: false
+  monitoring:
+    # This field configures service CIDR regex used on monitoring dashboard.
+    # If you use a different service subnet (not starting with 172.), you need to specify regex appropriately.
+    serviceCIDRRegex: 172.*
   env:
     PAAS_PING_PEERS: "true"
     PAAS_PING_TIME: "5"
