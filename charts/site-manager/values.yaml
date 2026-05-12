@@ -11,7 +11,7 @@ env:
   SM_DEBUG: "False"
 
   # set CRD parameters (for legacy API group only)
-  SM_GROUP: "legacy.qubership.org"
+  SM_GROUP: "netcracker.com"
   SM_KIND: "SiteManager"
   SM_KIND_LIST: "SiteManagerList"
   # set HTTP scheme for microservices
@@ -47,7 +47,11 @@ serviceAccount:
 smSecureAuth: false
 customAudience: sm-services
 
-MONITORING_ENABLED: false
+MONITORING_ENABLED: true
+
+SERVICE_NAME: site-manager
+
+MANAGED_BY: saasDeployer
 
 image:
   repository: ghcr.io/netcracker/site-manager
