@@ -115,7 +115,7 @@ DBAAS_ENABLED: false
 CLOUD_PUBLIC_HOST: "example.com"
 
 crd:
-  install: true
+  install: false
 
 paasGeoMonitor:
   image: ghcr.io/netcracker/paas-geo-monitor:main
