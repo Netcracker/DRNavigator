@@ -55,6 +55,7 @@ plugins:
                 tag: <SM_TAG>
               env:
                 SM_DEBUG: 'true'
+              MONITORING_ENABLED: false
               crd:
                 install: true
               tls:
