@@ -30,6 +30,9 @@ jobs:
           - name: sm-check
             dir: sm-check
             file: sm-check/Dockerfile
+          - name: sm-charts-transfer
+            dir: .
+            file: ci/docker-charts/Dockerfile
     steps:
       - name: Checkout
         uses: actions/checkout@v4

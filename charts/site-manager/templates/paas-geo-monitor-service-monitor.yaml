@@ -1,0 +1,29 @@
+{{- if and (.Values.MONITORING_ENABLED) (.Values.paasGeoMonitor.install) }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: paas-geo-monitor-service-monitor
+  labels:
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/name: paas-geo-monitor-service-monitor
+    app.kubernetes.io/part-of: platform-monitoring
+    k8s-app: paas-geo-monitor-service-monitor
+spec:
+  endpoints:
+    - interval: 30s
+      path: /metrics
+      port: web
+      scheme: http
+  jobLabel: k8s-app
+  namespaceSelector:
+    {{ if  .Release.Namespace }}
+    matchNames:
+      - {{ .Release.Namespace }}
+    {{ else }}
+    matchNames:
+      - {{ default "paas-geo-monitor" .Values.namespace }}
+    {{ end }}
+  selector:
+    matchLabels:
+      app: paas-geo-monitor
+{{ end }}

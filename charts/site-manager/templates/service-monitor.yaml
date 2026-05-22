@@ -1,0 +1,29 @@
+{{- if .Values.MONITORING_ENABLED }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: site-manager-service-monitor
+  labels:
+    app.kubernetes.io/component: monitoring
+    app.kubernetes.io/name: site-manager-service-monitor
+    app.kubernetes.io/part-of: platform-monitoring
+    k8s-app: site-manager-service-monitor
+spec:
+  endpoints:
+    - interval: 30s
+      path: /metrics
+      port: metrics
+      scheme: http
+  jobLabel: k8s-app
+  namespaceSelector:
+    {{ if  .Release.Namespace }}
+    matchNames:
+      - {{ .Release.Namespace }}
+    {{ else }}
+    matchNames:
+      - {{ default "site-manager" .Release.Namespace }}
+    {{ end }}
+  selector:
+    matchLabels:
+      app: site-manager
+{{ end }}
