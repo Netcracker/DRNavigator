@@ -4,7 +4,8 @@
 * [DR Navigator Installation Procedure](#dr-navigator-installation-procedure)
   * [Site-manager](#site-manager)
     * [Requirements](#requirements)
-    * [Prerequisites](#prerequisites)
+    * [Restricted rights prerequisites](#restricted-rights-prerequisites)
+    * [Certificates Prerequisite](#certificates-prerequisite)
     * [Installation](#installation)
     * [Certificate Renewal Procedure](#certificate-renewal-procedure)
   * [Paas-Geo-Monitor](#paas-geo-monitor)
@@ -12,6 +13,7 @@
     * [Configuration](#configuration)
   * [sm-client](#sm-client)
     * [Prepare Environment](#prepare-environment)
+    * [Enable cluster-replicator support](#enable-cluster-replicator-support)
     * [Running From CLI](#running-from-cli)
     * [Running From Docker](#running-from-docker)
 <!-- TOC -->
@@ -296,7 +298,7 @@ openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-m
 
 To renew a certificate:
 
-1. Execute the instructions in the **Prerequisites** section from the step 2.2 to 3.2;
+1. Execute the instructions in the **Certificate Prerequisite** section from the step 2 to 4;
 2. Redeploy SM with new certificate parameters: `tls.ca`, `tls.crt` and `tls.key`;
 3. Restart pod `site-manager`
 
