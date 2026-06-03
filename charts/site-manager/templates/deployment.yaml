@@ -22,10 +22,19 @@ spec:
       {{ include  "securityContext" . }}
       containers:
       - name: {{ .Chart.Name }}
-        {{- with .Values.containerSecurityContext }}
         securityContext:
-          {{- toYaml . | nindent 12 }}
-        {{- end }}
+          runAsNonRoot: true
+          {{- if eq (default "" .Values.PAAS_PLATFORM) "KUBERNETES" }}
+          runAsUser: 1001
+          runAsGroup: 1001
+          {{- end }}
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
         image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
@@ -78,6 +87,8 @@ spec:
           - mountPath: /rest-api
             name: rest-api-token
             readOnly: true
+          - mountPath: /tmp
+            name: tmp
         resources:
           limits:
             cpu: "{{ .Values.limits.cpu }}"
@@ -107,6 +118,9 @@ spec:
         terminationMessagePath: /dev/termination-log
         imagePullPolicy: {{ .Values.image.pullPolicy }}
       volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi
         - name: sm-certs
           secret:
             secretName: sm-certs

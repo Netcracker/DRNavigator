@@ -21,10 +21,19 @@ spec:
       {{ include  "securityContext" . }}
       containers:
       - name: paas-geo-monitor
-        {{- with .Values.containerSecurityContext }}
         securityContext:
-          {{- toYaml . | nindent 12 }}
-        {{- end }}
+          runAsNonRoot: true
+          {{- if eq (default "" .Values.PAAS_PLATFORM) "KUBERNETES" }}
+          runAsUser: 1001
+          runAsGroup: 1001
+          {{- end }}
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
         image: {{ .Values.paasGeoMonitor.image}}
         imagePullPolicy: Always
         args:
@@ -57,6 +66,8 @@ spec:
           - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
             name: serviceaccount-token
             readOnly: true
+          - mountPath: /tmp
+            name: tmp
         resources:
           limits:
               cpu: "20m"
@@ -85,6 +96,9 @@ spec:
           successThreshold: 1
           failureThreshold: 5
       volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi
         - name: config
           configMap:
             name: paas-geo-monitor-cfg

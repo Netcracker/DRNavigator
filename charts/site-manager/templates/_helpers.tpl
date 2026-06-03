@@ -41,8 +41,9 @@ IP addresses used to generate SSL certificate with "Subject Alternative Name" fi
 {{- define "securityContext" -}}
     securityContext:
         {{- .Values.securityContext | toYaml | nindent 8  }}
-        {{- if and (not .Values.securityContext.runAsUser) (not (.Capabilities.APIVersions.Has "apps.openshift.io/v1")) }}
-        runAsUser: 10001
+        {{- if eq (default "" .Values.PAAS_PLATFORM) "KUBERNETES" }}
+        runAsUser: 1001
+        runAsGroup: 1001
         {{- end -}}
 {{- end -}}
 

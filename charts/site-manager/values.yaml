@@ -31,14 +31,6 @@ securityContext:
   seccompProfile:
     type: RuntimeDefault
 
-# Container Security Context to be set on the controller component container
-# ref: https://kubernetes.io/docs/tasks/configure-pod-container/security-context/
-containerSecurityContext:
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-    - ALL
-  readOnlyRootFilesystem: true
 
 serviceAccount:
   create: true
