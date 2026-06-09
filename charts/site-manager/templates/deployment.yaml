@@ -4,6 +4,17 @@ kind: Deployment
 metadata:
   name: {{ .Chart.Name }}
   namespace: {{ .Release.Namespace }}
+  {{- if .Values.SERVICE_NAME }}
+  labels:
+    name: site-manager
+    app.kubernetes.io/name: '{{ .Values.SERVICE_NAME }}'
+    app.kubernetes.io/instance: '{{ cat (coalesce .Values.DEPLOYMENT_RESOURCE_NAME .Values.SERVICE_NAME) "-" .Values.NAMESPACE | nospace | trunc 63 | trimSuffix "-" }}'
+    app.kubernetes.io/version: '{{ .Values.ARTIFACT_DESCRIPTOR_VERSION }}'
+    app.kubernetes.io/component: backend
+    app.kubernetes.io/part-of: '{{ .Values.SERVICE_NAME }}'
+    app.kubernetes.io/managed-by: '{{ .Values.MANAGED_BY }}'
+    app.kubernetes.io/technology: go
+  {{- end }}
 spec:
   selector:
     matchLabels:
@@ -13,6 +24,15 @@ spec:
     metadata:
       labels:
         app: site-manager
+        {{- if .Values.SERVICE_NAME }}
+        name: site-manager
+        app.kubernetes.io/name: '{{ .Values.SERVICE_NAME }}'
+        app.kubernetes.io/instance: '{{ cat (coalesce .Values.DEPLOYMENT_RESOURCE_NAME .Values.SERVICE_NAME) "-" .Values.NAMESPACE | nospace | trunc 63 | trimSuffix "-" }}'
+        app.kubernetes.io/version: '{{ .Values.ARTIFACT_DESCRIPTOR_VERSION }}'
+        app.kubernetes.io/component: backend
+        app.kubernetes.io/part-of: '{{ .Values.SERVICE_NAME }}'
+        app.kubernetes.io/technology: go
+        {{- end }}
     spec:
       serviceAccountName: {{ .Values.serviceAccount.name }}
       {{- with .Values.priorityClassName }}
@@ -35,7 +55,7 @@ spec:
           seccompProfile:
             type: RuntimeDefault
           readOnlyRootFilesystem: true
-        image: {{ printf "%s:%s" .Values.image.repository .Values.image.tag }}
+        image: {{ template "find_image" (dict "SERVICE_NAME" "site-manager" "vals" .Values "default" (printf "%s:%s" .Values.image.repository .Values.image.tag)) }}
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         args:
           - "--bind=0.0.0.0:8443"

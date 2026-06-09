@@ -1,4 +1,20 @@
 {{/*
+Find Docker image — checks deployDescriptor (NC Application Deployer) first, falls back to default.
+Dictionary keys: SERVICE_NAME, vals (.Values), default (fallback image string)
+*/}}
+{{- define "find_image" -}}
+  {{- $image := .default -}}
+  {{- if .vals.ignoreDeployDescriptor -}}
+    {{/* just skip and use default */}}
+  {{- else if .vals.deployDescriptor -}}
+    {{- if index .vals.deployDescriptor .SERVICE_NAME -}}
+      {{- $image = (index .vals.deployDescriptor .SERVICE_NAME "image") -}}
+    {{- end -}}
+  {{- end -}}
+  {{ printf "%s" $image }}
+{{- end -}}
+
+{{/*
 Return the appropriate host for ingress.
 */}}
 {{- define "site-manager.ingress.host" -}}
