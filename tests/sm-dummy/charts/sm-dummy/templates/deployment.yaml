@@ -20,13 +20,26 @@ spec:
       {{- with .Values.securityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
+        {{- if eq (default "" $.Values.PAAS_PLATFORM) "KUBERNETES" }}
+        runAsUser: 1001
+        runAsGroup: 1001
+        {{- end }}
       {{- end }}
       containers:
       - name: sm-dummy
-        {{- with .Values.containerSecurityContext }}
         securityContext:
-          {{- toYaml . | nindent 12 }}
-        {{- end }}
+          runAsNonRoot: true
+          {{- if eq (default "" $.Values.PAAS_PLATFORM) "KUBERNETES" }}
+          runAsUser: 1001
+          runAsGroup: 1001
+          {{- end }}
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+          readOnlyRootFilesystem: true
         image: {{ .Values.image }}
         env:
           - name: SMA_TIMEOUT
@@ -55,6 +68,11 @@ spec:
           - name: SMA_CUSTOM_AUDIENCE
             value: '{{ .Values.env.SMA_CUSTOM_AUDIENCE }}'
             {{- end }}
+          - name: PYTHONDONTWRITEBYTECODE
+            value: "1"
+        volumeMounts:
+          - mountPath: /tmp
+            name: tmp
         ports:
         - containerPort: 8080
           protocol: TCP
@@ -83,3 +101,7 @@ spec:
           failureThreshold: 5
         terminationMessagePath: /dev/termination-log
         imagePullPolicy: Always
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 100Mi

@@ -1,4 +1,20 @@
 {{/*
+Find Docker image — checks deployDescriptor (NC Application Deployer) first, falls back to default.
+Dictionary keys: SERVICE_NAME, vals (.Values), default (fallback image string)
+*/}}
+{{- define "find_image" -}}
+  {{- $image := .default -}}
+  {{- if .vals.ignoreDeployDescriptor -}}
+    {{/* just skip and use default */}}
+  {{- else if .vals.deployDescriptor -}}
+    {{- if index .vals.deployDescriptor .SERVICE_NAME -}}
+      {{- $image = (index .vals.deployDescriptor .SERVICE_NAME "image") -}}
+    {{- end -}}
+  {{- end -}}
+  {{ printf "%s" $image }}
+{{- end -}}
+
+{{/*
 Return the appropriate host for ingress.
 */}}
 {{- define "site-manager.ingress.host" -}}
@@ -41,8 +57,9 @@ IP addresses used to generate SSL certificate with "Subject Alternative Name" fi
 {{- define "securityContext" -}}
     securityContext:
         {{- .Values.securityContext | toYaml | nindent 8  }}
-        {{- if and (not .Values.securityContext.runAsUser) (not (.Capabilities.APIVersions.Has "apps.openshift.io/v1")) }}
-        runAsUser: 10001
+        {{- if eq (default "" .Values.PAAS_PLATFORM) "KUBERNETES" }}
+        runAsUser: 1001
+        runAsGroup: 1001
         {{- end -}}
 {{- end -}}
 
