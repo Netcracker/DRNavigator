@@ -4,7 +4,7 @@
 * [DR Navigator Installation Procedure](#dr-navigator-installation-procedure)
   * [Site-manager](#site-manager)
     * [Requirements](#requirements)
-    * [Restricted rights prerequisites](#restricted-rights-prerequisites)
+    * [Restricted Rights Prerequisites](#restricted-rights-prerequisites)
     * [Certificates Prerequisite](#certificates-prerequisite)
     * [Installation](#installation)
     * [Certificate Renewal Procedure](#certificate-renewal-procedure)
@@ -32,12 +32,11 @@ you can do one of following solutions:
 - Increase timeouts for site-manager and sm-client;
 - Increase quotas for site-manager;
 
-### Restricted rights prerequisites
+### Restricted Rights Prerequisites
 
 To avoid using cluster-admin rights during the deployment, the following conditions must be met:
-
 1. The cloud administrator creates the namespace/project in advance;
-2. If you do not have cert-manager or OpenShift certificates serving mechanism, you should create certificates manually according to [this section](#certificates-prerequisite)
+2. If you do not have cert-manager or OpenShift certificates serving mechanism, you should create certificates manually according to the [Certificates Prerequisite](#certificates-prerequisite) section.
 3. Create CustomResourceDefinitions and ValidatingWebhookConfigurations for `qubership.org` ([`/manifests/crd-sitemanager.yaml`](/manifests/crd-sitemanager.yaml)) and `netcracker.com` ([`/manifests/legacy-crd-sitemanager.yaml`](/manifests/legacy-crd-sitemanager.yaml)) API groups as it will be described below. **Important**: You can skip this part, if you add `crd.install=true` to helm installation.
     3.1. In case of integration with cert-manager, add the following annotation in CustomResourceDefinition and ValidatingWebhookConfiguration templates (two files), which helps to update caBundle in theirs webhook:
     ```yaml
@@ -141,9 +140,9 @@ To avoid using cluster-admin rights during the deployment, the following conditi
    * `SM_NAMESPACE` - The namespace name for Site-Manager service. For example, `site-manager`;
    Save and close edited template.
 
-### Certificates prerequisite
+### Certificates Prerequisite
 
-Generate self-signed certificates for the `site-manager` service if you do not want to integrate with cert-manager or OpenShift service serving certificates mechanism.
+Generate self-signed certificates for the `site-manager` service, if you do not want to integrate with cert-manager or OpenShift service serving certificates mechanism.
 
 1. Create a configuration file for generating the SSL certificate:
 
