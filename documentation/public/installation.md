@@ -4,7 +4,8 @@
 * [DR Navigator Installation Procedure](#dr-navigator-installation-procedure)
   * [Site-manager](#site-manager)
     * [Requirements](#requirements)
-    * [Prerequisites](#prerequisites)
+    * [Restricted Rights Prerequisites](#restricted-rights-prerequisites)
+    * [Certificates Prerequisite](#certificates-prerequisite)
     * [Installation](#installation)
     * [Certificate Renewal Procedure](#certificate-renewal-procedure)
   * [Paas-Geo-Monitor](#paas-geo-monitor)
@@ -12,6 +13,7 @@
     * [Configuration](#configuration)
   * [sm-client](#sm-client)
     * [Prepare Environment](#prepare-environment)
+    * [Enable cluster-replicator support](#enable-cluster-replicator-support)
     * [Running From CLI](#running-from-cli)
     * [Running From Docker](#running-from-docker)
 <!-- TOC -->
@@ -30,60 +32,168 @@ you can do one of following solutions:
 - Increase timeouts for site-manager and sm-client;
 - Increase quotas for site-manager;
 
-### Prerequisites
+### Restricted Rights Prerequisites
 
-1. Generate self-signed certificates for the `site-manager` service if you do not want to integrate with cert-manager or OpenShift service serving certificates mechanism.
-
-    2.1. Create a configuration file for generating the SSL certificate:
-
-    ```bash
-    cat <<EOF > server.conf 
-    [req]
-    req_extensions = v3_req
-    distinguished_name = req_distinguished_name
-    prompt = no
-
-    [req_distinguished_name]
-    CN = site-manager.site-manager.svc
-
-    [ v3_req ]
-    basicConstraints = CA:FALSE
-    keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-    extendedKeyUsage = clientAuth, serverAuth
-    subjectAltName = @alt_names
-    [alt_names]
-    IP.1 = 127.0.0.1
-    DNS.1 = site-manager
-    DNS.2 = site-manager.site-manager
-    DNS.3 = site-manager.site-manager.svc
-    DNS.4 = <specify there ingress name of site-manager>
-    EOF
+To avoid using cluster-admin rights during the deployment, the following conditions must be met:
+1. The cloud administrator creates the namespace/project in advance;
+2. If you do not have cert-manager or OpenShift certificates serving mechanism, you should create certificates manually according to the [Certificates Prerequisite](#certificates-prerequisite) section.
+3. Create CustomResourceDefinitions and ValidatingWebhookConfigurations for `qubership.org` ([`/manifests/crd-sitemanager.yaml`](/manifests/crd-sitemanager.yaml)) and `netcracker.com` ([`/manifests/legacy-crd-sitemanager.yaml`](/manifests/legacy-crd-sitemanager.yaml)) API groups as it will be described below. **Important**: You can skip this part, if you add `crd.install=true` to helm installation.
+    3.1. In case of integration with cert-manager, add the following annotation in CustomResourceDefinition and ValidatingWebhookConfiguration templates (two files), which helps to update caBundle in theirs webhook:
+    ```yaml
+    apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    metadata:
+        annotations:
+            cert-manager.io/inject-ca-from: <NAMESPACE>/site-manager-tls-certificate
     ```
-
-    **Important**: Do not forget to specify any other IP addresses and DNS names that you plan to use to connect to the site-manager.
-    For example, it is required to specify the ingress name (`ingress.name` value from helm installation) to use this certificate
-    to connect outside the cloud (from sm-client).  
-    For this, specify the additional `DNS.#` and `IP.#` fields.
-
-    2.2. Create the CA certificate:
-
-    ```bash
-    openssl req -days 730 -nodes -new -x509 -keyout ca.key -out ca.crt -subj "/CN=SM service"
+    ```yaml
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingWebhookConfiguration
+    metadata:
+        annotations:
+            cert-manager.io/inject-ca-from: <NAMESPACE>/site-manager-tls-certificate
     ```
-
-    2.3. Create KEY for the `site-manager` service:
-
+     Create CustomResourceDefinition and ValidatingWebhookConfiguration without caBundle field:
     ```bash
-    openssl genrsa -out site-manager-tls.key 2048
+    cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
+    cat manifests/legacy-crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
     ```
-
-    2.4. Create CRT file for `site-manager`:
-
+    If you already had site-manager CRD or ValidatingWebhookConfiguration in your cloud and want to migrate to cert-manager integration, it is enough to annotate it:
     ```bash
-    openssl req -new -key site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config server.conf | \
-    openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
+    kubectl annotate crds sitemanagers.qubership.org sitemanagers.netcracker.com cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
+    kubectl annotate validatingwebhookconfigurations site-manager-qubership-validating-webhook-configuration site-manager-crd-validating-webhook-configuration cert-manager.io/inject-ca-from=<NAMESPACE>/site-manager-tls-certificate
     ```
-    2.5. Specify data from generated files in site-manager chart under `tls.crt`, `tls.key` and `tls.ca` sections respectively. 
+    3.2. In case of integration with OpenShift service serving certificates mechanism, add the following annotations in CustomResourceDefinition and ValidatingWebhookConfiguration templates (two files), which helps to update caBundle in theirs webhook:
+    ```yaml
+    apiVersion: apiextensions.k8s.io/v1
+    kind: CustomResourceDefinition
+    metadata:
+        annotations:
+            service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
+            service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
+    ```
+    ```yaml
+    apiVersion: admissionregistration.k8s.io/v1
+    kind: ValidatingWebhookConfiguration
+    metadata:
+        annotations:
+            service.alpha.openshift.io/inject-cabundle: "true" # for openshift 3.X
+            service.beta.openshift.io/inject-cabundle: "true"  # for openshift 4.X
+    ```
+     Create CustomResourceDefinition `sitemanagers.netcracker.com` and ValidatingWebhookConfiguration `site-manager-crd-validating-webhook-configuration` without caBundle field:
+    ```bash
+    cat manifests/crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
+    cat manifests/legacy-crd-sitemanager.yaml | sed "/caBundle/d" | kubectl apply -f -
+    ```
+    If you already had site-manager CRD or ValidatingWebhookConfiguration in your cloud and want to migrate to integration with OpenShift service serving certificates mechanism, it is enough to annotate it (choose *alpha* or *beta* according your OpenShift version):
+    ```bash
+    kubectl annotate crds sitemanager.qubership.or sitemanagers.netcracker.com service.alpha.openshift.io/inject-cabundle=true
+    kubectl annotate validatingwebhookconfigurations site-manager-qubership-validating-webhook-configuration site-manager-crd-validating-webhook-configuration service.alpha.openshift.io/inject-cabundle=true
+    ```
+    3.3. In other case, generate base64 string from ca.crt certificate:
+    ```bash
+    CA_BUNDLE=$(cat ca.crt | base64 - | tr -d '\n')
+    ```
+    Create CRDs and ValidatingWebhookConfigurations:
+    ```bash
+    cat manifests/crd-sitemanager.yaml | sed "s/<base-64-encoded-ca-bundle>/${CA_BUNDLE}/" | kubectl apply -f -
+    cat manifests/legacy-crd-sitemanager.yaml | sed "s/<base-64-encoded-ca-bundle>/${CA_BUNDLE}/" | kubectl apply -f -
+    ```
+4. Create Cluster Role with necessary parameters:
+
+   ```console
+   kubectl create --edit -f ./manifests/cluster-role.yaml
+   ```
+
+   During editing, specify the values for the following:
+   * `SM_CLUSTER_ROLE_NAME` - The Cluster Role name for Site-Manager service. For example, `site-manager-crole`;
+   Save and close edited template;
+5. Create Cluster Role Binding:
+
+   ```console
+   kubectl create --edit -f ./manifests/cluster-role-binding.yaml
+   ```
+
+   During editing, specify the values for the following:
+   * `SM_CLUSTER_ROLE_NAME` - The Cluster Role name for Site-Manager service. For example, `site-manager-crole`;
+   * `SM_CLUSTER_ROLE_BINDING_NAME` - The Cluster Role Binding name for Site-Manager service. For example, `site-manager-crb`;
+   * `SM_ACCOUNT_NAME` - The Service Account name for Site-Manager service. For example, `site-manager-sa`;
+   * `SM_NAMESPACE` - The namespace name for Site-Manager service. For example, `site-manager`;
+   Save and close edited template.
+6. If paas-geo-monitor should be installed, create Cluster Role for it:
+
+   ```console
+   kubectl create --edit -f ./manifests/paas-geo-monitor-cluster-role.yaml
+   ```
+
+   During editing, specify the values for the following:
+   * `PGM_CLUSTER_ROLE_NAME` - The Cluster Role name for paas-geo-monitor service. For example, `paas-geo-monitor-crole`;
+7. If paas-geo-monitor should be installed, create Cluster Role Binding for it:
+
+   ```console
+   kubectl create --edit -f ./manifests/paas-geo-monitor-cluster-role-binding.yaml
+   ```
+
+   During editing, specify the values for the following:
+   * `PGM_CLUSTER_ROLE_NAME` - The Cluster Role name for paas-geo-monitor service. For example, `paas-geo-monitor-crole`;
+   * `PGM_CLUSTER_ROLE_BINDING_NAME` - The Cluster Role Binding name for paas-geo-monitor service. For example, `paas-geo-monitor-crb`;
+   * `SM_NAMESPACE` - The namespace name for Site-Manager service. For example, `site-manager`;
+   Save and close edited template.
+
+### Certificates Prerequisite
+
+Generate self-signed certificates for the `site-manager` service, if you do not want to integrate with cert-manager or OpenShift service serving certificates mechanism.
+
+1. Create a configuration file for generating the SSL certificate:
+
+```bash
+cat <<EOF > server.conf 
+[req]
+req_extensions = v3_req
+distinguished_name = req_distinguished_name
+prompt = no
+
+[req_distinguished_name]
+CN = site-manager.site-manager.svc
+
+[ v3_req ]
+basicConstraints = CA:FALSE
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = clientAuth, serverAuth
+subjectAltName = @alt_names
+[alt_names]
+IP.1 = 127.0.0.1
+DNS.1 = site-manager
+DNS.2 = site-manager.site-manager
+DNS.3 = site-manager.site-manager.svc
+DNS.4 = <specify there ingress name of site-manager>
+EOF
+```
+
+**Important**: Do not forget to specify any other IP addresses and DNS names that you plan to use to connect to the site-manager.
+For example, it is required to specify the ingress name (`ingress.name` value from helm installation) to use this certificate
+to connect outside the cloud (from sm-client).  
+For this, specify the additional `DNS.#` and `IP.#` fields.
+
+2. Create the CA certificate:
+
+```bash
+openssl req -days 730 -nodes -new -x509 -keyout ca.key -out ca.crt -subj "/CN=SM service"
+```
+
+3. Create KEY for the `site-manager` service:
+
+```bash
+openssl genrsa -out site-manager-tls.key 2048
+```
+
+4. Create CRT file for `site-manager`:
+
+```bash
+openssl req -new -key site-manager-tls.key -subj "/CN=site-manager.site-manager.svc" -config server.conf | \
+openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-manager-tls.crt -extensions v3_req -extfile server.conf
+```
+5. Specify data from generated files in site-manager chart under `tls.crt`, `tls.key` and `tls.ca` sections respectively. 
 
 ### Installation
 
@@ -98,6 +208,7 @@ you can do one of following solutions:
 | Parameter                                                      | Description                                                                                                                                                              | Default value                   |
 |----------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------|
 | crd.install                                                    | Enable/disable site-manager CRD installation. CRDs are required for site-manager to function — if disabled, they must be installed manually before deploying the chart. It is disabled by default to support the environments, where the deploying user has restricted cluster-level permissions. | false                          |
+| createClusterAdminEntities                                     | Install cluster roles and cluster role bindings. If it's disabled, cluster entities should be installed manually                                                         | true                            |
 | env.FRONT_HTTP_AUTH                                            | Set the authentication mode between sm-client and Site-Manager.                                                                                                          | "Yes"                           |
 | env.BACK_HTTP_AUTH                                             | Set the authentication mode between Site-Manager and manageable services.                                                                                                | "Yes"                           |
 | env.SM_DEBUG                                                   | Set `debug` logging level.                                                                                                                                               | "False"                         |
@@ -129,6 +240,7 @@ you can do one of following solutions:
 | smSecureAuth                                                   | The mode for SM authorization with dr-services. See [API Security Model](architecture.md#api-security-model) for details                                                 | false                           |
 | customAudience                                                 | Custom audience for rest api token, that is used to connect with services. Worked only if `smSecureAuth=true`                                                            | "sm-services"                   |
 | MONITORING_ENABLED                                             | Enable/disable Prometheus `ServiceMonitor` and Grafana dashboard resources. Requires Prometheus Operator CRDs to be installed in the cluster.                             | true                            |
+| DBAAS_ENABLED                                                  | DBAAS should be disabled to not interfere with installation                                                                                                              | false                           |
 | tls.enabled                                                    | Enable https in ingress/route                                                                                                                                            | true                            |
 | tls.defaultIngressTls                                          | Use default tls certificate instead of generated one for ingress/route                                                                                                   | false                           |
 | tls.ca                                                         | CA tls certificate (content of `ca.crt` file after [prerequisites](#prerequisites) step 2). Required, if integration with cert-manager is disabled                       | ""                              |
@@ -139,6 +251,7 @@ you can do one of following solutions:
 | tls.generateCerts.duration                                     | In case of cert-manager integration, define the duration (days) of created certificate using cert-manager.                                                               | 365                             |
 | tls.generateCerts.subjectAlternativeName.additionalDnsNames    | In case of cert-manager integration, additional trusted DNS names in the certificate.                                                                                    | []                              |
 | tls.generateCerts.subjectAlternativeName.additionalIpAddresses | In case of cert-manager integration, additional trusted IP names in the certificate.                                                                                     | []                              |
+| profile                                                        | Resource profile for site-manager. Supported values: small, medium, large.                                                                                               | small                           |
 
    **Warning**: Some parameters (e.g. `tls.ca`, `tls.crt` and `tls.key`) have multiline values in common cases. To override them, you
    can use `--set-file` helm option or separate values yaml file with multiline yaml strings, like:
@@ -184,7 +297,7 @@ you can do one of following solutions:
 
 To renew a certificate:
 
-1. Execute the instructions in the **Prerequisites** section from the step 2.2 to 3.2;
+1. Execute the instructions in the **Certificate Prerequisite** section from the step 2 to 4;
 2. Redeploy SM with new certificate parameters: `tls.ca`, `tls.crt` and `tls.key`;
 3. Restart pod `site-manager`
 
@@ -278,6 +391,19 @@ Where,
   ```
 
 - cacert is a content of `ca.crt` which has been generated during the SiteManager installation.
+
+### Enable cluster-replicator support
+
+In case CloudCore based applications are used, need to enable support of Cluster-replicator. It uses `replicator` module, that is not enabled in sm-client by default. 
+Custom modules are enabled in sm-client configuration using [flow mechanism](/documentation/public/architecture.md#custom-modules-support).
+For this reason you should add following configuration to your `config.yaml` for sm-client:
+
+```yaml
+flow:
+- replicator: [standby,disable]
+- stateful:
+- replicator: [active]
+```
 
 ### Running From CLI
 

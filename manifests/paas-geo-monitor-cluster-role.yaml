@@ -1,0 +1,13 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: PGM_CLUSTER_ROLE_NAME
+rules:
+- apiGroups:
+  - projectcalico.org
+  resources:
+  - caliconodestatus
+  - caliconodestatuses
+  verbs:
+  - list
+  - watch
