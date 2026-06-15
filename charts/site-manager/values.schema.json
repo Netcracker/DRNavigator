@@ -157,13 +157,13 @@
       "additionalProperties": true,
       "properties": {
         "FRONT_HTTP_AUTH": {
-          "type": "string"
+          "$ref": "#/definitions/booleanOrString"
         },
         "BACK_HTTP_AUTH": {
-          "type": "string"
+          "$ref": "#/definitions/booleanOrString"
         },
         "SM_DEBUG": {
-          "type": "string"
+          "$ref": "#/definitions/booleanOrString"
         },
         "SM_GROUP": {
           "type": "string"
@@ -261,22 +261,22 @@
           "type": "object",
           "properties": {
             "PAAS_PING_PEERS": {
-              "type": "string"
+              "$ref": "#/definitions/booleanOrString"
             },
             "PAAS_PING_TIME": {
-              "type": "string"
+              "$ref": "#/definitions/integerOrString"
             },
             "PAAS_DEBUG": {
-              "type": "string"
+              "$ref": "#/definitions/booleanOrString"
             },
             "PAAS_BGP_METRICS": {
-              "type": "string"
+              "$ref": "#/definitions/booleanOrString"
             },
             "PAAS_BGP_CHECK_PERIOD": {
-              "type": "string"
+              "$ref": "#/definitions/integerOrString"
             },
             "PAAS_BGP_CHECK_TIMEOUT": {
-              "type": "string"
+              "$ref": "#/definitions/integerOrString"
             }
           }
         },
