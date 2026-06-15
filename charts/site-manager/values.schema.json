@@ -1,0 +1,322 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": true,
+  "definitions": {
+    "booleanOrString": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "integerOrString": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "string"
+        }
+      ]
+    }
+  },
+  "properties": {
+    "createClusterAdminEntities": {
+      "$ref": "#/definitions/booleanOrString"
+    },
+    "priorityClassName": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "string",
+      "enum": ["small", "medium", "large"]
+    },
+    "smSecureAuth": {
+      "$ref": "#/definitions/booleanOrString"
+    },
+    "customAudience": {
+      "type": "string"
+    },
+    "MONITORING_ENABLED": {
+      "$ref": "#/definitions/booleanOrString"
+    },
+    "SERVICE_NAME": {
+      "type": "string"
+    },
+    "MANAGED_BY": {
+      "type": "string"
+    },
+    "GATEWAY_SYSTEM_NAME": {
+      "type": "string"
+    },
+    "GATEWAY_SYSTEM_NAMESPACE": {
+      "type": "string"
+    },
+    "PAAS_PLATFORM": {
+      "type": "string",
+      "enum": ["KUBERNETES", "OPENSHIFT"]
+    },
+    "DBAAS_ENABLED": {
+      "$ref": "#/definitions/booleanOrString"
+    },
+    "CLOUD_PUBLIC_HOST": {
+      "type": "string"
+    },
+    "ignoreDeployDescriptor": {
+      "$ref": "#/definitions/booleanOrString"
+    },
+    "DEPLOYMENT_RESOURCE_NAME": {
+      "type": "string"
+    },
+    "NAMESPACE": {
+      "type": "string"
+    },
+    "ARTIFACT_DESCRIPTOR_VERSION": {
+      "type": "string"
+    },
+    "namespace": {
+      "type": "string"
+    },
+    "workerCount": {
+      "$ref": "#/definitions/integerOrString"
+    },
+    "securityContext": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "affinity": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "serviceAccount": {
+      "type": "object",
+      "properties": {
+        "create": {
+          "$ref": "#/definitions/booleanOrString"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "ingress": {
+      "type": "object",
+      "properties": {
+        "create": {
+          "$ref": "#/definitions/booleanOrString"
+        },
+        "name": {
+          "type": "string"
+        },
+        "className": {
+          "type": "string"
+        }
+      }
+    },
+    "image": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "repository": {
+          "type": "string"
+        },
+        "pullPolicy": {
+          "type": "string"
+        },
+        "tag": {
+          "type": "string"
+        }
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "requests": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "deployDescriptor": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "crd": {
+      "type": "object",
+      "properties": {
+        "install": {
+          "$ref": "#/definitions/booleanOrString"
+        }
+      }
+    },
+    "env": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "FRONT_HTTP_AUTH": {
+          "type": "string"
+        },
+        "BACK_HTTP_AUTH": {
+          "type": "string"
+        },
+        "SM_DEBUG": {
+          "type": "string"
+        },
+        "SM_GROUP": {
+          "type": "string"
+        },
+        "SM_KIND": {
+          "type": "string"
+        },
+        "SM_KIND_LIST": {
+          "type": "string"
+        },
+        "HTTP_SCHEME": {
+          "type": "string"
+        },
+        "SM_CACERT": {
+          "type": "string"
+        },
+        "SM_GET_REQUEST_TIMEOUT": {
+          "$ref": "#/definitions/integerOrString"
+        },
+        "SM_POST_REQUEST_TIMEOUT": {
+          "$ref": "#/definitions/integerOrString"
+        }
+      }
+    },
+    "tls": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "$ref": "#/definitions/booleanOrString"
+        },
+        "crt": {
+          "type": "string"
+        },
+        "key": {
+          "type": "string"
+        },
+        "ca": {
+          "type": "string"
+        },
+        "defaultIngressTls": {
+          "$ref": "#/definitions/booleanOrString"
+        },
+        "generateCerts": {
+          "type": "object",
+          "properties": {
+            "executor": {
+              "type": "string",
+              "enum": ["cert-manager", "openshift"]
+            },
+            "clusterIssuerName": {
+              "type": "string"
+            },
+            "duration": {
+              "$ref": "#/definitions/integerOrString"
+            },
+            "subjectAlternativeName": {
+              "type": "object",
+              "properties": {
+                "additionalDnsNames": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "additionalIpAddresses": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "paasGeoMonitor": {
+      "type": "object",
+      "properties": {
+        "install": {
+          "$ref": "#/definitions/booleanOrString"
+        },
+        "image": {
+          "type": "string"
+        },
+        "monitoring": {
+          "type": "object",
+          "properties": {
+            "serviceCIDRRegex": {
+              "type": "string"
+            }
+          }
+        },
+        "env": {
+          "type": "object",
+          "properties": {
+            "PAAS_PING_PEERS": {
+              "type": "string"
+            },
+            "PAAS_PING_TIME": {
+              "type": "string"
+            },
+            "PAAS_DEBUG": {
+              "type": "string"
+            },
+            "PAAS_BGP_METRICS": {
+              "type": "string"
+            },
+            "PAAS_BGP_CHECK_PERIOD": {
+              "type": "string"
+            },
+            "PAAS_BGP_CHECK_TIMEOUT": {
+              "type": "string"
+            }
+          }
+        },
+        "config": {
+          "type": "object",
+          "properties": {
+            "port": {
+              "$ref": "#/definitions/integerOrString"
+            },
+            "peers": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string"
+                  },
+                  "clusterIp": {
+                    "type": "object",
+                    "properties": {
+                      "name": {
+                        "type": "string"
+                      },
+                      "svcPort": {
+                        "$ref": "#/definitions/integerOrString"
+                      },
+                      "podPort": {
+                        "$ref": "#/definitions/integerOrString"
+                      },
+                      "protocol": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
