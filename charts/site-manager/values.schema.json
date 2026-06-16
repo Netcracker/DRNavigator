@@ -94,7 +94,6 @@
     },
     "serviceAccount": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "create": {
           "$ref": "#/definitions/booleanOrString"
@@ -106,7 +105,6 @@
     },
     "ingress": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "create": {
           "$ref": "#/definitions/booleanOrString"
@@ -121,7 +119,6 @@
     },
     "image": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "repository": {
           "type": "string"
@@ -148,7 +145,6 @@
     },
     "crd": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "install": {
           "$ref": "#/definitions/booleanOrString"
@@ -157,7 +153,6 @@
     },
     "env": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "FRONT_HTTP_AUTH": {
           "$ref": "#/definitions/booleanOrString"
@@ -193,7 +188,6 @@
     },
     "tls": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "enabled": {
           "$ref": "#/definitions/booleanOrString"
@@ -212,7 +206,6 @@
         },
         "generateCerts": {
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "executor": {
               "type": "string",
@@ -226,7 +219,6 @@
             },
             "subjectAlternativeName": {
               "type": "object",
-              "additionalProperties": false,
               "properties": {
                 "additionalDnsNames": {
                   "type": "array",
@@ -248,7 +240,6 @@
     },
     "paasGeoMonitor": {
       "type": "object",
-      "additionalProperties": false,
       "properties": {
         "install": {
           "$ref": "#/definitions/booleanOrString"
@@ -258,7 +249,6 @@
         },
         "monitoring": {
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "serviceCIDRRegex": {
               "type": "string"
@@ -267,7 +257,6 @@
         },
         "env": {
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "PAAS_PING_PEERS": {
               "$ref": "#/definitions/booleanOrString"
@@ -291,7 +280,6 @@
         },
         "config": {
           "type": "object",
-          "additionalProperties": false,
           "properties": {
             "port": {
               "$ref": "#/definitions/integerOrString"
@@ -300,14 +288,12 @@
               "type": "array",
               "items": {
                 "type": "object",
-                "additionalProperties": false,
                 "properties": {
                   "name": {
                     "type": "string"
                   },
                   "clusterIp": {
                     "type": "object",
-                    "additionalProperties": false,
                     "properties": {
                       "name": {
                         "type": "string"
