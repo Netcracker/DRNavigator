@@ -47,9 +47,6 @@ plugins:
                 install: false
               ingress:
                 name: site-manager.test-local-k8s.com
-                limits:
-                  cpu: "150m"
-                  memory: "150Mi"
               image:
                 repository: ghcr.io/netcracker/site-manager
                 tag: <SM_TAG>
