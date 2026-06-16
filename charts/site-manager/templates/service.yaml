@@ -6,6 +6,10 @@ metadata:
   namespace: {{ .Release.Namespace }}
   labels:
     app: site-manager
+    name: site-manager
+    app.kubernetes.io/name: '{{ .Values.SERVICE_NAME }}'
+    app.kubernetes.io/part-of: '{{ .Values.SERVICE_NAME }}'
+    app.kubernetes.io/managed-by: '{{ .Values.MANAGED_BY }}'
   annotations:
     {{- if and (not .Values.tls.ca) ( eq .Values.tls.generateCerts.executor "openshift" ) }}
     service.alpha.openshift.io/serving-cert-secret-name: "sm-certs" # for openshift 3.X
