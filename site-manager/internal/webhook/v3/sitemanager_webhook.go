@@ -20,12 +20,10 @@ import (
 	"context"
 	"fmt"
 
-	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
 	qubershiporgv3 "github.com/netcracker/drnavigator/site-manager/api/v3"
@@ -41,7 +39,7 @@ var sitemanagerlog = logf.Log.WithName("sitemanager-resource")
 
 // SetupSiteManagerWebhookWithManager registers the webhook for SiteManager in the manager.
 func SetupSiteManagerWebhookWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewWebhookManagedBy(mgr).For(&qubershiporgv3.SiteManager{}).
+	return ctrl.NewWebhookManagedBy(mgr, &qubershiporgv3.SiteManager{}).
 		WithValidator(&SiteManagerCustomValidator{Client: mgr.GetClient()}).
 		Complete()
 }
@@ -57,14 +55,8 @@ type SiteManagerCustomValidator struct {
 	Client client.Client
 }
 
-var _ webhook.CustomValidator = &SiteManagerCustomValidator{}
-
 // ValidateCreate implements webhook.CustomValidator so a webhook will be registered for the type SiteManager.
-func (v *SiteManagerCustomValidator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
-	sitemanager, ok := obj.(*qubershiporgv3.SiteManager)
-	if !ok {
-		return nil, fmt.Errorf("expected a SiteManager object but got %T", obj)
-	}
+func (v *SiteManagerCustomValidator) ValidateCreate(ctx context.Context, sitemanager *qubershiporgv3.SiteManager) (admission.Warnings, error) {
 	sitemanagerlog.Info("Validation for SiteManager upon creation", "name", sitemanager.GetName())
 
 	if err := v.validateServiceName(ctx, sitemanager.GetServiceName(), sitemanager.GetUID(), sitemanager.Spec.SiteManager.Alias != nil); err != nil {
@@ -75,14 +67,10 @@ func (v *SiteManagerCustomValidator) ValidateCreate(ctx context.Context, obj run
 }
 
 // ValidateUpdate implements webhook.CustomValidator so a webhook will be registered for the type SiteManager.
-func (v *SiteManagerCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
-	sitemanager, ok := newObj.(*qubershiporgv3.SiteManager)
-	if !ok {
-		return nil, fmt.Errorf("expected a SiteManager object for the newObj but got %T", newObj)
-	}
-	sitemanagerlog.Info("Validation for SiteManager upon update", "name", sitemanager.GetName())
+func (v *SiteManagerCustomValidator) ValidateUpdate(ctx context.Context, oldObj, newObj *qubershiporgv3.SiteManager) (admission.Warnings, error) {
+	sitemanagerlog.Info("Validation for SiteManager upon update", "name", newObj.GetName())
 
-	if err := v.validateServiceName(ctx, sitemanager.GetServiceName(), sitemanager.GetUID(), sitemanager.Spec.SiteManager.Alias != nil); err != nil {
+	if err := v.validateServiceName(ctx, newObj.GetServiceName(), newObj.GetUID(), newObj.Spec.SiteManager.Alias != nil); err != nil {
 		return nil, err
 	}
 
@@ -90,7 +78,7 @@ func (v *SiteManagerCustomValidator) ValidateUpdate(ctx context.Context, oldObj,
 }
 
 // ValidateDelete implements webhook.CustomValidator so a webhook will be registered for the type SiteManager.
-func (v *SiteManagerCustomValidator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (v *SiteManagerCustomValidator) ValidateDelete(ctx context.Context, sitemanager *qubershiporgv3.SiteManager) (admission.Warnings, error) {
 	// no checks for deletion
 	return nil, nil
 }

@@ -250,16 +250,15 @@ func ServeApp(cmd *cobra.Command, args []string) {
 		}
 
 		// Initialize webhooks
-		validator := legacy.NewValidator(crManager)
-		if err := legacyv1.SetupWebhookWithManager(mgr, validator); err != nil {
+		if err := legacyv1.SetupWebhookWithManager(mgr, legacy.NewValidator[*legacyv1.CR](crManager)); err != nil {
 			setupLog.Error(err, "unable to initialize validator")
 			os.Exit(1)
 		}
-		if err := legacyv2.SetupWebhookWithManager(mgr, validator); err != nil {
+		if err := legacyv2.SetupWebhookWithManager(mgr, legacy.NewValidator[*legacyv2.CR](crManager)); err != nil {
 			setupLog.Error(err, "unable to initialize validator")
 			os.Exit(1)
 		}
-		if err := legacyv3.SetupWebhookWithManager(mgr, validator); err != nil {
+		if err := legacyv3.SetupWebhookWithManager(mgr, legacy.NewValidator[*legacyv3.CR](crManager)); err != nil {
 			setupLog.Error(err, "unable to initialize validator")
 			os.Exit(1)
 		}
