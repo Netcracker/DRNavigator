@@ -73,8 +73,8 @@ func (crv2 *CR) ConvertFrom(src conversion.Hub) error {
 }
 
 // SetupWebhookWithManager setup webhook for current CR version
-func SetupWebhookWithManager(mgr ctrl.Manager, validator admission.CustomValidator) error {
-	if err := builder.WebhookManagedBy(mgr).For(&CR{}).WithValidator(validator).Complete(); err != nil {
+func SetupWebhookWithManager(mgr ctrl.Manager, validator admission.Validator[*CR]) error {
+	if err := builder.WebhookManagedBy(mgr, &CR{}).WithValidator(validator).Complete(); err != nil {
 		return fmt.Errorf("error initializing cr validator for %s version: %s", CRVersion, err)
 	}
 	return nil

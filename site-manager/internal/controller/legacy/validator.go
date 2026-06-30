@@ -19,13 +19,8 @@ const (
 		"make sure to also check for preferred sitemanagers.qubership.org resources"
 )
 
-// Validator provides the set of functions for CR validation
-type Validator interface {
-	admission.CustomValidator
-}
-
 // validator is implementation of Validator interface
-type validator struct {
+type Validator[T runtime.Object] struct {
 	CRManager service.CRManager
 }
 
@@ -37,7 +32,7 @@ func getServiceNameExistsMessage(name string, isAlias bool) string {
 }
 
 // validateServiceName validates, that given service name is not used yet for another object
-func (v *validator) validateServiceName(ctx context.Context, name string, uid types.UID, isAlias bool) error {
+func (v *Validator[T]) validateServiceName(ctx context.Context, name string, uid types.UID, isAlias bool) error {
 	log := log.FromContext(ctx)
 	log.V(1).Info("Validate, if service with name already exists", "service-name", name)
 	smDict, err := v.CRManager.GetAllServices(ctx)
@@ -54,7 +49,7 @@ func (v *validator) validateServiceName(ctx context.Context, name string, uid ty
 }
 
 // ValidateV2 validates the given CR v1 version
-func (v *validator) validateV1(ctx context.Context, obj *crv1.CR) (admission.Warnings, error) {
+func (v *Validator[T]) validateV1(ctx context.Context, obj *crv1.CR) (admission.Warnings, error) {
 	if err := v.validateServiceName(ctx, obj.GetServiceName(), obj.GetUID(), false); err != nil {
 		return nil, err
 	}
@@ -62,7 +57,7 @@ func (v *validator) validateV1(ctx context.Context, obj *crv1.CR) (admission.War
 }
 
 // ValidateV2 validates the given CR v2 version
-func (v *validator) validateV2(ctx context.Context, obj *crv2.CR) (admission.Warnings, error) {
+func (v *Validator[T]) validateV2(ctx context.Context, obj *crv2.CR) (admission.Warnings, error) {
 	if err := v.validateServiceName(ctx, obj.GetServiceName(), obj.GetUID(), false); err != nil {
 		return nil, err
 	}
@@ -70,7 +65,7 @@ func (v *validator) validateV2(ctx context.Context, obj *crv2.CR) (admission.War
 }
 
 // ValidateV3 validates the given CR v3 version
-func (v *validator) validateV3(ctx context.Context, obj *crv3.CR) (admission.Warnings, error) {
+func (v *Validator[T]) validateV3(ctx context.Context, obj *crv3.CR) (admission.Warnings, error) {
 	if err := v.validateServiceName(ctx, obj.GetServiceName(), obj.GetUID(), obj.Spec.SiteManager.Alias != nil); err != nil {
 		return nil, err
 	}
@@ -78,7 +73,7 @@ func (v *validator) validateV3(ctx context.Context, obj *crv3.CR) (admission.War
 }
 
 // Validate validates the given CR
-func (v *validator) validate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (v *Validator[T]) validate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
 	gvk := obj.GetObjectKind().GroupVersionKind()
 	switch gvk.Version {
 	case "v3":
@@ -105,22 +100,22 @@ func (v *validator) validate(ctx context.Context, obj runtime.Object) (admission
 }
 
 // ValidateCreate validates object creation
-func (v *validator) ValidateCreate(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (v *Validator[T]) ValidateCreate(ctx context.Context, obj T) (admission.Warnings, error) {
 	return v.validate(ctx, obj)
 }
 
 // ValidateUpdate validates object updates
-func (v *validator) ValidateUpdate(ctx context.Context, oldObj, newObj runtime.Object) (admission.Warnings, error) {
+func (v *Validator[T]) ValidateUpdate(ctx context.Context, oldObj, newObj T) (admission.Warnings, error) {
 	return v.validate(ctx, newObj)
 }
 
 // ValidateUpdate validates object deletion
-func (v *validator) ValidateDelete(ctx context.Context, obj runtime.Object) (admission.Warnings, error) {
+func (v *Validator[T]) ValidateDelete(ctx context.Context, obj T) (admission.Warnings, error) {
 	// No checks for removed object
 	return nil, nil
 }
 
 // NewValidator creates new validator instance
-func NewValidator(crManager service.CRManager) Validator {
-	return &validator{CRManager: crManager}
+func NewValidator[T runtime.Object](crManager service.CRManager) *Validator[T] {
+	return &Validator[T]{CRManager: crManager}
 }
