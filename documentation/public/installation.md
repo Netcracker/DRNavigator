@@ -8,6 +8,7 @@
     * [Certificates Prerequisite](#certificates-prerequisite)
     * [Installation](#installation)
     * [Certificate Renewal Procedure](#certificate-renewal-procedure)
+    * [Installing Second Site-Manager](#installing-second-site-manager)
   * [Paas-Geo-Monitor](#paas-geo-monitor)
     * [Installation Procedure](#installation-procedure)
     * [Configuration](#configuration)
@@ -309,7 +310,7 @@ To renew a certificate:
 
 ### Installing Second Site-Manager
 
-Sometimes it is requires to install two Site-Managers in one cluster. This may look as following:
+Sometimes it is required to install two Site-Managers in one cluster. This may look as following:
 * First one is system Site-Manager, i.e. the main one, which is installed on cluster to provide SiteManager CRs API to other applications.
 * Second one is CI Site-Manager, i.e. the one used for CI/testing purposes.
 
