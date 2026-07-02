@@ -310,15 +310,15 @@ To renew a certificate:
 
 ### Installing Second Site-Manager
 
-Sometimes it is required to install two Site-Managers in one cluster. This may look as following:
+Sometimes, it is required to install two Site-Managers in one cluster. This may look as follows:
 * First one is system Site-Manager, i.e. the main one, which is installed on cluster to provide SiteManager CRs API to other applications.
 * Second one is CI Site-Manager, i.e. the one used for CI/testing purposes.
 
-To install two Site-Managers you should do the following:
-* Install system Site-Manager as usual. You should deploy CRDs/webhooks with this system Site-Manager.
-* Install CI Site-Manager without CRDs/webhooks, i.e set `crd.install` to `false`, since those will be brought by system Site-Manager. Otherwise installation is the same. You still need to provide certificates as described in [Certificates Prerequisite](#certificates-prerequisite). Note that CI Site-Manager service name will be different, so system Site-Manager certificates may not work.
+To install two Site-Managers, perform the following:
+1. Install system Site-Manager as usual. You should deploy CRDs/webhooks with this system Site-Manager.
+2. Install CI Site-Manager without CRDs/webhooks, i.e set `crd.install` to `false`, since those will be brought by system Site-Manager. Otherwise, installation is the same. You still need to provide the certificates as described in [Certificates Prerequisite](#certificates-prerequisite). Note that CI Site-Manager service name will be different, so the system Site-Manager certificates may not work.
 
-Note that when two Site-Managers are installed, they both may process all CRs in the cluster, i.e. there is no `watchNamespaces` support. For now this is fine for Site-Manager case.
+**Note**: When two Site-Managers are installed, they both may process all CRs in the cluster, i.e. there is no `watchNamespaces` support. For now this is fine for Site-Manager case.
 
 ## Paas-Geo-Monitor
 
