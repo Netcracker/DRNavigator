@@ -2,7 +2,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ .Values.serviceAccount.name }}
+  name: {{ .Values.serviceAccount.name }}:{{ .Release.Namespace }}
 rules:
   - apiGroups: ["{{ .Values.env.SM_GROUP }}"]
     resources: [{{ printf "%ss" (lower .Values.env.SM_KIND) }}]

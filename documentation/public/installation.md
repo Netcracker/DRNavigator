@@ -8,6 +8,7 @@
     * [Certificates Prerequisite](#certificates-prerequisite)
     * [Installation](#installation)
     * [Certificate Renewal Procedure](#certificate-renewal-procedure)
+    * [Installing Second Site-Manager](#installing-second-site-manager)
   * [Paas-Geo-Monitor](#paas-geo-monitor)
     * [Installation Procedure](#installation-procedure)
     * [Configuration](#configuration)
@@ -306,6 +307,18 @@ To renew a certificate:
     ```
 
 4. Update `config.yml` (Token and path cacert).
+
+### Installing Second Site-Manager
+
+Sometimes, it is required to install two Site-Managers in one cluster. This may look as follows:
+* First one is system Site-Manager, i.e. the main one, which is installed on cluster to provide SiteManager CRs API to other applications.
+* Second one is CI Site-Manager, i.e. the one used for CI/testing purposes.
+
+To install two Site-Managers, perform the following:
+1. Install system Site-Manager as usual. You should deploy CRDs/webhooks with this system Site-Manager.
+2. Install CI Site-Manager without CRDs/webhooks, i.e set `crd.install` to `false`, since those will be brought by system Site-Manager. Otherwise, installation is the same. You still need to provide the certificates as described in [Certificates Prerequisite](#certificates-prerequisite). Note that CI Site-Manager service name will be different, so the system Site-Manager certificates may not work.
+
+**Note**: When two Site-Managers are installed, they both may process all CRs in the cluster, i.e. there is no `watchNamespaces` support. For now this is fine for Site-Manager case.
 
 ## Paas-Geo-Monitor
 
