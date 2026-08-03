@@ -1,0 +1,37 @@
+name: Helm Charts Release
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: "Release version (e.g. v0.35.2)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+run-name: ${{ github.repository }} Release ${{ inputs.release }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  github-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create GitHub release
+        uses: netcracker/release-drafter@86f4276a3894b5af70480e826c32fe3648ac6a70  # v1.0.0
+        with:
+          config-name: release-drafter-config.yml
+          publish: true
+          name: ${{ inputs.release }}
+          tag: ${{ inputs.release }}
+          version: ${{ inputs.release }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
