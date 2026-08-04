@@ -5,8 +5,14 @@ on:
   push:
     branches:
       - 'main'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (e.g. v0.35.2)"
+        required: true
+        type: string
 env:
-  TAG_NAME: ${{ github.event.release.tag_name || (github.ref == 'refs/heads/main' && 'main') }}
+  TAG_NAME: ${{ github.event.inputs.tag || github.event.release.tag_name || (github.ref == 'refs/heads/main' && 'main') }}
 
 jobs:
   publish-docker:

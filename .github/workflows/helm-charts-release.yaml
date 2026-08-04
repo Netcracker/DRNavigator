@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 run-name: ${{ github.repository }} Release ${{ inputs.release }}
 
@@ -35,3 +36,16 @@ jobs:
           version: ${{ inputs.release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  publish-artifacts:
+    needs: [github-release]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger publish workflow
+        run: |
+          gh workflow run publish.yaml \
+            --repo ${{ github.repository }} \
+            --ref main \
+            --field tag=${{ inputs.release }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
