@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 run-name: ${{ github.repository }} Release ${{ inputs.release }}
 
