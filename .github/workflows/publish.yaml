@@ -11,8 +11,14 @@ on:
         description: "Release tag to publish (e.g. v0.35.2)"
         required: true
         type: string
+  workflow_call:
+    inputs:
+      tag:
+        description: "Release tag to publish (e.g. v0.35.2)"
+        required: true
+        type: string
 env:
-  TAG_NAME: ${{ github.event.inputs.tag || github.event.release.tag_name || (github.ref == 'refs/heads/main' && 'main') }}
+  TAG_NAME: ${{ inputs.tag || github.event.release.tag_name || (github.ref == 'refs/heads/main' && 'main') }}
 
 jobs:
   publish-docker:
@@ -42,8 +48,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ env.TAG_NAME }}
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
       - name: Set up Docker Buildx
