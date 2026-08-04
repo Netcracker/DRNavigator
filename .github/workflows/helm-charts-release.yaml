@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  packages: write
 
 run-name: ${{ github.repository }} Release ${{ inputs.release }}
 
@@ -17,7 +18,14 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  publish-artifacts:
+    uses: ./.github/workflows/publish.yaml
+    with:
+      tag: ${{ inputs.release }}
+    secrets: inherit
+
   github-release:
+    needs: [publish-artifacts]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
