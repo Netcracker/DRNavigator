@@ -18,7 +18,41 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  publish-artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger and wait for publish workflow
+        run: |
+          DISPATCH_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+          gh workflow run publish.yaml \
+            --repo ${{ github.repository }} \
+            --ref main \
+            --field tag=${{ inputs.release }}
+
+          echo "Waiting for the dispatched run to appear..."
+          for i in $(seq 1 30); do
+            RUN_ID=$(gh run list \
+              --repo ${{ github.repository }} \
+              --workflow publish.yaml \
+              --json databaseId,createdAt,event \
+              --jq "[.[] | select(.event == \"workflow_dispatch\" and .createdAt >= \"$DISPATCH_TIME\")] | sort_by(.createdAt) | .[0].databaseId")
+            [ -n "$RUN_ID" ] && [ "$RUN_ID" != "null" ] && break
+            sleep 10
+          done
+
+          if [ -z "$RUN_ID" ] || [ "$RUN_ID" = "null" ]; then
+            echo "Timed out waiting for publish.yaml run to appear"
+            exit 1
+          fi
+
+          echo "Watching run $RUN_ID"
+          gh run watch "$RUN_ID" --repo ${{ github.repository }} --exit-status
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   github-release:
+    needs: [publish-artifacts]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -36,16 +70,3 @@ jobs:
           version: ${{ inputs.release }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-  publish-artifacts:
-    needs: [github-release]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger publish workflow
-        run: |
-          gh workflow run publish.yaml \
-            --repo ${{ github.repository }} \
-            --ref main \
-            --field tag=${{ inputs.release }}
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
