@@ -17,7 +17,7 @@ on:
 permissions:
   contents: read
 
-run-name: ${{ github.repository }} Release ${{ inputs.release }}
+run-name: ${{ github.repository }} Release ${{ github.event.inputs.release }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -65,12 +65,12 @@ jobs:
           | if . then true else false end
           ')
           if [ ${verify} == 'true' ]; then
-            echo "$GITHUB_WORKSPACE/${CONFIG_FILE} file is valid"
+            echo "✅ $GITHUB_WORKSPACE/${CONFIG_FILE} file is valid"
             components=$(jq -c ".components" "$GITHUB_WORKSPACE/${CONFIG_FILE}")
             platforms=$(jq -c ".platforms" "$GITHUB_WORKSPACE/${CONFIG_FILE}")
           else
-            echo "$GITHUB_WORKSPACE/${CONFIG_FILE} file is invalid"
-            echo "$GITHUB_WORKSPACE/${CONFIG_FILE} file is invalid" >> $GITHUB_STEP_SUMMARY
+            echo "❗ $GITHUB_WORKSPACE/${CONFIG_FILE} file is invalid"
+            echo "❗ $GITHUB_WORKSPACE/${CONFIG_FILE} file is invalid" >> $GITHUB_STEP_SUMMARY
             exit 1
           fi
           echo "components=${components}" >> $GITHUB_OUTPUT
@@ -116,6 +116,12 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: true
+
+      - name: "Add github.vars into github.env"
+        env:
+          VARS_JSON: '${{ toJson(vars) }}'
+        run: |
+          echo "${VARS_JSON}" | jq -r 'to_entries|map("\(.key)=\(.value)")|.[]' >> $GITHUB_ENV
 
       - name: "Compute chart version"
         id: chart-version
