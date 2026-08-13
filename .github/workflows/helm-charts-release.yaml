@@ -9,7 +9,7 @@ on:
         required: true
         type: string
       publish_release:
-        description: "Publish a real GitHub Release for this run (ignored/forced false unless run from main)"
+        description: "Publish a real GitHub Release for this run — set to false for test dispatches from a non-main branch"
         required: false
         type: boolean
         default: true
@@ -185,10 +185,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
 
   github-release:
-    # Real releases are only ever cut from main — force-skip on any other branch
-    # regardless of the publish_release input, so a test dispatch can't accidentally
-    # publish a real GitHub Release.
-    if: ${{ inputs.publish_release && github.ref_name == 'main' }}
+    if: ${{ inputs.publish_release }}
     permissions:
       contents: write
       packages: write
