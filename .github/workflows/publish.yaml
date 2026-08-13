@@ -1,7 +1,5 @@
 name: Publish Artifacts
 on:
-  release:
-    types: [created]
   push:
     branches:
       - 'main'
@@ -18,7 +16,7 @@ on:
         required: true
         type: string
 env:
-  TAG_NAME: ${{ inputs.tag || github.event.release.tag_name || (github.ref == 'refs/heads/main' && 'main') }}
+  TAG_NAME: ${{ inputs.tag || (github.ref == 'refs/heads/main' && 'main') }}
 
 jobs:
   publish-docker:

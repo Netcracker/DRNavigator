@@ -55,8 +55,8 @@ spec:
           seccompProfile:
             type: RuntimeDefault
           readOnlyRootFilesystem: true
-        image: {{ template "find_image" (dict "SERVICE_NAME" "site-manager" "vals" .Values "default" (printf "%s:%s" .Values.image.repository .Values.image.tag)) }}
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        image: {{ template "find_image" (dict "SERVICE_NAME" "site-manager" "vals" .Values "default" .Values.image) }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
         args:
           - "--bind=0.0.0.0:8443"
           - "--certdir=/certs"
@@ -136,7 +136,7 @@ spec:
           successThreshold: 1
           failureThreshold: 5
         terminationMessagePath: /dev/termination-log
-        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
       volumes:
         - name: tmp
           emptyDir:
