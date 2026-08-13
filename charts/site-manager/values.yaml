@@ -45,7 +45,7 @@ SERVICE_NAME: site-manager
 
 MANAGED_BY: saasDeployer
 
-image: ghcr.io/netcracker/site-manager:main
+image: ghcr.io/netcracker/site-manager:0.98.2
 imagePullPolicy: Always
 
 ingress:
@@ -108,7 +108,7 @@ crd:
   install: false
 
 paasGeoMonitor:
-  image: ghcr.io/netcracker/paas-geo-monitor:main
+  image: ghcr.io/netcracker/paas-geo-monitor:0.98.2
   install: false
   monitoring:
     # This field configures service CIDR regex used on monitoring dashboard.
