@@ -117,11 +117,24 @@ jobs:
           fetch-depth: 0
           persist-credentials: true
 
+      - name: "Compute chart version"
+        id: chart-version
+        run: |
+          RELEASE="${{ inputs.release }}"
+          if [[ "$RELEASE" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            CHART_VERSION="$RELEASE"
+          else
+            SANITIZED=$(echo "$RELEASE" | sed -E 's/[^0-9A-Za-z-]/-/g')
+            CHART_VERSION="0.0.0-${SANITIZED}"
+          fi
+          echo "chart_version=${CHART_VERSION}" >> "$GITHUB_OUTPUT"
+
       - name: "Chart release"
         id: update-versions
         uses: netcracker/qubership-workflow-hub/actions/charts-values-update-action@6b356d28e46b2d4683cccb1d91f92643d7f0c513  # v.2.0.11
         with:
           release-version: ${{ inputs.release }}
+          chart-version: ${{ steps.chart-version.outputs.chart_version }}
           config-file: .qubership/helm-charts-release-config.yaml
           default-tag: ${{ inputs.release }}
           package-charts: true
