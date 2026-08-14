@@ -118,18 +118,10 @@
       }
     },
     "image": {
-      "type": "object",
-      "properties": {
-        "repository": {
-          "type": "string"
-        },
-        "pullPolicy": {
-          "type": "string"
-        },
-        "tag": {
-          "type": "string"
-        }
-      }
+      "type": "string"
+    },
+    "imagePullPolicy": {
+      "type": "string"
     },
     "limits": {
       "type": "object",

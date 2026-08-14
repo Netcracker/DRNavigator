@@ -45,10 +45,8 @@ SERVICE_NAME: site-manager
 
 MANAGED_BY: saasDeployer
 
-image:
-  repository: ghcr.io/netcracker/site-manager
-  pullPolicy: Always
-  tag: main
+image: ghcr.io/netcracker/site-manager:main
+imagePullPolicy: Always
 
 ingress:
   create: true

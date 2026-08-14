@@ -223,9 +223,8 @@ openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-m
 | workerCount                                                    | The count of parallel workers that handle requests.                                                                                                                      | 2                               |
 | serviceAccount.create                                          | Enable/disable Service Account creation.                                                                                                                                 | true                            |
 | serviceAccount.name                                            | The name of Service Account for `site-manager`.                                                                                                                          | "site-manager-sa"               |
-| image.repository                                               | The docker image repository name.                                                                                                                                        | ghcr.io/netcracker/site-manager |
-| image.pullPolicy                                               | The docker image pull policy.                                                                                                                                            | Always                          |
-| image.tag                                                      | The docker image tag.                                                                                                                                                    | v1.0                            |
+| image                                                          | The docker image reference (repository:tag).                                                                                                                             | ghcr.io/netcracker/site-manager:main |
+| imagePullPolicy                                                | The docker image pull policy.                                                                                                                                            | Always                          |
 | ingress.create                                                 | Enable/disable ingress creation.                                                                                                                                         | true                            |
 | ingress.name                                                   | Define URL for `site-manager` ingress.                                                                                                                                   | `site-manager-${.Release.Namespace}.${.Values.CLOUD_PUBLIC_HOST}` |
 | ingress.className                                              | Define class name for ingress.                                                                                                                                           | ""                              |
@@ -278,8 +277,7 @@ openssl x509 -req -days 730 -CA ca.crt -CAkey ca.key -CAcreateserial -out site-m
    ```bash
    $ helm install site-manager charts/site-manager/
                  -n site-manager \
-                 --set image.repository=ghcr.io/netcracker/site-manager \
-                 --set image.tag=<image tag> \
+                 --set image=ghcr.io/netcracker/site-manager:<image tag> \
                  --set PAAS_PLATFORM=OPENSHIFT \
                  --set-file tls.ca=<path to ca.crt> \
                  --set-file tls.crt=<path to site-manager-tls.crt> \

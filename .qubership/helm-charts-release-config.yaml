@@ -1,0 +1,9 @@
+---
+
+charts:
+  - name: site-manager
+    chart_file: charts/site-manager/Chart.yaml
+    values_file: charts/site-manager/values.yaml
+    image:
+      - ghcr.io/netcracker/site-manager:${release}
+      - ghcr.io/netcracker/paas-geo-monitor:${release}
