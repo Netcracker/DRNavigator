@@ -29,20 +29,20 @@ type SiteManagerSpec struct {
 
 // This additional "options" struct is introduced to keep backward compatibility
 type SiteManagerOptions struct {
-	Module                  string     `json:"module"`
-	Alias                   *string    `json:"alias,omitempty"`
+	Module string  `json:"module"`
+	Alias  *string `json:"alias,omitempty"`
 	//+kubebuilder:default:={}
-	After                   []string   `json:"after,omitempty"`
+	After []string `json:"after,omitempty"`
 	//+kubebuilder:default:={}
-	Before                  []string   `json:"before,omitempty"`
+	Before []string `json:"before,omitempty"`
 	//+kubebuilder:default:={}
-	Sequence                []string   `json:"sequence,omitempty"`
+	Sequence []string `json:"sequence,omitempty"`
 	//+kubebuilder:default:={"up"}
-	AllowedStandbyStateList []string   `json:"allowedStandbyStateList,omitempty"`
+	AllowedStandbyStateList []string `json:"allowedStandbyStateList,omitempty"`
 	//+kubebuilder:validation:Minimum:=10
 	//+kubebuilder:validation:Maximum:=1000
-	Timeout                 *int64     `json:"timeout,omitempty"`
-	Parameters              Parameters `json:"parameters,omitempty"`
+	Timeout    *int64     `json:"timeout,omitempty"`
+	Parameters Parameters `json:"parameters,omitempty"`
 }
 
 type Parameters struct {
