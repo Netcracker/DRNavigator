@@ -206,7 +206,7 @@ def print_main_table(sm_dict: SMClusterState, services_to_run, sites_name: list)
             pt_field_names.append(f"{sites_item}")
 
         pt.field_names=pt_field_names
-        pt.align["Service"]="l"
+        pt.align={"Service": "l"}
 
         # Additional header
         comment_pt_row = [""]
