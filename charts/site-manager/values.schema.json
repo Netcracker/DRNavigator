@@ -168,7 +168,7 @@
           "type": "string"
         },
         "SM_CACERT": {
-          "type": "string"
+          "$ref": "#/definitions/booleanOrString"
         },
         "SM_GET_REQUEST_TIMEOUT": {
           "$ref": "#/definitions/integerOrString"
