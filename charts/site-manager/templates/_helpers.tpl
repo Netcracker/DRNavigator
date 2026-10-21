@@ -25,6 +25,14 @@ Return the appropriate host for ingress.
   {{- end -}}
 {{- end -}}
 {{/*
+Return GATEWAY_SYSTEM_TYPE, defaulting to "legacy-ingress" when it is not set.
+It may hold several comma-separated values (e.g. "legacy-ingress,gateway-api-default"),
+so always check it with "contains", never with "eq".
+*/}}
+{{- define "site-manager.gatewaySystemType" -}}
+  {{- .Values.GATEWAY_SYSTEM_TYPE | default "legacy-ingress" -}}
+{{- end -}}
+{{/*
 Return the appropriate apiVersion for ingress.
 */}}
 {{- define "site-manager.ingress.apiVersion" -}}

@@ -53,10 +53,14 @@ ingress:
   name: ""
   className: ""
 
-# Gateway API (HTTPRoute) configuration.
-# Resources are created only when:
-# 1) gateway.networking.k8s.io/v1 CRDs are present
-# 2) PAAS_PLATFORM=KUBERNETES
+# The mode of Gateway that the application applies during installation (cloud passport parameter).
+# May hold several comma-separated values:
+#   "legacy-ingress"                      - create Ingress (default when empty)
+#   "gateway-api-default"                 - create Gateway API resources (HTTPRoute, BackendTLSPolicy)
+#   "legacy-ingress,gateway-api-default"  - create both
+GATEWAY_SYSTEM_TYPE: ""
+
+# Gateway API (HTTPRoute) configuration, used when GATEWAY_SYSTEM_TYPE contains "gateway-api-default".
 GATEWAY_SYSTEM_NAME: default-external-gateway
 GATEWAY_SYSTEM_NAMESPACE: gateway-system
 
