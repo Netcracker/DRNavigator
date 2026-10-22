@@ -50,6 +50,10 @@
     "MANAGED_BY": {
       "type": "string"
     },
+    "GATEWAY_SYSTEM_TYPE": {
+      "type": "string",
+      "description": "The mode of Gateway that applications must apply during installation. The value can be \"legacy-ingress\", \"gateway-api-default\" or \"legacy-ingress,gateway-api-default\". Empty means \"legacy-ingress\"."
+    },
     "GATEWAY_SYSTEM_NAME": {
       "type": "string"
     },
