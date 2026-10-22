@@ -33,6 +33,18 @@ so always check it with "contains", never with "eq".
   {{- .Values.GATEWAY_SYSTEM_TYPE | default "legacy-ingress" -}}
 {{- end -}}
 {{/*
+Labels shared by Ingress and HTTPRoute. Per DEVOPS-012, HTTPRoute must carry the same labels as Ingress.
+*/}}
+{{- define "site-manager.ingress.labels" -}}
+app: {{ .Chart.Name }}
+app.kubernetes.io/name: '{{ .Values.SERVICE_NAME }}'
+app.kubernetes.io/component: 'backend'
+app.kubernetes.io/part-of: '{{ .Values.SERVICE_NAME }}'
+app.kubernetes.io/managed-by: '{{ .Values.MANAGED_BY }}'
+deployment.netcracker.com/ingress-audience-type: "ops-user"
+deployment.netcracker.com/ingress-type: "private-network"
+{{- end -}}
+{{/*
 Return the appropriate apiVersion for ingress.
 */}}
 {{- define "site-manager.ingress.apiVersion" -}}
