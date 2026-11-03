@@ -10,7 +10,9 @@ COPY go.sum go.sum
 RUN go mod download
 
 # Add code generators
+# renovate: datasource=go depName=github.com/swaggo/swag
 RUN go install github.com/swaggo/swag/cmd/swag@v1.16.3
+# renovate: datasource=go depName=sigs.k8s.io/controller-tools
 RUN go install sigs.k8s.io/controller-tools/cmd/controller-gen@v0.16.5
 
 # Copy the go source
