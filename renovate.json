@@ -1,0 +1,164 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "DRNavigator has two Go modules (site-manager and paas-geo-monitor) and a Python client. The organization inherited config already applies config:best-practices, so this file only adds the capability presets and the per-module rules."
+  ],
+  "extends": [
+    "github>Netcracker/renovate-config:base",
+    "github>Netcracker/renovate-config:github-actions",
+    "github>Netcracker/renovate-config:go",
+    "github>Netcracker/renovate-config:netcracker-dependencies"
+  ],
+  "pip_requirements": {
+    "managerFilePatterns": [
+      "/(^|/)[\\w-]*requirements([-._]\\w+)?\\.(txt|pip)$/",
+      "/(^|/)requirements-sc-test\\.txt$/"
+    ]
+  },
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Update go install pins in Dockerfiles. depName is the module path, because the install path is a command inside that module.",
+      "managerFilePatterns": ["/(^|/)Dockerfile[^/]*$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>[a-zA-Z0-9._-]+) depName=(?<depName>\\S+)(?: versioning=(?<versioning>\\S+))?\\s+RUN go install \\S+@(?<currentValue>v?\\d+\\.\\d+\\.\\d+(?:[-+][A-Za-z0-9._-]+)?)"
+      ],
+      "versioningTemplate": "{{#if versioning}}{{{versioning}}}{{else}}semver{{/if}}"
+    },
+    {
+      "customType": "regex",
+      "description": "Update the pip version installed while building images.",
+      "managerFilePatterns": ["/(^|/)Dockerfile[^/]*$/"],
+      "matchStrings": [
+        "pip install --upgrade pip(?<currentValue>==\\d+\\.\\*)"
+      ],
+      "depNameTemplate": "pip",
+      "packageNameTemplate": "pip",
+      "datasourceTemplate": "pypi",
+      "versioningTemplate": "pep440"
+    }
+  ],
+  "packageRules": [
+    {
+      "description": "Open a separate pull request per Go module or Python requirements directory when the update is not already in a group.",
+      "matchManagers": ["gomod", "pip_requirements"],
+      "additionalBranchPrefix": "{{#unless groupName}}{{#if packageFileDir}}{{packageFileDir}}/{{/if}}{{/unless}}",
+      "commitMessageSuffix": "{{#unless isGroup}}{{#if packageFileDir}} [{{packageFileDir}}]{{/if}}{{/unless}}"
+    },
+    {
+      "description": "Keep floating Python pins such as ==6.* and label Python updates.",
+      "matchManagers": ["pip_requirements"],
+      "rangeStrategy": "bump",
+      "addLabels": ["python"]
+    },
+    {
+      "description": "Keep the image pip pin on the same floating style.",
+      "matchManagers": ["custom.regex"],
+      "matchPackageNames": ["pip"],
+      "rangeStrategy": "bump",
+      "addLabels": ["python"]
+    },
+    {
+      "description": "Group non-major updates for the Python client and its tests.",
+      "matchManagers": ["pip_requirements"],
+      "matchFileNames": ["requirements-sc.txt", "requirements-sc-test.txt"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "groupName": "Python client dependencies",
+      "groupSlug": "python-client"
+    },
+    {
+      "description": "Group non-major updates for the sm-dummy test image.",
+      "matchManagers": ["pip_requirements"],
+      "matchFileNames": ["tests/sm-dummy/requirements.txt"],
+      "matchUpdateTypes": ["minor", "patch", "pin", "digest"],
+      "groupName": "sm-dummy Python dependencies",
+      "groupSlug": "python-sm-dummy"
+    },
+    {
+      "description": "Group non-major site-manager Go modules that are not part of a shared family.",
+      "matchManagers": ["gomod"],
+      "matchDatasources": ["go"],
+      "matchFileNames": ["site-manager/go.mod"],
+      "matchPackageNames": [
+        "!k8s.io/**",
+        "!sigs.k8s.io/**",
+        "!github.com/openshift/**",
+        "!go.opentelemetry.io/**",
+        "!github.com/open-telemetry/**",
+        "!github.com/prometheus/**",
+        "!github.com/Netcracker/**",
+        "!github.com/netcracker/**"
+      ],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "site-manager Go dependencies",
+      "groupSlug": "site-manager-go",
+      "addLabels": ["go"]
+    },
+    {
+      "description": "Group non-major paas-geo-monitor Go modules that are not part of a shared family.",
+      "matchManagers": ["gomod"],
+      "matchDatasources": ["go"],
+      "matchFileNames": ["paas-geo-monitor/go.mod"],
+      "matchPackageNames": [
+        "!k8s.io/**",
+        "!sigs.k8s.io/**",
+        "!github.com/openshift/**",
+        "!go.opentelemetry.io/**",
+        "!github.com/open-telemetry/**",
+        "!github.com/prometheus/**",
+        "!github.com/Netcracker/**",
+        "!github.com/netcracker/**"
+      ],
+      "matchUpdateTypes": ["minor", "patch", "digest"],
+      "groupName": "paas-geo-monitor Go dependencies",
+      "groupSlug": "paas-geo-monitor-go",
+      "addLabels": ["go"]
+    },
+    {
+      "description": "Keep site-manager code-generator bumps with that module's other non-major Go updates.",
+      "matchManagers": ["custom.regex"],
+      "matchDatasources": ["go"],
+      "matchFileNames": ["site-manager/Dockerfile"],
+      "matchUpdateTypes": ["minor", "patch"],
+      "groupName": "site-manager Go dependencies",
+      "groupSlug": "site-manager-go",
+      "addLabels": ["go"]
+    },
+    {
+      "description": "Update site-manager Kubernetes libraries together, and separately from paas-geo-monitor.",
+      "matchManagers": ["gomod"],
+      "matchFileNames": ["site-manager/go.mod"],
+      "matchPackageNames": ["k8s.io/**", "sigs.k8s.io/**", "github.com/openshift/**"],
+      "groupName": "site-manager Kubernetes Go modules",
+      "groupSlug": "site-manager-k8s",
+      "addLabels": ["go"]
+    },
+    {
+      "description": "Update paas-geo-monitor Kubernetes libraries together, and separately from site-manager.",
+      "matchManagers": ["gomod"],
+      "matchFileNames": ["paas-geo-monitor/go.mod"],
+      "matchPackageNames": ["k8s.io/**", "sigs.k8s.io/**", "github.com/openshift/**"],
+      "groupName": "paas-geo-monitor Kubernetes Go modules",
+      "groupSlug": "paas-geo-monitor-k8s",
+      "addLabels": ["go"]
+    },
+    {
+      "description": "Update site-manager Prometheus libraries separately from paas-geo-monitor.",
+      "matchManagers": ["gomod"],
+      "matchFileNames": ["site-manager/go.mod"],
+      "matchPackageNames": ["github.com/prometheus/**"],
+      "groupName": "site-manager Prometheus Go modules",
+      "groupSlug": "site-manager-prometheus",
+      "addLabels": ["go"]
+    },
+    {
+      "description": "Update paas-geo-monitor Prometheus libraries separately from site-manager.",
+      "matchManagers": ["gomod"],
+      "matchFileNames": ["paas-geo-monitor/go.mod"],
+      "matchPackageNames": ["github.com/prometheus/**"],
+      "groupName": "paas-geo-monitor Prometheus Go modules",
+      "groupSlug": "paas-geo-monitor-prometheus",
+      "addLabels": ["go"]
+    }
+  ]
+}
