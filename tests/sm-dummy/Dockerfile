@@ -13,7 +13,7 @@ WORKDIR /app/
 RUN apk update && \
     apk upgrade && \
     apk add bash && \
-    pip install --upgrade pip==24.* --no-cache-dir && \
+    pip install --upgrade pip==26.* --no-cache-dir && \
     pip install -r requirements.txt --no-cache-dir && \
     adduser -D -u "${USER_UID}" "${USER_NAME}"
 
