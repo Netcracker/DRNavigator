@@ -18,9 +18,9 @@ jobs:
         python-version: [ "3.12" ]
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Get python version
@@ -34,7 +34,7 @@ jobs:
         run: python -m pytest tests/selftest
       - name: Collect artifacts
         if: failure() && steps.unittests.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: unittest-logs
           path: pytest.log
@@ -47,9 +47,9 @@ jobs:
         python-version: [ "3.12" ]
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: ${{ matrix.python-version }}
       - name: Get python version
@@ -65,7 +65,7 @@ jobs:
         run: python -m pytest tests/integration
       - name: Collect artifacts
         if: failure() && steps.integrationtests.outcome == 'failure'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: integration-tests-logs
           path: test-dump/
@@ -74,9 +74,9 @@ jobs:
   site-manager-unittest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: '1.26'
       - name: Run tests
@@ -88,9 +88,9 @@ jobs:
   paas-geo-monitor-unittest:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: '1.26'
       - name: Run tests
@@ -103,7 +103,7 @@ jobs:
   publish-test-sm-dummy-image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - run: docker build -t ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }} tests/sm-dummy
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/sm-dummy:${{ env.SM_TAG_NAME }}
@@ -111,7 +111,7 @@ jobs:
   publish-test-site-manager-image:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - run: docker build -t ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }} site-manager
       - run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - run: docker push ghcr.io/netcracker/site-manager:${{ env.SM_TAG_NAME }}
@@ -121,11 +121,11 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: '3.12'
+          python-version: '3.15'
       - name: Ssh preparation
         run: |
           ssh-keygen -t rsa -b 4096 -N "" -f ~/.ssh/id_rsa -q
@@ -168,14 +168,14 @@ jobs:
         run: sudo kubectl logs -n test-services -l app=service-b > ./results/logs/service-b.log
       - name: Collect kubemarine artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: kubemarine dumps
           path: ./results/kubemarine/
           retention-days: 7
       - name: Collect SM artifacts
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: site-manager logs
           path: ./results/logs
@@ -187,7 +187,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delete image site-manager
-        uses: bots-house/ghcr-delete-image-action@v1.1.0
+        uses: bots-house/ghcr-delete-image-action@3827559c68cb4dcdf54d813ea9853be6d468d3a4 # v1.1.0
         with:
           owner: netcracker
           name: site-manager
@@ -200,7 +200,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Delete image sm-dummy
-        uses: bots-house/ghcr-delete-image-action@v1.1.0
+        uses: bots-house/ghcr-delete-image-action@3827559c68cb4dcdf54d813ea9853be6d468d3a4 # v1.1.0
         with:
           owner: netcracker
           name: sm-dummy

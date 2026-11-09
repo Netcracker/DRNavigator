@@ -26,11 +26,11 @@ jobs:
       benchmark_dir: ./benchmark
     steps:
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Set up Python 3.10
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
-          python-version: "3.10"
+          python-version: "3.15"
       - name: Docker login
         run: echo ${{secrets.GITHUB_TOKEN}} | docker login https://ghcr.io -u ${GITHUB_ACTOR} --password-stdin
       - name: Pull and tag SM images
@@ -42,7 +42,7 @@ jobs:
       - name: Copy benchmark files to not git directory
         run: cp -r ./ci/benchmark ${{ env.benchmark_dir }}
       - name: Checkout Repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           ref: ${{ matrix.sm-version }}
           clean: false
@@ -55,7 +55,7 @@ jobs:
       - name: Measure the time
         run: ${{ env.benchmark_dir }}/measure_time.sh ${{ matrix.procedure }} ${{ matrix.sm-version }}
       - name: Collect artifacts reports
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: benchmark-${{ matrix.procedure }}-${{ matrix.sm-version }}
           path: report-${{ matrix.procedure }}-${{ matrix.sm-version }}.json
@@ -68,7 +68,7 @@ jobs:
         run: docker compose -f ${{ env.benchmark_dir }}/docker-compose.yaml down
       - name: Collect artifacts logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: docker-compose-logs-${{ matrix.procedure }}-${{ matrix.sm-version }}
           path: docker-compose.log
@@ -83,7 +83,7 @@ jobs:
         procedure: ["move", "stop"]
     steps:
     - name: Download benchmark reports
-      uses: actions/download-artifact@v4
+      uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
       with:
         path: benchmark
         pattern: benchmark-${{ matrix.procedure }}-*
