@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM python:3.13.11-alpine3.22
+FROM --platform=$BUILDPLATFORM python:3.13.11-alpine3.22@sha256:2fd93799bfc6381d078a8f656a5f45d6092e5d11d16f55889b3d5cbfdc64f045
 
 USER root
 
