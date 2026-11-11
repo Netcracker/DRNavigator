@@ -162,10 +162,30 @@ def test_table_repeated_while_service_is_running(caplog):
     process_ts_services(ts, process_node)
 
     tables = caplog.text.split("Progress: procedure active")[1:]
-    # several repeated tables while running, then one after the service finished
-    assert len(tables) >= 3
-    assert "running 1" in tables[0] and "| running |" in tables[0]
-    assert "done 1" in tables[-1] and "| done  |" in tables[-1]
+    # several repeated tables while running; none after the last service finished (final table covers it)
+    assert len(tables) >= 2
+    assert all("running 1" in table and "| running |" in table for table in tables)
+
+
+def test_no_progress_table_after_last_service(caplog):
+    """When the last service finishes, only the final status table is printed, not the same table twice"""
+    caplog.set_level(logging.INFO)
+    progress = ProgressTracker()
+    progress.start("active", ["serv1", "serv2"])
+
+    progress.service_started("serv1")
+    progress.service_finished("serv1")
+    settings.done_services.append("serv1")
+    progress.print_progress()  # serv2 still queued: printed
+    assert caplog.text.count("Progress: procedure active") == 1
+
+    progress.service_started("serv2")
+    progress.service_finished("serv2")
+    settings.done_services.append("serv2")
+    progress.print_progress()  # all finished: skipped
+    progress.print_table("Final status")
+    assert caplog.text.count("Progress: procedure active") == 1
+    assert caplog.text.count("Final status: procedure active") == 1
 
 
 def test_seconds_until_repeat():

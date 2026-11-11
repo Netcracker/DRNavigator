@@ -1254,7 +1254,7 @@ During DR procedures (`move`, `stop`) and per-site procedures (`active`, `standb
 logs a table with the current state of every processed service:
 
 - once before processing starts (title `Progress at start`);
-- each time a service finishes (title `Progress`);
+- each time a service finishes while other services are still running or queued (title `Progress`);
 - every 60 seconds while no service finishes, so long-running services still show progress (title `Progress`);
 - once at the end, both on success and on failure (title `Final status`), before the `Summary` lines.
 

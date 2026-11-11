@@ -76,7 +76,7 @@ def wait_for_service_result() -> ServiceDRStatus:
         try:
             return thread_result_queue.get(timeout=progress.seconds_until_repeat())
         except Empty:
-            progress.print_table()
+            progress.print_progress()
 
 
 def process_ts_services(ts: TopologicalSorter2, process_func, *run_args) -> None:
@@ -116,7 +116,7 @@ def process_ts_services(ts: TopologicalSorter2, process_func, *run_args) -> None
             service_response.sortout_service_results()
             progress.service_finished(service_response.service,
                                       "" if service_response.service_status else service_response.message)
-            progress.print_table()
+            progress.print_progress()
         else:
             progress.service_finished(service_response.service)
     for thread in serv_thread_pool:

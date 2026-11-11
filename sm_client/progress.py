@@ -115,6 +115,14 @@ class ProgressTracker:
                 lines.append(f"Next update when a service finishes, or in {int(self.repeat_interval)}s at the latest.")
             return "\n".join(lines)
 
+    def print_progress(self):
+        """Log the progress table while some services are still running or queued.
+        Once all of them are finished, the final status table shows the same, so nothing is printed here"""
+        with self._lock:
+            unfinished = any(self.state(service) in (STATE_RUNNING, STATE_QUEUED) for service in self.services)
+        if unfinished:
+            self.print_table()
+
     def print_table(self, title: str = ""):
         """Log the progress table if tracking is enabled"""
         if not self.enabled:
