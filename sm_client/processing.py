@@ -2,13 +2,14 @@
 import copy
 import logging
 import threading
-from queue import Queue
+from queue import Empty, Queue
 import time
 from http import HTTPStatus
 from typing import Tuple, Dict
 
 from sm_client import utils
 from sm_client.data import settings
+from sm_client.progress import tracker as progress
 from sm_client.data.structures import TopologicalSorter2, ServiceDRStatus, SMClusterState
 
 thread_pool: list = []
@@ -68,6 +69,16 @@ def skip_service_due_deps(service: str):
         settings.warned_services.remove(service)
 
 
+def wait_for_service_result() -> ServiceDRStatus:
+    """Wait for the next processed service. While waiting, reprint the progress table
+    every progress.repeat_interval seconds, so long-running services still show progress"""
+    while True:
+        try:
+            return thread_result_queue.get(timeout=progress.seconds_until_repeat())
+        except Empty:
+            progress.print_table()
+
+
 def process_ts_services(ts: TopologicalSorter2, process_func, *run_args) -> None:
     """ Runs services in ts object one-by-one on both sites using process_func method.
     process_func have to put  ServiceDRStatus result in thread_result_queue  queue
@@ -94,7 +105,7 @@ def process_ts_services(ts: TopologicalSorter2, process_func, *run_args) -> None
             thread.name = f"Thread: {serv}"
             serv_thread_pool.append(thread)
             thread.start()
-        service_response = thread_result_queue.get()
+        service_response = wait_for_service_result()
 
         if not service_response.is_ok():  # mark failed and skip successors of serv_done
             for s in ts.successors(service_response.service):
@@ -103,6 +114,11 @@ def process_ts_services(ts: TopologicalSorter2, process_func, *run_args) -> None
         ts.done(service_response.service)
         if service_response.service not in settings.skipped_due_deps_services:
             service_response.sortout_service_results()
+            progress.service_finished(service_response.service,
+                                      "" if service_response.service_status else service_response.message)
+            progress.print_table()
+        else:
+            progress.service_finished(service_response.service)
     for thread in serv_thread_pool:
         thread.join()
 
@@ -142,6 +158,7 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict, is_failover=Fal
     if cmd in settings.site_cmds:
         if service in sm_dict[site]['services']:
             mode = settings.sm_conf.convert_sitecmd_to_dr_mode(cmd)
+            progress.service_started(service)
             data, ok, status_code = sm_process_service(site, service, mode)
             if is_failover and mode == "standby":
                 force = True
@@ -176,6 +193,7 @@ def sm_process_service_with_polling(service, site, cmd, sm_dict, is_failover=Fal
                 logging.warning(f"Skip procedure {cmd} for service {service} on site {site_to_process}")
                 service_response = ServiceDRStatus({'services': {service: {"message": "Service doesn't exist"}}})
             elif sm_dict[site_to_process]['status']:  # to process only available sites
+                progress.service_started(service)
                 data, ok, status_code = sm_process_service(site_to_process, service, mode, 'move' not in cmd)
                 if not ok:
                     logging.error(f"Failed changing status for service {service}, returned status code {status_code}")
