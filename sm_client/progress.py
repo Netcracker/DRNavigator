@@ -63,8 +63,6 @@ class ProgressTracker:
         with self._lock:
             self.started.add(service)
             self.finished.discard(service)
-            if service not in self.services:
-                self.services.append(service)
 
     def service_finished(self, service: str, message: str = ""):
         """Mark that the service finished processing in the current module step"""
@@ -72,8 +70,6 @@ class ProgressTracker:
             self.finished.add(service)
             if message:
                 self.message[service] = message
-            if service not in self.services:
-                self.services.append(service)
 
     def state(self, service: str) -> str:
         """Current state of the service"""
