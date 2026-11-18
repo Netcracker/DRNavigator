@@ -6,7 +6,7 @@ require (
 	github.com/labstack/echo-contrib v0.50.1
 	github.com/labstack/echo/v4 v4.16.0
 	github.com/projectcalico/api v0.0.0-20260629014411-77a2372ddd1c
-	github.com/prometheus/client_golang v1.24.1
+	github.com/prometheus/client_golang v1.25.0
 	github.com/spf13/cobra v1.10.2
 	go.uber.org/zap v1.28.0
 	gopkg.in/yaml.v3 v3.0.1
