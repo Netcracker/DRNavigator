@@ -5,7 +5,7 @@ go 1.27.1
 require (
 	github.com/labstack/echo-contrib v0.50.1
 	github.com/labstack/echo/v4 v4.16.0
-	github.com/projectcalico/api v0.0.0-20260629014411-77a2372ddd1c
+	github.com/projectcalico/api v0.0.0-20261109164636-b7f454a7c9f3
 	github.com/prometheus/client_golang v1.24.1
 	github.com/spf13/cobra v1.10.2
 	go.uber.org/zap v1.28.0

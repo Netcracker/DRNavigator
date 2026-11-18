@@ -99,8 +99,8 @@ github.com/onsi/gomega v1.42.0/go.mod h1:M/Uqpu/8qTjtzCLUA2zJHX9Iilrau25x1PdoSRb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRIccs7FGNTlIRMkT8wgtp5eCXdBlqhYGL6U=
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
-github.com/projectcalico/api v0.0.0-20260629014411-77a2372ddd1c h1:v0TgH+mkU7dLpMhVGXhsgWp+AffrObQ/2uUuHxBLl2w=
-github.com/projectcalico/api v0.0.0-20260629014411-77a2372ddd1c/go.mod h1:9bOqFhw1vG2EffQAWdQgPggvg8gtNImtdxyXWhD9oDY=
+github.com/projectcalico/api v0.0.0-20261109164636-b7f454a7c9f3 h1:i+8vy5UfiAWr1r5R98INVUQl7j2ALsDXn2S2HN8y2ak=
+github.com/projectcalico/api v0.0.0-20261109164636-b7f454a7c9f3/go.mod h1:9bOqFhw1vG2EffQAWdQgPggvg8gtNImtdxyXWhD9oDY=
 github.com/prometheus/client_golang v1.24.1 h1:JnJkREXzWxUdCuPFpIWZiPispT9xVV59uiuyR2bPlnU=
 github.com/prometheus/client_golang v1.24.1/go.mod h1:F+oSRECHg4sse5ucfYpYDeIv/hu68Zo0uoHKetWnzcE=
 github.com/prometheus/client_model v0.6.3 h1:O0jaTVAYNxTHYInEPFJt5I3+sN8zqBtVMPTB1qyxiEo=
