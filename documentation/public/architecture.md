@@ -33,6 +33,7 @@
   - [State Restrictions](#state-restrictions)
   - [Custom Modules Support](#custom-modules-support)
   - [Dry-run support](#dry-run-support)
+  - [Progress table](#progress-table)
 - [Paas-geo-monitor](#paas-geo-monitor)
   - [API](#api)
     - [peers status](#peers-status)
@@ -925,7 +926,7 @@ It reads CRs with type SiteManager in Kubernetes clusters and creates a tree wit
 ./sm-client --help
 usage: sm-client [-h] [-v] [-c CONFIG] [-f] [-k] [-o OUTPUT] [-r]
                  [--run-services RUN_SERVICES] [--skip-services SKIP_SERVICES]
-                 [--dry-run]
+                 [--dry-run] [--no-progress-table]
                  {move,stop,return,disable,active,standby,list,status,version}
                  ...
 
@@ -973,6 +974,7 @@ options:
   --skip-services SKIP_SERVICES
                         define the list of services what will not participate in DR action
   --dry-run             perform a dry run without actually executing the operation
+  --no-progress-table   do not print the per-service progress table during DR or per-site procedures
 ```
 
 Where:
@@ -1245,6 +1247,42 @@ The above example implies the following DR sequences:
 Dry-run mode can be enabled for any procedure in sm-client using `--dry-run` option.
 In that case, sm-client does only read-only requests to site-manager (e.g. to get services statuses) and validate, if
 specified procedure can be executed without running real processing.
+
+### Progress table
+
+During DR procedures (`move`, `stop`) and per-site procedures (`active`, `standby`, `return`, `disable`), sm-client
+logs a table with the current state of every processed service:
+
+- once before processing starts (title `Progress at start`);
+- each time a service finishes while other services are still running or queued (title `Progress`);
+- every 60 seconds while no service finishes, so long-running services still show progress (title `Progress`);
+- once at the end, both on success and on failure (title `Final status`), before the `Summary` lines.
+
+```text
+Progress: procedure move, 2/4 services finished (done 1, failed 1, warned 0, skipped 0, running 1, queued 1)
++----------------------+---------+
+| Service              | State   |
++----------------------+---------+
+| postgres.postgres-ns | done    |
+| mongo.mongo-ns       | failed  |
+| kafka.kafka-ns       | running |
+| app.app-ns           | queued  |
++----------------------+---------+
+mongo.mongo-ns failed: Failed to switch: operator CR status is Failed
+Next update when a service finishes, or in 60s at the latest.
+```
+
+Where `State` is one of `queued`, `running`, `done`, `failed`, `warned` (failed, but the failure doesn't break the
+procedure, e.g. standby part of failover), or `skipped (dependency)` (not processed because a service it depends on
+failed, or a previous module failed). For failed and warned services, the message returned by site-manager is printed
+below the table. While services are running, the last line says when the next table will be printed:
+
+```text
+Next update when a service finishes, or in 60s at the latest.
+```
+
+The table is written to the log, so it is also saved to the file set by `--output`. Use `--no-progress-table` to
+disable it.
 
 ## Paas-geo-monitor
 

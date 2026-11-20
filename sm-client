@@ -12,6 +12,7 @@ from sm_client.data.structures import TopologicalSorter2, SMClusterState, NotVal
 from sm_client.initialization import sm_get_cluster_state, init_and_check_config
 from sm_client.prepare import make_ordered_services_to_process
 from sm_client.processing import run_status_procedure, run_dr_or_site_procedure
+from sm_client.progress import tracker as progress
 from sm_client.validation import validate_operation
 
 MAIN_HELP_SECTION = """
@@ -154,7 +155,10 @@ def run(services: list = None, cmd="", site=""):
               "---------------------------------------------------------------------")
     elif cmd in settings.site_cmds + settings.dr_procedures:  # per site command or DR procedure
         print_service_operation_summary("top", sm_dict, service_dep_ordered, cmd, site)
+        progress.start(cmd, service_dep_ordered, settings.progress_table)
+        progress.print_table("Progress at start")
         run_dr_or_site_procedure(sm_dict, cmd, site)
+        progress.print_table("Final status")
         print_service_operation_summary("tail",sm_dict, service_dep_ordered, cmd, site)
     else:
         logging.error(f"Unknown combination of {cmd} {site} options")
@@ -258,6 +262,8 @@ def parse_command_line(command_args) -> argparse.Namespace:
     parser.add_argument('--skip-services',  default='', help='define the list of services what will not participate in DR action')
     parser.add_argument('--dry-run', default=False, action='store_true',
                         help='perform a dry run without actually executing the operation')
+    parser.add_argument('--no-progress-table', default=False, action='store_true',
+                        help='do not print the per-service progress table during DR or per-site procedures')
 
     subparsers = parser.add_subparsers()
     subparsers.required=True
@@ -305,6 +311,7 @@ def main(command_args=None):
     global args
     args = parse_command_line(command_args)
     settings.dry_run = args.dry_run
+    settings.progress_table = not args.no_progress_table
 
     # get version command
     if args.command in "version":

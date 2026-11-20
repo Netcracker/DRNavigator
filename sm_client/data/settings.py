@@ -28,3 +28,4 @@ run_services: list = []
 skip_services: list = []
 force = False
 dry_run = False
+progress_table = True
