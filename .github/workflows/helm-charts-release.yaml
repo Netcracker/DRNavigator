@@ -29,7 +29,7 @@ jobs:
     steps:
       - name: Check if tag exists
         id: check_tag
-        uses: netcracker/qubership-workflow-hub/actions/tag-action@8d542a426ce561c7dce745f6b9cee068d1d7e101 # v2.0.10
+        uses: netcracker/qubership-workflow-hub/actions/tag-action@cf536587a99a23b3614aa4db4bdbf13cf36059b6 # v2.8.3
         with:
           tag-name: '${{ inputs.release }}'
           ref: ${{ github.ref }}
@@ -90,7 +90,7 @@ jobs:
         run: |
           echo "IMAGE=${{ matrix.component.name }}" >> $GITHUB_ENV
       - name: Docker build
-        uses: netcracker/qubership-workflow-hub/actions/docker-action@8d542a426ce561c7dce745f6b9cee068d1d7e101 # v2.0.10
+        uses: netcracker/qubership-workflow-hub/actions/docker-action@cf536587a99a23b3614aa4db4bdbf13cf36059b6 # v2.8.3
         with:
           ref: ${{ github.ref }}
           download-artifact: false
@@ -173,7 +173,7 @@ jobs:
           echo "IMAGE_VERSION=${IMAGE_VER}" >> $GITHUB_ENV
 
       - name: Docker build
-        uses: netcracker/qubership-workflow-hub/actions/docker-action@8d542a426ce561c7dce745f6b9cee068d1d7e101 # v2.0.10
+        uses: netcracker/qubership-workflow-hub/actions/docker-action@cf536587a99a23b3614aa4db4bdbf13cf36059b6 # v2.8.3
         with:
           ref: release-${{ inputs.release }}
           download-artifact: false
@@ -202,7 +202,7 @@ jobs:
           persist-credentials: true
 
       - name: "Release-drafter"
-        uses: netcracker/release-drafter@86f4276a3894b5af70480e826c32fe3648ac6a70  # v1.0.0
+        uses: netcracker/release-drafter@130c08399304912ffe90e9604e4328f2fdcd7619  # v1.0.1
         with:
           config-name: release-drafter-config.yml
           publish: true
@@ -218,7 +218,7 @@ jobs:
         with:
           artifact-ids: ${{ needs.chart-release.outputs.charts-artifact }}
       - name: "Upload Assets"
-        uses: netcracker/qubership-workflow-hub/actions/assets-action@8d542a426ce561c7dce745f6b9cee068d1d7e101 # v2.0.10
+        uses: netcracker/qubership-workflow-hub/actions/assets-action@cf536587a99a23b3614aa4db4bdbf13cf36059b6 # v2.8.3
         with:
           tag: ${{ inputs.release }}
           item-path: "./*.tgz"
