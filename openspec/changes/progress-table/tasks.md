@@ -16,7 +16,3 @@
 
 - [x] 3.1 Run the local CI (`--python`: lint and unit tests) and GitHub checks (lint, unit, integration, cloud tests) and verify all pass
 - [x] 3.2 Run all dr-operations pipelines (switchover and failover both ways, passivate, activate, a failure run) with the branch image on a two-site OpenShift environment and verify the tables match the spec
-
-## Workflow follow-up
-
-- Archive the change in the PR after verification, so the spec lands in `openspec/specs/dr-procedure-progress/`.
